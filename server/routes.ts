@@ -48,6 +48,38 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.patch("/api/subtasks/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { completed } = req.body;
+    if (completed === undefined) {
+      return res.status(400).json({ message: "Completed status is required" });
+    }
+
+    try {
+      await storage.updateSubtaskStatus(parseInt(req.params.id), completed);
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(404).json({ message: "Subtask not found" });
+    }
+  });
+
+  app.patch("/api/steps/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { completed } = req.body;
+    if (completed === undefined) {
+      return res.status(400).json({ message: "Completed status is required" });
+    }
+
+    try {
+      await storage.updateTaskStepStatus(parseInt(req.params.id), completed);
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(404).json({ message: "Step not found" });
+    }
+  });
+
   app.delete("/api/tasks/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 

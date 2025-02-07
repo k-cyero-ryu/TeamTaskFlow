@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Task } from "@shared/schema";
+import { Task, Subtask, TaskStep } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,14 +9,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MoreVertical, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-export default function TaskCard({ task }: { task: Task }) {
+interface ExtendedTask extends Task {
+  subtasks?: Subtask[];
+  steps?: TaskStep[];
+  participants?: { username: string; id: number }[];
+}
+
+export default function TaskCard({ task }: { task: ExtendedTask }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -33,6 +40,30 @@ export default function TaskCard({ task }: { task: Task }) {
         title: "Task updated",
         description: "The task status has been updated successfully.",
       });
+    },
+  });
+
+  const updateSubtaskMutation = useMutation({
+    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
+        completed,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+  });
+
+  const updateStepMutation = useMutation({
+    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
+        completed,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -103,12 +134,85 @@ export default function TaskCard({ task }: { task: Task }) {
         {task.description && (
           <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
         )}
+
+        {/* Participants */}
+        {task.participants && task.participants.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium mb-2">Participants</h4>
+            <div className="flex flex-wrap gap-2">
+              {task.participants.map((participant) => (
+                <Badge key={participant.id} variant="outline">
+                  {participant.username}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Subtasks */}
+        {task.subtasks && task.subtasks.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium mb-2">Subtasks</h4>
+            <div className="space-y-2">
+              {task.subtasks.map((subtask) => (
+                <div key={subtask.id} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={subtask.completed}
+                    onCheckedChange={(checked) =>
+                      updateSubtaskMutation.mutate({
+                        id: subtask.id,
+                        completed: checked as boolean,
+                      })
+                    }
+                  />
+                  <span className={subtask.completed ? "line-through" : ""}>
+                    {subtask.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Steps */}
+        {task.steps && task.steps.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium mb-2">Steps</h4>
+            <div className="space-y-2">
+              {task.steps
+                .sort((a, b) => a.order - b.order)
+                .map((step) => (
+                  <div key={step.id} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={step.completed}
+                        onCheckedChange={(checked) =>
+                          updateStepMutation.mutate({
+                            id: step.id,
+                            completed: checked as boolean,
+                          })
+                        }
+                      />
+                      <span className={step.completed ? "line-through" : ""}>
+                        {step.title}
+                      </span>
+                    </div>
+                    {step.description && (
+                      <p className="text-sm text-muted-foreground ml-6">
+                        {step.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between">
         <div className="flex items-center space-x-4">
           <Avatar className="h-8 w-8">
             <AvatarFallback>
-              {task.assigneeId ? "A" : "U"}
+              {task.responsibleId ? "R" : "C"}
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1">
