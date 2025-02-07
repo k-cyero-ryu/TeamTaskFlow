@@ -81,12 +81,7 @@ export default function CreateTaskDialog() {
   });
 
   function onSubmit(data: InsertTask) {
-    // Ensure we're sending a proper Date object
-    const formattedData = {
-      ...data,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-    };
-    createTaskMutation.mutate(formattedData);
+    createTaskMutation.mutate(data);
   }
 
   return (
@@ -170,7 +165,7 @@ export default function CreateTaskDialog() {
                             }
                           >
                             {field.value ? (
-                              format(field.value, "PPP")
+                              format(new Date(field.value), "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}

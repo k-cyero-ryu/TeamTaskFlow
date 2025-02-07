@@ -106,17 +106,20 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
   order: true,
 });
 
+// Update the insertTaskSchema to properly handle dates
 export const insertTaskSchema = createInsertSchema(tasks).pick({
   title: true,
   description: true,
   responsibleId: true,
   priority: true,
-  dueDate: true,
 }).extend({
   participantIds: z.array(z.number()).optional(),
   subtasks: z.array(insertSubtaskSchema).optional(),
   steps: z.array(insertTaskStepSchema).optional(),
-  dueDate: z.date().nullable(),
+  dueDate: z.preprocess((arg) => {
+    if (typeof arg === 'string' || arg instanceof Date) return new Date(arg);
+    return null;
+  }, z.date().nullable()),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
