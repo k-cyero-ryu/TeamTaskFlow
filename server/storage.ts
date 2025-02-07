@@ -1,7 +1,7 @@
-import { Task, InsertTask, User, InsertUser } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { tasks, users, taskParticipants } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -19,6 +19,11 @@ export interface IStorage {
   createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
   updateTaskStatus(id: number, status: string): Promise<Task>;
   deleteTask(id: number): Promise<void>;
+
+  getSubtasks(taskId: number): Promise<Subtask[]>;
+  getTaskSteps(taskId: number): Promise<TaskStep[]>;
+  updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
+  updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
 
   sessionStore: session.Store;
 }
@@ -62,19 +67,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task> {
+    const { subtasks: subtaskList, steps, participantIds, ...taskData } = task;
+
+    // Create the task
     const [newTask] = await db
       .insert(tasks)
       .values({
-        ...task,
+        ...taskData,
         status: "todo",
       })
       .returning();
 
-    if (task.participantIds?.length) {
+    // Add participants if any
+    if (participantIds?.length) {
       await db.insert(taskParticipants).values(
-        task.participantIds.map(userId => ({
+        participantIds.map(userId => ({
           taskId: newTask.id,
           userId,
+        }))
+      );
+    }
+
+    // Add subtasks if any
+    if (subtaskList?.length) {
+      await db.insert(subtasks).values(
+        subtaskList.map(subtask => ({
+          ...subtask,
+          taskId: newTask.id,
+        }))
+      );
+    }
+
+    // Add steps if any
+    if (steps?.length) {
+      await db.insert(taskSteps).values(
+        steps.map(step => ({
+          ...step,
+          taskId: newTask.id,
         }))
       );
     }
@@ -98,7 +127,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTask(id: number): Promise<void> {
     await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
+    await db.delete(subtasks).where(eq(subtasks.taskId, id));
+    await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
     await db.delete(tasks).where(eq(tasks.id, id));
+  }
+
+  async getSubtasks(taskId: number): Promise<Subtask[]> {
+    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+  }
+
+  async getTaskSteps(taskId: number): Promise<TaskStep[]> {
+    return await db.select().from(taskSteps).where(eq(taskSteps.taskId, taskId));
+  }
+
+  async updateSubtaskStatus(id: number, completed: boolean): Promise<void> {
+    await db.update(subtasks).set({ completed }).where(eq(subtasks.id, id));
+  }
+
+  async updateTaskStepStatus(id: number, completed: boolean): Promise<void> {
+    await db.update(taskSteps).set({ completed }).where(eq(taskSteps.id, id));
   }
 }
 
