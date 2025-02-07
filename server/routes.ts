@@ -7,6 +7,12 @@ import { insertTaskSchema } from "@shared/schema";
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  app.get("/api/users", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const users = await storage.getUsers();
+    res.json(users);
+  });
+
   app.get("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const tasks = await storage.getTasks();
@@ -15,7 +21,7 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     const result = insertTaskSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json(result.error);
@@ -30,7 +36,7 @@ export function registerRoutes(app: Express): Server {
 
   app.patch("/api/tasks/:id/status", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     const { status } = req.body;
     if (!status) return res.status(400).json({ message: "Status is required" });
 
@@ -44,7 +50,7 @@ export function registerRoutes(app: Express): Server {
 
   app.delete("/api/tasks/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     try {
       await storage.deleteTask(parseInt(req.params.id));
       res.sendStatus(204);
