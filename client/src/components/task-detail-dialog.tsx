@@ -51,24 +51,54 @@ export default function TaskDetailDialog({
         completed,
       });
       const data = await res.json();
-      return data;
+      return { id, completed, data };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: "Subtask updated",
-        description: "The subtask status has been updated successfully.",
+    onMutate: async ({ id, completed }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+
+      // Snapshot the previous value
+      const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
+        if (!old) return [];
+        return old.map((t) => {
+          if (t.id === task.id) {
+            return {
+              ...t,
+              subtasks: t.subtasks?.map((s) =>
+                s.id === id ? { ...s, completed } : s
+              ),
+            };
+          }
+          return t;
+        });
       });
+
+      // Return a context object with the snapshotted value
+      return { previousTasks };
     },
-    onError: (error: Error) => {
+    onError: (err, variables, context) => {
+      // Roll back to the previous value if there's an error
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
       toast({
         title: "Error updating subtask",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
+      });
+    },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Subtask updated",
+        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
       });
     },
     onSettled: () => {
       setUpdatingSubtaskId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -79,24 +109,48 @@ export default function TaskDetailDialog({
         completed,
       });
       const data = await res.json();
-      return data;
+      return { id, completed, data };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: "Step updated",
-        description: "The step status has been updated successfully.",
+    onMutate: async ({ id, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
+
+      queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
+        if (!old) return [];
+        return old.map((t) => {
+          if (t.id === task.id) {
+            return {
+              ...t,
+              steps: t.steps?.map((s) =>
+                s.id === id ? { ...s, completed } : s
+              ),
+            };
+          }
+          return t;
+        });
       });
+
+      return { previousTasks };
     },
-    onError: (error: Error) => {
+    onError: (err, variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
       toast({
         title: "Error updating step",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
+      });
+    },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Step updated",
+        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
       });
     },
     onSettled: () => {
       setUpdatingStepId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
