@@ -79,7 +79,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       await storage.updateSubtaskStatus(parseInt(req.params.id), completed);
-      res.sendStatus(200);
+      res.json({ success: true });
     } catch (error) {
       res.status(404).json({ message: "Subtask not found" });
     }
@@ -95,7 +95,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       await storage.updateTaskStepStatus(parseInt(req.params.id), completed);
-      res.sendStatus(200);
+      res.json({ success: true });
     } catch (error) {
       res.status(404).json({ message: "Step not found" });
     }

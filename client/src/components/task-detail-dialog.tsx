@@ -50,7 +50,8 @@ export default function TaskDetailDialog({
       const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
         completed,
       });
-      return res.json();
+      const data = await res.json();
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -59,7 +60,7 @@ export default function TaskDetailDialog({
         description: "The subtask status has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error updating subtask",
         description: error.message,
@@ -77,7 +78,8 @@ export default function TaskDetailDialog({
       const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
         completed,
       });
-      return res.json();
+      const data = await res.json();
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -86,7 +88,7 @@ export default function TaskDetailDialog({
         description: "The step status has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error updating step",
         description: error.message,
@@ -201,8 +203,8 @@ export default function TaskDetailDialog({
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {task.subtasks.map((subtask) => (
-                    <div 
-                      key={subtask.id} 
+                    <div
+                      key={subtask.id}
                       className="flex items-center gap-2"
                     >
                       <div className="relative">
