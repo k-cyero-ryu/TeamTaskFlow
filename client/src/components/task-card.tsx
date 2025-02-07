@@ -9,13 +9,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Trash2, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import TaskDetailDialog from "./task-detail-dialog";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
@@ -24,6 +25,7 @@ interface ExtendedTask extends Task {
 }
 
 export default function TaskCard({ task }: { task: ExtendedTask }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -40,30 +42,6 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
         title: "Task updated",
         description: "The task status has been updated successfully.",
       });
-    },
-  });
-
-  const updateSubtaskMutation = useMutation({
-    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
-        completed,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-    },
-  });
-
-  const updateStepMutation = useMutation({
-    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
-        completed,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -86,142 +64,132 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
     done: "bg-green-500",
   };
 
+  // Calculate completion metrics
+  const totalSubtasks = task.subtasks?.length || 0;
+  const completedSubtasks = task.subtasks?.filter((s) => s.completed).length || 0;
+  const totalSteps = task.steps?.length || 0;
+  const completedSteps = task.steps?.filter((s) => s.completed).length || 0;
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <Badge
-          variant="secondary"
-          className={`${statusColors[task.status as keyof typeof statusColors]}`}
-        >
-          {task.status}
-        </Badge>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => updateStatusMutation.mutate("todo")}
-              disabled={task.status === "todo"}
-            >
-              Mark as Todo
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => updateStatusMutation.mutate("in-progress")}
-              disabled={task.status === "in-progress"}
-            >
-              Mark as In Progress
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => updateStatusMutation.mutate("done")}
-              disabled={task.status === "done"}
-            >
-              Mark as Done
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={() => deleteTaskMutation.mutate()}
-            >
-              <Trash2 className="h-4 w-4 mr-2" /> Delete Task
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardHeader>
-      <CardContent>
-        <h3 className="font-semibold">{task.title}</h3>
-        {task.description && (
-          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-        )}
+    <>
+      <Card className="hover:bg-secondary/50 cursor-pointer transition-colors" onClick={() => setDetailOpen(true)}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Badge
+            variant="secondary"
+            className={`${statusColors[task.status as keyof typeof statusColors]}`}
+          >
+            {task.status}
+          </Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateStatusMutation.mutate("todo");
+                }}
+                disabled={task.status === "todo"}
+              >
+                Mark as Todo
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateStatusMutation.mutate("in-progress");
+                }}
+                disabled={task.status === "in-progress"}
+              >
+                Mark as In Progress
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateStatusMutation.mutate("done");
+                }}
+                disabled={task.status === "done"}
+              >
+                Mark as Done
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTaskMutation.mutate();
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Task
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between items-start">
+            <div className="space-y-1">
+              <h3 className="font-semibold">{task.title}</h3>
+              {task.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {task.description}
+                </p>
+              )}
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </div>
 
-        {/* Participants */}
-        {task.participants && task.participants.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-medium mb-2">Participants</h4>
-            <div className="flex flex-wrap gap-2">
-              {task.participants.map((participant) => (
-                <Badge key={participant.id} variant="outline">
-                  {participant.username}
-                </Badge>
-              ))}
+          {/* Quick Stats */}
+          <div className="mt-4 space-y-2">
+            {totalSubtasks > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Subtasks: {completedSubtasks}/{totalSubtasks} completed
+              </p>
+            )}
+            {totalSteps > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Steps: {completedSteps}/{totalSteps} completed
+              </p>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>
+                {task.responsibleId ? "R" : "C"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-1">
+              <p className="text-sm">
+                Due {task.dueDate ? format(new Date(task.dueDate), "MMM d") : "No date"}
+              </p>
             </div>
           </div>
-        )}
-
-        {/* Subtasks */}
-        {task.subtasks && task.subtasks.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-medium mb-2">Subtasks</h4>
-            <div className="space-y-2">
-              {task.subtasks.map((subtask) => (
-                <div key={subtask.id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={subtask.completed}
-                    onCheckedChange={(checked) =>
-                      updateSubtaskMutation.mutate({
-                        id: subtask.id,
-                        completed: checked as boolean,
-                      })
-                    }
-                  />
-                  <span className={subtask.completed ? "line-through" : ""}>
-                    {subtask.title}
-                  </span>
+          {task.participants && task.participants.length > 0 && (
+            <div className="flex -space-x-2">
+              {task.participants.slice(0, 3).map((participant) => (
+                <Avatar key={participant.id} className="h-8 w-8 border-2 border-background">
+                  <AvatarFallback>
+                    {participant.username[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {task.participants.length > 3 && (
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-muted text-xs">
+                  +{task.participants.length - 3}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </CardFooter>
+      </Card>
 
-        {/* Steps */}
-        {task.steps && task.steps.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-medium mb-2">Steps</h4>
-            <div className="space-y-2">
-              {task.steps
-                .sort((a, b) => a.order - b.order)
-                .map((step) => (
-                  <div key={step.id} className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={step.completed}
-                        onCheckedChange={(checked) =>
-                          updateStepMutation.mutate({
-                            id: step.id,
-                            completed: checked as boolean,
-                          })
-                        }
-                      />
-                      <span className={step.completed ? "line-through" : ""}>
-                        {step.title}
-                      </span>
-                    </div>
-                    {step.description && (
-                      <p className="text-sm text-muted-foreground ml-6">
-                        {step.description}
-                      </p>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <div className="flex items-center space-x-4">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>
-              {task.responsibleId ? "R" : "C"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-1">
-            <p className="text-sm">
-              Created {format(new Date(task.createdAt), "MMM d, yyyy")}
-            </p>
-          </div>
-        </div>
-      </CardFooter>
-    </Card>
+      <TaskDetailDialog
+        task={task}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
+    </>
   );
 }
