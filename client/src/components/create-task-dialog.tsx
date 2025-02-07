@@ -81,7 +81,12 @@ export default function CreateTaskDialog() {
   });
 
   function onSubmit(data: InsertTask) {
-    createTaskMutation.mutate(data);
+    // Ensure we're sending a proper Date object
+    const formattedData = {
+      ...data,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+    };
+    createTaskMutation.mutate(formattedData);
   }
 
   return (
@@ -176,11 +181,9 @@ export default function CreateTaskDialog() {
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value}
+                          selected={field.value ? new Date(field.value) : undefined}
                           onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date()
-                          }
+                          disabled={(date) => date < new Date()}
                           initialFocus
                         />
                       </PopoverContent>

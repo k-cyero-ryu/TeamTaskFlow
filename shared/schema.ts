@@ -116,6 +116,7 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   participantIds: z.array(z.number()).optional(),
   subtasks: z.array(insertSubtaskSchema).optional(),
   steps: z.array(insertTaskStepSchema).optional(),
+  dueDate: z.date().nullable(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
