@@ -20,12 +20,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useState } from "react";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
   steps?: TaskStep[];
   participants?: { username: string; id: number }[];
-  responsible?: { username: string; id: number }; // Added responsible type
+  responsible?: { username: string; id: number };
 }
 
 interface TaskDetailDialogProps {
@@ -40,9 +41,12 @@ export default function TaskDetailDialog({
   onOpenChange,
 }: TaskDetailDialogProps) {
   const { toast } = useToast();
+  const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
+  const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
 
   const updateSubtaskMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
+      setUpdatingSubtaskId(id);
       const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
         completed,
       });
@@ -50,11 +54,26 @@ export default function TaskDetailDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Subtask updated",
+        description: "The subtask status has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating subtask",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setUpdatingSubtaskId(null);
     },
   });
 
   const updateStepMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
+      setUpdatingStepId(id);
       const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
         completed,
       });
@@ -62,6 +81,20 @@ export default function TaskDetailDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Step updated",
+        description: "The step status has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating step",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setUpdatingStepId(null);
     },
   });
 
@@ -89,7 +122,6 @@ export default function TaskDetailDialog({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Task Description */}
           {task.description && (
             <div>
               <h3 className="text-lg font-semibold mb-2">Description</h3>
@@ -169,20 +201,35 @@ export default function TaskDetailDialog({
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {task.subtasks.map((subtask) => (
-                    <div key={subtask.id} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={subtask.completed}
-                        onCheckedChange={(checked) =>
-                          updateSubtaskMutation.mutate({
-                            id: subtask.id,
-                            completed: checked as boolean,
-                          })
-                        }
-                      />
+                    <div 
+                      key={subtask.id} 
+                      className="flex items-center gap-2"
+                    >
+                      <div className="relative">
+                        <Checkbox
+                          checked={subtask.completed}
+                          disabled={updatingSubtaskId === subtask.id}
+                          onCheckedChange={(checked) =>
+                            updateSubtaskMutation.mutate({
+                              id: subtask.id,
+                              completed: checked as boolean,
+                            })
+                          }
+                          className="transition-opacity duration-200"
+                          style={{
+                            opacity: updatingSubtaskId === subtask.id ? 0.5 : 1,
+                          }}
+                        />
+                        {updatingSubtaskId === subtask.id && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                          </div>
+                        )}
+                      </div>
                       <span
                         className={`${
                           subtask.completed ? "line-through text-muted-foreground" : ""
-                        }`}
+                        } transition-all duration-200`}
                       >
                         {subtask.title}
                       </span>
@@ -204,19 +251,31 @@ export default function TaskDetailDialog({
                     .map((step) => (
                       <div key={step.id} className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={step.completed}
-                            onCheckedChange={(checked) =>
-                              updateStepMutation.mutate({
-                                id: step.id,
-                                completed: checked as boolean,
-                              })
-                            }
-                          />
+                          <div className="relative">
+                            <Checkbox
+                              checked={step.completed}
+                              disabled={updatingStepId === step.id}
+                              onCheckedChange={(checked) =>
+                                updateStepMutation.mutate({
+                                  id: step.id,
+                                  completed: checked as boolean,
+                                })
+                              }
+                              className="transition-opacity duration-200"
+                              style={{
+                                opacity: updatingStepId === step.id ? 0.5 : 1,
+                              }}
+                            />
+                            {updatingStepId === step.id && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                              </div>
+                            )}
+                          </div>
                           <span
                             className={`font-medium ${
                               step.completed ? "line-through text-muted-foreground" : ""
-                            }`}
+                            } transition-all duration-200`}
                           >
                             {step.title}
                           </span>
