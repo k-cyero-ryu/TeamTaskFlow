@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, Subtask, TaskStep } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -9,39 +10,46 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Trash2, ChevronRight } from "lucide-react";
+import { MoreVertical, Trash2, ChevronRight, CheckCircle, Clock, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
 import TaskDetailDialog from "./task-detail-dialog";
+import { cn } from "@/lib/utils";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
   steps?: TaskStep[];
   participants?: { username: string; id: number }[];
+  responsible?: { username: string; id: number };
 }
 
 export default function TaskCard({ task }: { task: ExtendedTask }) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
+      setIsTransitioning(true);
       const res = await apiRequest("PATCH", `/api/tasks/${task.id}/status`, {
         status,
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, status) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Task updated",
-        description: "The task status has been updated successfully.",
+        description: `Task status changed to ${status}`,
+        icon: status === "done" ? CheckCircle : status === "in-progress" ? Clock : Circle,
       });
+    },
+    onSettled: () => {
+      setIsTransitioning(false);
     },
   });
 
@@ -58,11 +66,22 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
     },
   });
 
-  const statusColors = {
-    todo: "bg-slate-500",
-    "in-progress": "bg-blue-500",
-    done: "bg-green-500",
+  const statusConfig = {
+    todo: {
+      color: "bg-slate-500",
+      icon: Circle,
+    },
+    "in-progress": {
+      color: "bg-blue-500",
+      icon: Clock,
+    },
+    done: {
+      color: "bg-green-500",
+      icon: CheckCircle,
+    },
   };
+
+  const StatusIcon = statusConfig[task.status as keyof typeof statusConfig].icon;
 
   // Calculate completion metrics
   const totalSubtasks = task.subtasks?.length || 0;
@@ -72,12 +91,22 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
 
   return (
     <>
-      <Card className="hover:bg-secondary/50 cursor-pointer transition-colors" onClick={() => setDetailOpen(true)}>
+      <Card 
+        className={cn(
+          "hover:bg-secondary/50 cursor-pointer transition-all duration-300",
+          isTransitioning && "scale-[0.98] opacity-80"
+        )}
+        onClick={() => setDetailOpen(true)}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <Badge
             variant="secondary"
-            className={`${statusColors[task.status as keyof typeof statusColors]}`}
+            className={cn(
+              "transition-colors duration-300 flex items-center gap-1",
+              statusConfig[task.status as keyof typeof statusConfig].color
+            )}
           >
+            <StatusIcon className="h-3 w-3" />
             {task.status}
           </Badge>
           <DropdownMenu>
@@ -92,40 +121,45 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
                   e.stopPropagation();
                   updateStatusMutation.mutate("todo");
                 }}
-                disabled={task.status === "todo"}
+                disabled={task.status === "todo" || isTransitioning}
+                className="gap-2"
               >
-                Mark as Todo
+                <Circle className="h-4 w-4" /> Mark as Todo
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   updateStatusMutation.mutate("in-progress");
                 }}
-                disabled={task.status === "in-progress"}
+                disabled={task.status === "in-progress" || isTransitioning}
+                className="gap-2"
               >
-                Mark as In Progress
+                <Clock className="h-4 w-4" /> Mark as In Progress
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   updateStatusMutation.mutate("done");
                 }}
-                disabled={task.status === "done"}
+                disabled={task.status === "done" || isTransitioning}
+                className="gap-2"
               >
-                Mark as Done
+                <CheckCircle className="h-4 w-4" /> Mark as Done
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-destructive"
+                className="text-destructive gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteTaskMutation.mutate();
                 }}
+                disabled={isTransitioning}
               >
-                <Trash2 className="h-4 w-4 mr-2" /> Delete Task
+                <Trash2 className="h-4 w-4" /> Delete Task
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
+
         <CardContent>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -139,7 +173,6 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </div>
 
-          {/* Quick Stats */}
           <div className="mt-4 space-y-2">
             {totalSubtasks > 0 && (
               <p className="text-sm text-muted-foreground">
