@@ -20,10 +20,11 @@ export function registerRoutes(app: Express): Server {
     // Fetch related data for each task
     const tasksWithDetails = await Promise.all(
       tasks.map(async (task) => {
-        const [subtasks, steps, participants] = await Promise.all([
+        const [subtasks, steps, participants, responsible] = await Promise.all([
           storage.getSubtasks(task.id),
           storage.getTaskSteps(task.id),
           storage.getTaskParticipants(task.id),
+          task.responsibleId ? storage.getUser(task.responsibleId) : null,
         ]);
 
         return {
@@ -31,6 +32,7 @@ export function registerRoutes(app: Express): Server {
           subtasks,
           steps,
           participants,
+          responsible,
         };
       })
     );

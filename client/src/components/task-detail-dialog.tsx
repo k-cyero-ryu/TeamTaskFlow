@@ -25,6 +25,7 @@ interface ExtendedTask extends Task {
   subtasks?: Subtask[];
   steps?: TaskStep[];
   participants?: { username: string; id: number }[];
+  responsible?: { username: string; id: number }; // Added responsible type
 }
 
 interface TaskDetailDialogProps {
@@ -112,6 +113,21 @@ export default function TaskDetailDialog({
                 <p className="text-muted-foreground">
                   {format(new Date(task.dueDate), "PPP")}
                 </p>
+              </div>
+            )}
+            {task.responsibleId && (
+              <div>
+                <h3 className="text-sm font-medium mb-2">Responsible Person</h3>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback>
+                      {task.responsible?.username?.[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-muted-foreground">
+                    {task.responsible?.username}
+                  </span>
+                </div>
               </div>
             )}
           </div>
