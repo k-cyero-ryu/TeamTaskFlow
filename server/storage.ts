@@ -22,6 +22,7 @@ export interface IStorage {
 
   getSubtasks(taskId: number): Promise<Subtask[]>;
   getTaskSteps(taskId: number): Promise<TaskStep[]>;
+  getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]>;
   updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
   updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
 
@@ -138,6 +139,19 @@ export class DatabaseStorage implements IStorage {
 
   async getTaskSteps(taskId: number): Promise<TaskStep[]> {
     return await db.select().from(taskSteps).where(eq(taskSteps.taskId, taskId));
+  }
+
+  async getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]> {
+    const participants = await db
+      .select({
+        username: users.username,
+        id: users.id,
+      })
+      .from(taskParticipants)
+      .innerJoin(users, eq(taskParticipants.userId, users.id))
+      .where(eq(taskParticipants.taskId, taskId));
+
+    return participants;
   }
 
   async updateSubtaskStatus(id: number, completed: boolean): Promise<void> {

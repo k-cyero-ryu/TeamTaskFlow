@@ -16,7 +16,26 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const tasks = await storage.getTasks();
-    res.json(tasks);
+
+    // Fetch related data for each task
+    const tasksWithDetails = await Promise.all(
+      tasks.map(async (task) => {
+        const [subtasks, steps, participants] = await Promise.all([
+          storage.getSubtasks(task.id),
+          storage.getTaskSteps(task.id),
+          storage.getTaskParticipants(task.id),
+        ]);
+
+        return {
+          ...task,
+          subtasks,
+          steps,
+          participants,
+        };
+      })
+    );
+
+    res.json(tasksWithDetails);
   });
 
   app.post("/api/tasks", async (req, res) => {
