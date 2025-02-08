@@ -37,12 +37,10 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const otherUserId = parseInt(params.id);
   let reconnectAttempts = 0;
 
-  // Update the WebSocket connection logic
   useEffect(() => {
     const connectWebSocket = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-      // Get the current window location
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsHost = window.location.host;
       const wsUrl = `${wsProtocol}//${wsHost}/ws`;
@@ -69,25 +67,48 @@ export default function ChatConversation({ params }: { params: { id: string } })
           try {
             const data = JSON.parse(event.data);
             console.log('Received WebSocket message:', data);
-            if (data.type === "private_message") {
-              const messageData = data.data;
-              queryClient.setQueryData<Message[]>(
-                [`/api/messages/${otherUserId}`],
-                (old) => {
-                  if (!old) return [messageData];
-                  if (old.some(m => m.id === messageData.id)) return old;
-                  return [...old, messageData];
+
+            switch (data.type) {
+              case "connection_status":
+                console.log("Connection status:", data.status);
+                if (data.status === "connected" && user?.id) {
+                  ws.send(JSON.stringify({
+                    type: 'identify',
+                    userId: user.id
+                  }));
                 }
-              );
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                break;
+              case "identification_status":
+                console.log("Identification status:", data.status);
+                break;
+              case "private_message":
+                const messageData = data.data;
+                queryClient.setQueryData<Message[]>(
+                  [`/api/messages/${otherUserId}`],
+                  (old) => {
+                    if (!old) return [messageData];
+                    if (old.some(m => m.id === messageData.id)) return old;
+                    return [...old, messageData];
+                  }
+                );
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                break;
+              case "error":
+                console.error("WebSocket error from server:", data.message);
+                toast({
+                  title: "WebSocket Error",
+                  description: data.message,
+                  variant: "destructive",
+                });
+                break;
             }
           } catch (error) {
             console.error('Error processing WebSocket message:', error);
           }
         };
 
-        ws.onclose = () => {
-          console.log('WebSocket connection closed');
+        ws.onclose = (event) => {
+          console.log('WebSocket connection closed:', event.code, event.reason);
           setIsConnected(false);
           wsRef.current = null;
 
@@ -95,7 +116,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
             clearTimeout(reconnectTimeoutRef.current);
           }
 
-          // Only attempt reconnect if we're still on the chat page and authenticated
           if (user?.id) {
             const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
             console.log(`Attempting reconnect in ${backoffDelay}ms`);
@@ -107,6 +127,11 @@ export default function ChatConversation({ params }: { params: { id: string } })
         ws.onerror = (error) => {
           console.error('WebSocket connection error:', error);
           setIsConnected(false);
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to chat server. Retrying...",
+            variant: "destructive",
+          });
         };
       } catch (error) {
         console.error('Error creating WebSocket connection:', error);
@@ -114,7 +139,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
       }
     };
 
-    // Only attempt connection if we have a user and otherUserId
     if (user?.id && otherUserId) {
       console.log('Initiating WebSocket connection...');
       connectWebSocket();
@@ -130,9 +154,8 @@ export default function ChatConversation({ params }: { params: { id: string } })
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [user?.id, otherUserId, queryClient]);
+  }, [user?.id, otherUserId, queryClient, toast]);
 
-  // Get messages and user data
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
@@ -144,7 +167,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
     enabled: !isNaN(otherUserId),
   });
 
-  // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (messageContent: string) => {
       const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
@@ -178,13 +200,11 @@ export default function ChatConversation({ params }: { params: { id: string } })
     },
   });
 
-  // Handle navigation
   if (isNaN(otherUserId) || !otherUser) {
     setLocation("/chat");
     return null;
   }
 
-  // Loading state
   if (isLoadingMessages) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -200,7 +220,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
       <div className="border-b p-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-4">
@@ -228,7 +247,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="container mx-auto space-y-4">
           {messages.map((message, index) => {
@@ -277,7 +295,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
         </div>
       </div>
 
-      {/* Input */}
       <div className="border-t p-4">
         <div className="container mx-auto">
           <div className="flex gap-2">

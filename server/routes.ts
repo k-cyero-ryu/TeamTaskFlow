@@ -7,6 +7,10 @@ import { insertCommentSchema } from "@shared/schema";
 import { WebSocketServer, WebSocket } from "ws";
 import { insertPrivateMessageSchema } from "@shared/schema";
 import passport from 'passport';
+import { parse as parseCookie } from 'cookie';
+import session from 'express-session';
+
+const clients = new Map<WebSocket, number>();
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -21,7 +25,6 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const tasks = await storage.getTasks();
 
-    // Fetch related data for each task
     const tasksWithDetails = await Promise.all(
       tasks.map(async (task) => {
         const [subtasks, steps, participants, responsible] = await Promise.all([
@@ -116,7 +119,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Comments endpoints
   app.get("/api/tasks/:taskId/comments", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
@@ -175,7 +177,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Private Messages endpoints
   app.get("/api/messages/conversations", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
@@ -268,10 +269,8 @@ export function registerRoutes(app: Express): Server {
         senderId: req.user.id,
       });
 
-      // Send WebSocket notification
       const recipientId = parseInt(req.params.userId);
 
-      // Convert clients Map to array for iteration
       const clientEntries = Array.from(clients.entries());
       for (const [client, userId] of clientEntries) {
         if (
@@ -291,7 +290,6 @@ export function registerRoutes(app: Express): Server {
             }));
           } catch (wsError) {
             console.error("WebSocket send error:", wsError);
-            // Don't fail the request if WebSocket send fails
           }
         }
       }
@@ -319,29 +317,73 @@ export function registerRoutes(app: Express): Server {
 
   const httpServer = createServer(app);
 
-  // WebSocket server setup with explicit path
-  const wss = new WebSocketServer({ 
-    server: httpServer, 
+  const wss = new WebSocketServer({
+    server: httpServer,
     path: "/ws",
-    clientTracking: true 
+    clientTracking: true,
+    verifyClient: async ({ req }, done) => {
+      try {
+        if (!req.headers.cookie) {
+          console.log('WebSocket connection rejected: No cookie');
+          return done(false, 401, 'Unauthorized');
+        }
+
+        const cookies = parseCookie(req.headers.cookie);
+        const sid = cookies['connect.sid'];
+
+        if (!sid) {
+          console.log('WebSocket connection rejected: No session ID');
+          return done(false, 401, 'Unauthorized');
+        }
+
+        const sessionStore = storage.sessionStore;
+        const sessionID = sid.split('.')[0].slice(2);
+
+        sessionStore.get(sessionID, (err, session) => {
+          if (err || !session) {
+            console.log('WebSocket connection rejected: Invalid session');
+            return done(false, 401, 'Unauthorized');
+          }
+
+          console.log('WebSocket connection authorized');
+          done(true);
+        });
+      } catch (error) {
+        console.error('WebSocket verification error:', error);
+        done(false, 500, 'Internal Server Error');
+      }
+    }
   });
 
-  const clients = new Map<WebSocket, number>();
+  wss.on("connection", (ws, req) => {
+    console.log("New WebSocket client connected");
 
-  wss.on("connection", (ws) => {
-    console.log("WebSocket client connected");
+    ws.send(JSON.stringify({
+      type: "connection_status",
+      status: "connected"
+    }));
 
     ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log("Received message:", message);
+        console.log("Received WebSocket message:", message);
 
         if (message.type === "identify" && typeof message.userId === "number") {
           clients.set(ws, message.userId);
           console.log(`Client identified with userId: ${message.userId}`);
+
+          ws.send(JSON.stringify({
+            type: "identification_status",
+            status: "success",
+            userId: message.userId
+          }));
         }
       } catch (error) {
         console.error("WebSocket message handling error:", error);
+        ws.send(JSON.stringify({
+          type: "error",
+          message: "Failed to process message"
+        }));
       }
     });
 
@@ -351,9 +393,18 @@ export function registerRoutes(app: Express): Server {
     });
 
     ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
+      console.error("WebSocket client error:", error);
       clients.delete(ws);
+      try {
+        ws.close();
+      } catch (closeError) {
+        console.error("Error closing WebSocket:", closeError);
+      }
     });
+  });
+
+  wss.on("error", (error) => {
+    console.error("WebSocket server error:", error);
   });
 
   return httpServer;
