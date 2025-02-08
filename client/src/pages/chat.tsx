@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import type { User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type Conversation = {
   user: {
@@ -35,6 +36,7 @@ export default function Chat() {
   const { user } = useAuth();
   const [_, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/messages/conversations"],
@@ -42,6 +44,13 @@ export default function Chat() {
 
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    onError: (error: Error) => {
+      toast({
+        title: "Error loading users",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
   const isLoading = conversationsLoading || usersLoading;
@@ -53,6 +62,8 @@ export default function Chat() {
       </div>
     );
   }
+
+  const otherUsers = users?.filter(u => u.id !== user?.id) || [];
 
   return (
     <div className="container mx-auto py-8">
@@ -70,27 +81,33 @@ export default function Chat() {
               <DialogTitle>Start a Conversation</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
-              {users?.filter(u => u.id !== user?.id).map((otherUser) => (
-                <Card
-                  key={otherUser.id}
-                  className="p-4 hover:bg-secondary/50 cursor-pointer transition-colors"
-                  onClick={() => {
-                    setLocation(`/chat/${otherUser.id}`);
-                    setOpen(false);
-                  }}
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar>
-                      <AvatarFallback>
-                        {otherUser.username[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium">{otherUser.username}</h3>
+              {otherUsers.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  No other users available
+                </div>
+              ) : (
+                otherUsers.map((otherUser) => (
+                  <Card
+                    key={otherUser.id}
+                    className="p-4 hover:bg-secondary/50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setLocation(`/chat/${otherUser.id}`);
+                      setOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar>
+                        <AvatarFallback>
+                          {otherUser.username[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-medium">{otherUser.username}</h3>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                ))
+              )}
             </div>
           </DialogContent>
         </Dialog>
