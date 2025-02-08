@@ -34,35 +34,41 @@ export function MainNav() {
         <NavigationMenu>
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link href="/">
-                <NavigationMenuLink className={navigationMenuTriggerStyle()} active={location === "/"}>
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Dashboard
-                </NavigationMenuLink>
-              </Link>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location === "/"}
+                onClick={() => window.location.href = "/"}
+              >
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
-              <Link href="/tasks">
-                <NavigationMenuLink className={navigationMenuTriggerStyle()} active={location === "/tasks"}>
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  Tasks
-                </NavigationMenuLink>
-              </Link>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location === "/tasks"}
+                onClick={() => window.location.href = "/tasks"}
+              >
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Tasks
+              </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
-              <Link href="/chat">
-                <NavigationMenuLink className={navigationMenuTriggerStyle()} active={location.startsWith("/chat")}>
-                  <div className="flex items-center">
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Chat
-                    {unreadCount?.count > 0 && (
-                      <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                        {unreadCount.count}
-                      </Badge>
-                    )}
-                  </div>
-                </NavigationMenuLink>
-              </Link>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location.startsWith("/chat")}
+                onClick={() => window.location.href = "/chat"}
+              >
+                <div className="flex items-center">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Chat
+                  {unreadCount?.count > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                      {unreadCount.count}
+                    </Badge>
+                  )}
+                </div>
+              </NavigationMenuLink>
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
@@ -79,11 +85,12 @@ export function MainNav() {
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <Link href="/users">
-                <DropdownMenuItem className="cursor-pointer">
-                  User Management
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem 
+                className="cursor-pointer"
+                onClick={() => window.location.href = "/users"}
+              >
+                User Management
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer text-destructive focus:text-destructive"

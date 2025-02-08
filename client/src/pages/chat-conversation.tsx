@@ -42,67 +42,71 @@ export default function ChatConversation({ params }: { params: { id: string } })
     const connectWebSocket = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-      // Use window.location.host instead of hardcoding localhost
-      const host = window.location.host;
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${host}/ws`;
+      // Get the current window location
+      const wsHost = window.location.host;
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${wsProtocol}//${wsHost}/ws`;
 
-      console.log('Connecting to WebSocket:', wsUrl); // Debug log
+      console.log('Connecting to WebSocket:', wsUrl);
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      try {
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-        if (user?.id) {
-          ws.send(JSON.stringify({
-            type: 'identify',
-            userId: user.id
-          }));
-        }
-        reconnectAttempts = 0;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "private_message") {
-            const messageData = data.data;
-            queryClient.setQueryData<Message[]>(
-              [`/api/messages/${otherUserId}`],
-              (old) => {
-                if (!old) return [messageData];
-                if (old.some(m => m.id === messageData.id)) return old;
-                return [...old, messageData];
-              }
-            );
-            // Scroll to bottom on new message
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          setIsConnected(true);
+          if (user?.id) {
+            ws.send(JSON.stringify({
+              type: 'identify',
+              userId: user.id
+            }));
           }
-        } catch (error) {
-          console.error('Error processing WebSocket message:', error);
-        }
-      };
+          reconnectAttempts = 0;
+        };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "private_message") {
+              const messageData = data.data;
+              queryClient.setQueryData<Message[]>(
+                [`/api/messages/${otherUserId}`],
+                (old) => {
+                  if (!old) return [messageData];
+                  if (old.some(m => m.id === messageData.id)) return old;
+                  return [...old, messageData];
+                }
+              );
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }
+          } catch (error) {
+            console.error('Error processing WebSocket message:', error);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket disconnected');
+          setIsConnected(false);
+          wsRef.current = null;
+
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
+
+          const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
+          reconnectAttempts++;
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          setIsConnected(false);
+        };
+      } catch (error) {
+        console.error('Error creating WebSocket:', error);
         setIsConnected(false);
-        wsRef.current = null;
-
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-
-        const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-        reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
-        reconnectAttempts++;
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setIsConnected(false);
-      };
+      }
     };
 
     if (user?.id) {
