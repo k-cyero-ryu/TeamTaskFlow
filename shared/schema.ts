@@ -54,6 +54,16 @@ export const comments = pgTable("comments", {
   updatedAt: timestamp("updated_at"),
 });
 
+// Add private messages table
+export const privateMessages = pgTable("private_messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  recipientId: integer("recipient_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  readAt: timestamp("read_at"),
+});
+
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   creator: one(users, {
     fields: [tasks.creatorId],
@@ -106,12 +116,26 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   }),
 }));
 
-// Add comments to users relations
+// Add private messages relations
+export const privateMessagesRelations = relations(privateMessages, ({ one }) => ({
+  sender: one(users, {
+    fields: [privateMessages.senderId],
+    references: [users.id],
+  }),
+  recipient: one(users, {
+    fields: [privateMessages.recipientId],
+    references: [users.id],
+  }),
+}));
+
+// Update user relations to include messages
 export const usersRelations = relations(users, ({ many }) => ({
   createdTasks: many(tasks, { relationName: "creator" }),
   responsibleTasks: many(tasks, { relationName: "responsible" }),
   participatingTasks: many(taskParticipants),
   comments: many(comments),
+  sentMessages: many(privateMessages, { relationName: "sender" }),
+  receivedMessages: many(privateMessages, { relationName: "recipient" }),
 }));
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -133,6 +157,12 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
 export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
   taskId: true,
+});
+
+// Add message schemas
+export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
+  content: true,
+  recipientId: true,
 });
 
 // Update the insertTaskSchema to properly handle dates
@@ -161,3 +191,6 @@ export type TaskParticipant = typeof taskParticipants.$inferSelect;
 // Add comment types
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+// Add message types
+export type PrivateMessage = typeof privateMessages.$inferSelect;
+export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;

@@ -4,7 +4,8 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema } from "@shared/schema";
 import { insertCommentSchema } from "@shared/schema"; // Assuming this schema exists
-
+import { WebSocketServer } from "ws";
+import { insertPrivateMessageSchema } from "@shared/schema";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -173,6 +174,106 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Private Messages endpoints
+  app.get("/api/messages/conversations", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversations = await storage.getUserConversations(req.user.id);
+      res.json(conversations);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching conversations" });
+    }
+  });
+
+  app.get("/api/messages/unread", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const count = await storage.getUnreadMessageCount(req.user.id);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching unread count" });
+    }
+  });
+
+  app.get("/api/messages/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const messages = await storage.getPrivateMessages(
+        req.user.id,
+        parseInt(req.params.userId)
+      );
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching messages" });
+    }
+  });
+
+  app.post("/api/messages/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const result = insertPrivateMessageSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json(result.error);
+    }
+
+    try {
+      const message = await storage.createPrivateMessage({
+        ...result.data,
+        senderId: req.user.id,
+        recipientId: parseInt(req.params.userId),
+      });
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(500).json({ message: "Error sending message" });
+    }
+  });
+
+  app.post("/api/messages/:userId/read", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      await storage.markMessagesAsRead(
+        req.user.id,
+        parseInt(req.params.userId)
+      );
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(500).json({ message: "Error marking messages as read" });
+    }
+  });
+
   const httpServer = createServer(app);
+
+  // Add WebSocket server for real-time messaging
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  wss.on('connection', (ws) => {
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        // Handle different message types
+        switch (message.type) {
+          case 'private_message':
+            // Broadcast to connected clients
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'private_message',
+                  data: message.data,
+                }));
+              }
+            });
+            break;
+        }
+      } catch (error) {
+        console.error('WebSocket error:', error);
+      }
+    });
+  });
+
   return httpServer;
 }

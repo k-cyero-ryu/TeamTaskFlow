@@ -1,7 +1,7 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments } from "@shared/schema";
+import { eq, and, or, desc } from "drizzle-orm";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -33,6 +33,13 @@ export interface IStorage {
   createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
   updateComment(id: number, content: string): Promise<Comment>;
   deleteComment(id: number): Promise<void>;
+
+  // Private Messages
+  getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: User })[]>;
+  getUnreadMessageCount(userId: number): Promise<number>;
+  getUserConversations(userId: number): Promise<{ user: User; lastMessage: PrivateMessage & { sender: User } }[]>;
+  createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage>;
+  markMessagesAsRead(userId: number, otherUserId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -203,7 +210,7 @@ export class DatabaseStorage implements IStorage {
   async updateComment(id: number, content: string): Promise<Comment> {
     const [updatedComment] = await db
       .update(comments)
-      .set({ 
+      .set({
         content,
         updatedAt: new Date()
       })
@@ -214,6 +221,145 @@ export class DatabaseStorage implements IStorage {
 
   async deleteComment(id: number): Promise<void> {
     await db.delete(comments).where(eq(comments.id, id));
+  }
+
+  async getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: User })[]> {
+    return await db
+      .select({
+        id: privateMessages.id,
+        content: privateMessages.content,
+        senderId: privateMessages.senderId,
+        recipientId: privateMessages.recipientId,
+        createdAt: privateMessages.createdAt,
+        readAt: privateMessages.readAt,
+        sender: {
+          id: users.id,
+          username: users.username,
+        },
+      })
+      .from(privateMessages)
+      .innerJoin(users, eq(privateMessages.senderId, users.id))
+      .where(
+        and(
+          or(
+            and(
+              eq(privateMessages.senderId, userId1),
+              eq(privateMessages.recipientId, userId2)
+            ),
+            and(
+              eq(privateMessages.senderId, userId2),
+              eq(privateMessages.recipientId, userId1)
+            )
+          )
+        )
+      )
+      .orderBy(privateMessages.createdAt);
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(privateMessages)
+      .where(
+        and(
+          eq(privateMessages.recipientId, userId),
+          sql`${privateMessages.readAt} IS NULL`
+        )
+      );
+    return result[0]?.count || 0;
+  }
+
+  async getUserConversations(userId: number): Promise<{ user: User; lastMessage: PrivateMessage & { sender: User } }[]> {
+    // Get all users who have exchanged messages with the current user
+    const conversations = await db
+      .select({
+        otherUser: {
+          id: users.id,
+          username: users.username,
+        },
+      })
+      .from(privateMessages)
+      .innerJoin(
+        users,
+        or(
+          and(
+            eq(privateMessages.recipientId, userId),
+            eq(users.id, privateMessages.senderId)
+          ),
+          and(
+            eq(privateMessages.senderId, userId),
+            eq(users.id, privateMessages.recipientId)
+          )
+        )
+      )
+      .groupBy(users.id);
+
+    // For each conversation, get the last message
+    const results = await Promise.all(
+      conversations.map(async ({ otherUser }) => {
+        const [lastMessage] = await db
+          .select({
+            id: privateMessages.id,
+            content: privateMessages.content,
+            senderId: privateMessages.senderId,
+            recipientId: privateMessages.recipientId,
+            createdAt: privateMessages.createdAt,
+            readAt: privateMessages.readAt,
+            sender: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(privateMessages)
+          .innerJoin(users, eq(privateMessages.senderId, users.id))
+          .where(
+            or(
+              and(
+                eq(privateMessages.senderId, userId),
+                eq(privateMessages.recipientId, otherUser.id)
+              ),
+              and(
+                eq(privateMessages.senderId, otherUser.id),
+                eq(privateMessages.recipientId, userId)
+              )
+            )
+          )
+          .orderBy(desc(privateMessages.createdAt))
+          .limit(1);
+
+        return {
+          user: otherUser,
+          lastMessage,
+        };
+      })
+    );
+
+    return results;
+  }
+
+  async createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage> {
+    const [newMessage] = await db
+      .insert(privateMessages)
+      .values({
+        content: message.content,
+        senderId: message.senderId,
+        recipientId: message.recipientId,
+      })
+      .returning();
+    return newMessage;
+  }
+
+  async markMessagesAsRead(userId: number, otherUserId: number): Promise<void> {
+    await db
+      .update(privateMessages)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(privateMessages.recipientId, userId),
+          eq(privateMessages.senderId, otherUserId),
+          sql`${privateMessages.readAt} IS NULL`
+        )
+      );
   }
 }
 
