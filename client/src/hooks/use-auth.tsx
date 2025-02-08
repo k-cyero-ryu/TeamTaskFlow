@@ -47,10 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
-      // Clear any existing queries to ensure fresh data after login
       queryClient.invalidateQueries();
-      // Delay navigation slightly to ensure state is updated
-      setTimeout(() => setLocation("/"), 100);
+      setLocation("/");
     },
     onError: (error: Error) => {
       toast({
@@ -73,10 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
-      // Clear any existing queries to ensure fresh data after registration
       queryClient.invalidateQueries();
-      // Delay navigation slightly to ensure state is updated
-      setTimeout(() => setLocation("/"), 100);
+      setLocation("/");
     },
     onError: (error: Error) => {
       toast({
@@ -96,11 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: () => {
-      // Clear cache and reset state before navigation
       queryClient.clear();
       queryClient.setQueryData(["/api/user"], null);
-      // Delay navigation slightly to ensure state is updated
-      setTimeout(() => setLocation("/auth"), 100);
+      setLocation("/auth");
     },
     onError: (error: Error) => {
       toast({

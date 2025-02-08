@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, setLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,10 +18,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { cn } from "@/lib/utils";
 
 export function MainNav() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
 
   const { data: unreadCount } = useQuery({
@@ -37,7 +36,7 @@ export function MainNav() {
               <NavigationMenuLink
                 className={navigationMenuTriggerStyle()}
                 active={location === "/"}
-                onClick={() => window.location.href = "/"}
+                onClick={() => setLocation("/")}
               >
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Dashboard
@@ -47,7 +46,7 @@ export function MainNav() {
               <NavigationMenuLink
                 className={navigationMenuTriggerStyle()}
                 active={location === "/tasks"}
-                onClick={() => window.location.href = "/tasks"}
+                onClick={() => setLocation("/tasks")}
               >
                 <CheckSquare className="mr-2 h-4 w-4" />
                 Tasks
@@ -57,7 +56,7 @@ export function MainNav() {
               <NavigationMenuLink
                 className={navigationMenuTriggerStyle()}
                 active={location.startsWith("/chat")}
-                onClick={() => window.location.href = "/chat"}
+                onClick={() => setLocation("/chat")}
               >
                 <div className="flex items-center">
                   <MessageCircle className="mr-2 h-4 w-4" />
@@ -87,7 +86,7 @@ export function MainNav() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 className="cursor-pointer"
-                onClick={() => window.location.href = "/users"}
+                onClick={() => setLocation("/users")}
               >
                 User Management
               </DropdownMenuItem>
