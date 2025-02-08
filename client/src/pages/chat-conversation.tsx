@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
 
 type Message = {
   id: number;
@@ -21,11 +22,6 @@ type Message = {
     id: number;
     username: string;
   };
-};
-
-type User = {
-  id: number;
-  username: string;
 };
 
 let ws: WebSocket | null = null;
@@ -59,10 +55,12 @@ export default function ChatConversation({ params }: { params: { id: string } })
     };
   }, [otherUserId, queryClient]);
 
-  const { data: otherUser, isLoading: isLoadingUser } = useQuery<User>({
-    queryKey: ["/api/users", otherUserId],
-    enabled: !isNaN(otherUserId)
+  // Get the other user's data
+  const { data: users } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
+
+  const otherUser = users?.find(u => u.id === otherUserId);
 
   const { data: messages = [], isLoading: isLoadingMessages } = useQuery<Message[]>({
     queryKey: [`/api/messages/${otherUserId}`],
@@ -118,14 +116,12 @@ export default function ChatConversation({ params }: { params: { id: string } })
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const isLoading = isLoadingUser || isLoadingMessages;
-
   if (isNaN(otherUserId)) {
     setLocation("/chat");
     return null;
   }
 
-  if (isLoading) {
+  if (!users) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
