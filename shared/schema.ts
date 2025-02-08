@@ -159,9 +159,11 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
   taskId: true,
 });
 
-// Add message schemas
+// Update the insertPrivateMessageSchema to include recipientId
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
   content: true,
+}).extend({
+  recipientId: z.number(),
 });
 
 // Add message types

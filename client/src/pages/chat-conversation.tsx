@@ -59,18 +59,21 @@ export default function ChatConversation({ params }: { params: { id: string } })
     };
   }, [otherUserId, queryClient]);
 
-  const { data: otherUser } = useQuery<User>({
+  const { data: otherUser, isLoading: isLoadingUser } = useQuery<User>({
     queryKey: ["/api/users", otherUserId],
+    enabled: !isNaN(otherUserId)
   });
 
-  const { data: messages = [], isLoading } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<Message[]>({
     queryKey: [`/api/messages/${otherUserId}`],
+    enabled: !isNaN(otherUserId)
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
         content,
+        recipientId: otherUserId
       });
       if (!res.ok) {
         const error = await res.json();
@@ -115,12 +118,24 @@ export default function ChatConversation({ params }: { params: { id: string } })
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const isLoading = isLoadingUser || isLoadingMessages;
+
+  if (isNaN(otherUserId)) {
+    setLocation("/chat");
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  if (!otherUser) {
+    setLocation("/chat");
+    return null;
   }
 
   return (
@@ -138,10 +153,10 @@ export default function ChatConversation({ params }: { params: { id: string } })
             </Button>
             <Avatar>
               <AvatarFallback>
-                {otherUser?.username?.[0].toUpperCase()}
+                {otherUser.username[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <h2 className="font-semibold">{otherUser?.username}</h2>
+            <h2 className="font-semibold">{otherUser.username}</h2>
           </div>
         </div>
       </div>
