@@ -50,15 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       console.log("Login successful, updating auth state...");
-      // Update query client first
+      // First set the user data in the cache
       queryClient.setQueryData(["/api/user"], user);
-      // Wait for invalidation to complete before navigating
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] })
-      ]).then(() => {
-        console.log("Auth state updated after login, navigating to /");
-        navigate("/");
-      });
+
+      // Invalidate and refetch in sequence
+      Promise.resolve()
+        .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user"] }))
+        .then(() => queryClient.refetchQueries({ queryKey: ["/api/user"] }))
+        .then(() => {
+          console.log("Auth state fully updated, navigating to /");
+          navigate("/");
+        });
     },
     onError: (error: Error) => {
       console.error("Login failed:", error);
@@ -108,14 +110,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       console.log("Logout successful, clearing auth state...");
-      // Clear and update state first
+
+      // First clear the cache
       queryClient.clear();
       queryClient.setQueryData(["/api/user"], null);
-      // Wait for a tick to ensure state is updated
-      Promise.resolve().then(() => {
-        console.log("Auth state cleared, navigating to /auth");
-        navigate("/auth");
-      });
+
+      // Wait for all state updates to complete
+      Promise.resolve()
+        .then(() => queryClient.invalidateQueries())
+        .then(() => queryClient.resetQueries())
+        .then(() => {
+          console.log("Auth state fully cleared, navigating to /auth");
+          navigate("/auth");
+        });
     },
     onError: (error: Error) => {
       console.error("Logout failed:", error);
