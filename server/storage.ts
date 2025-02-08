@@ -5,6 +5,7 @@ import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateM
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import { sql } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -266,7 +267,7 @@ export class DatabaseStorage implements IStorage {
           sql`${privateMessages.readAt} IS NULL`
         )
       );
-    return result[0]?.count || 0;
+    return Number(result[0]?.count) || 0;
   }
 
   async getUserConversations(userId: number): Promise<{ user: User; lastMessage: PrivateMessage & { sender: User } }[]> {

@@ -250,30 +250,38 @@ export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
   // Add WebSocket server for real-time messaging
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: '/ws'
+  });
 
   wss.on('connection', (ws) => {
-    ws.on('message', async (data: Buffer) => {
+    console.log('WebSocket client connected');
+
+    ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
+        console.log('Received message:', message);
 
         // Handle different message types
-        switch (message.type) {
-          case 'private_message':
-            // Broadcast to connected clients
-            wss.clients.forEach((client) => {
-              if (client.readyState === 1) { // WebSocket.OPEN constant value is 1
-                client.send(JSON.stringify({
-                  type: 'private_message',
-                  data: message.data,
-                }));
-              }
-            });
-            break;
+        if (message.type === 'private_message') {
+          // Broadcast to connected clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === 1) { // 1 represents OPEN state
+              client.send(JSON.stringify({
+                type: 'private_message',
+                data: message.data,
+              }));
+            }
+          });
         }
       } catch (error) {
         console.error('WebSocket error:', error);
       }
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
     });
   });
 
