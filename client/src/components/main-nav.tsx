@@ -26,6 +26,7 @@ export function MainNav() {
 
   const { data: unreadCount } = useQuery({
     queryKey: ["/api/messages/unread"],
+    select: (data: any) => data?.count ?? 0,
   });
 
   // Handle navigation after logout
@@ -69,9 +70,9 @@ export function MainNav() {
                 <div className="flex items-center">
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Chat
-                  {unreadCount?.count > 0 && (
+                  {unreadCount > 0 && (
                     <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                      {unreadCount.count}
+                      {unreadCount}
                     </Badge>
                   )}
                 </div>
