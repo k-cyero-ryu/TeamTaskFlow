@@ -52,7 +52,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
           reconnectAttempts = 0;
 
           // Send identify message
-          if (user?.id) {
+          if (user?.id && ws) {
             ws.send(JSON.stringify({
               type: 'identify',
               userId: user.id
@@ -114,22 +114,22 @@ export default function ChatConversation({ params }: { params: { id: string } })
     };
   }, [otherUserId, queryClient, user?.id]);
 
-  // Get the other user's data
-  const { data: users } = useQuery<User[]>({
+  // Get the other user's data and messages with error boundaries
+  const { data: users, isError: usersError } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
 
   const otherUser = users?.find(u => u.id === otherUserId);
 
-  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: isLoadingMessages, isError: messagesError } = useQuery<Message[]>({
     queryKey: [`/api/messages/${otherUserId}`],
-    enabled: !isNaN(otherUserId)
+    enabled: !isNaN(otherUserId),
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async (messageContent: string) => {
       const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
-        content,
+        content: messageContent,
         recipientId: otherUserId
       });
       if (!res.ok) {
@@ -158,11 +158,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
           description: "Message sent but real-time updates might be delayed.",
           variant: "default",
         });
-        // Try to reconnect
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttempts++;
-          ws?.close(); // Force close and reconnect
-        }
       }
 
       setMessage("");
@@ -176,35 +171,31 @@ export default function ChatConversation({ params }: { params: { id: string } })
     },
   });
 
-  // Mark messages as read
-  useEffect(() => {
-    if (messages.some((m) => m.senderId === otherUserId && !m.readAt)) {
-      apiRequest("POST", `/api/messages/${otherUserId}/read`);
-    }
-  }, [messages, otherUserId]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Handle errors
+  if (usersError || messagesError) {
+    toast({
+      title: "Error",
+      description: "Failed to load chat data. Please try again.",
+      variant: "destructive",
+    });
+    return null;
+  }
 
   if (isNaN(otherUserId)) {
     setLocation("/chat");
     return null;
   }
 
-  if (!users) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   if (!otherUser) {
     setLocation("/chat");
     return null;
   }
+
+  const handleSendMessage = () => {
+    if (message.trim()) {
+      sendMessageMutation.mutate(message);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -298,18 +289,12 @@ export default function ChatConversation({ params }: { params: { id: string } })
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (message.trim()) {
-                    sendMessageMutation.mutate(message);
-                  }
+                  handleSendMessage();
                 }
               }}
             />
             <Button
-              onClick={() => {
-                if (message.trim()) {
-                  sendMessageMutation.mutate(message);
-                }
-              }}
+              onClick={handleSendMessage}
               disabled={!message.trim() || sendMessageMutation.isPending}
             >
               {sendMessageMutation.isPending ? (
