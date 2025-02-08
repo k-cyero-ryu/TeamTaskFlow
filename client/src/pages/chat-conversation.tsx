@@ -37,24 +37,24 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const otherUserId = parseInt(params.id);
   let reconnectAttempts = 0;
 
-  // Initialize WebSocket connection
+  // Update the WebSocket connection logic
   useEffect(() => {
     const connectWebSocket = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
       // Get the current window location
-      const wsHost = window.location.host;
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsHost = window.location.host;
       const wsUrl = `${wsProtocol}//${wsHost}/ws`;
 
-      console.log('Connecting to WebSocket:', wsUrl);
+      console.log('Attempting WebSocket connection to:', wsUrl);
 
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
-          console.log('WebSocket connected');
+          console.log('WebSocket connected successfully');
           setIsConnected(true);
           if (user?.id) {
             ws.send(JSON.stringify({
@@ -68,6 +68,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            console.log('Received WebSocket message:', data);
             if (data.type === "private_message") {
               const messageData = data.data;
               queryClient.setQueryData<Message[]>(
@@ -86,7 +87,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
         };
 
         ws.onclose = () => {
-          console.log('WebSocket disconnected');
+          console.log('WebSocket connection closed');
           setIsConnected(false);
           wsRef.current = null;
 
@@ -94,26 +95,33 @@ export default function ChatConversation({ params }: { params: { id: string } })
             clearTimeout(reconnectTimeoutRef.current);
           }
 
-          const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
-          reconnectAttempts++;
+          // Only attempt reconnect if we're still on the chat page and authenticated
+          if (user?.id) {
+            const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            console.log(`Attempting reconnect in ${backoffDelay}ms`);
+            reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
+            reconnectAttempts++;
+          }
         };
 
         ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          console.error('WebSocket connection error:', error);
           setIsConnected(false);
         };
       } catch (error) {
-        console.error('Error creating WebSocket:', error);
+        console.error('Error creating WebSocket connection:', error);
         setIsConnected(false);
       }
     };
 
-    if (user?.id) {
+    // Only attempt connection if we have a user and otherUserId
+    if (user?.id && otherUserId) {
+      console.log('Initiating WebSocket connection...');
       connectWebSocket();
     }
 
     return () => {
+      console.log('Cleaning up WebSocket connection');
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

@@ -319,8 +319,13 @@ export function registerRoutes(app: Express): Server {
 
   const httpServer = createServer(app);
 
-  // WebSocket server setup
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  // WebSocket server setup with explicit path
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: "/ws",
+    clientTracking: true 
+  });
+
   const clients = new Map<WebSocket, number>();
 
   wss.on("connection", (ws) => {

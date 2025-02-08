@@ -12,8 +12,14 @@ export function ProtectedRoute({
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !user && location !== "/auth") {
-      setLocation("/auth");
+    if (!isLoading) {
+      if (!user && location !== "/auth") {
+        console.log('User not authenticated, redirecting to /auth');
+        setLocation("/auth");
+      } else if (user && location === "/auth") {
+        console.log('User authenticated, redirecting to /');
+        setLocation("/");
+      }
     }
   }, [user, isLoading, location, setLocation]);
 
@@ -25,6 +31,7 @@ export function ProtectedRoute({
     );
   }
 
+  // Don't render protected content if user is not authenticated
   if (!user) {
     return null;
   }

@@ -45,9 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: (user: SelectUser) => {
+      // Update state first
       queryClient.setQueryData(["/api/user"], user);
       queryClient.invalidateQueries();
-      setLocation("/");
+      // Then navigate
+      setTimeout(() => setLocation("/"), 0);
     },
     onError: (error: Error) => {
       toast({
@@ -68,9 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: (user: SelectUser) => {
+      // Update state first
       queryClient.setQueryData(["/api/user"], user);
       queryClient.invalidateQueries();
-      setLocation("/");
+      // Then navigate
+      setTimeout(() => setLocation("/"), 0);
     },
     onError: (error: Error) => {
       toast({
@@ -90,9 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: () => {
+      // Clear state first
       queryClient.clear();
       queryClient.setQueryData(["/api/user"], null);
-      setLocation("/auth");
+      // Then navigate
+      setTimeout(() => setLocation("/auth"), 0);
     },
     onError: (error: Error) => {
       toast({
