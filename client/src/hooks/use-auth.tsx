@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log("Attempting login...");
       const res = await apiRequest("POST", "/api/login", credentials);
       if (!res.ok) {
         const error = await res.json();
@@ -49,24 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: async (user: SelectUser) => {
-      console.log("Login successful, updating auth state...");
-
-      // First update the query data synchronously
       queryClient.setQueryData(["/api/user"], user);
-
-      // Wait for all query updates to complete
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/user"] })
-      ]);
-
-      console.log("Auth state fully updated after login, navigating...");
-
-      // Use setTimeout to ensure state updates are processed
-      setTimeout(() => navigate("/"), 0);
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      navigate("/");
     },
     onError: (error: Error) => {
-      console.error("Login failed:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -77,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      console.log("Attempting registration...");
       const res = await apiRequest("POST", "/api/register", credentials);
       if (!res.ok) {
         const error = await res.json();
@@ -86,24 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: async (user: SelectUser) => {
-      console.log("Registration successful, updating auth state...");
-
-      // First update the query data synchronously
       queryClient.setQueryData(["/api/user"], user);
-
-      // Wait for all query updates to complete
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/user"] })
-      ]);
-
-      console.log("Auth state fully updated after registration, navigating...");
-
-      // Use setTimeout to ensure state updates are processed
-      setTimeout(() => navigate("/"), 0);
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      navigate("/");
     },
     onError: (error: Error) => {
-      console.error("Registration failed:", error);
       toast({
         title: "Registration failed",
         description: error.message,
@@ -114,7 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      console.log("Attempting logout...");
       const res = await apiRequest("POST", "/api/logout");
       if (!res.ok) {
         const error = await res.json();
@@ -122,24 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: async () => {
-      console.log("Logout successful, clearing auth state...");
-
-      // First set the user to null synchronously
       queryClient.setQueryData(["/api/user"], null);
-
-      // Invalidate all queries
       await queryClient.invalidateQueries();
-
-      // Clear the cache
       queryClient.clear();
-
-      console.log("Auth state fully cleared, navigating to auth page...");
-
-      // Use setTimeout to ensure state updates are processed
-      setTimeout(() => navigate("/auth"), 0);
+      navigate("/auth");
     },
     onError: (error: Error) => {
-      console.error("Logout failed:", error);
       toast({
         title: "Logout failed",
         description: error.message,

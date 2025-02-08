@@ -15,26 +15,10 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading) {
-      console.log('ProtectedRoute check:', {
-        isLoading,
-        isAuthenticated: !!user,
-        currentLocation: location,
-        fullPath: window.location.pathname,
-        user: user ? { id: user.id, username: user.username } : null
-      });
-
       // Only navigate if we need to and we're not already at the target location
       if (!user && location !== '/auth') {
-        console.log('Protected route: Not authenticated, navigating to /auth');
         navigate('/auth');
-      } else if (user && location === '/auth') {
-        console.log('Protected route: Already authenticated, navigating to /');
-        navigate('/');
-      } else {
-        console.log('Protected route: No navigation needed');
       }
-    } else {
-      console.log('Protected route: Loading auth state...');
     }
   }, [user, isLoading, location, navigate]);
 
@@ -48,10 +32,8 @@ export function ProtectedRoute({
 
   // If not loading and no user, render nothing while navigating
   if (!user) {
-    console.log('Protected route: Not authenticated, rendering null');
     return null;
   }
 
-  console.log('Protected route: Authenticated, rendering protected content');
   return <>{children}</>;
 }

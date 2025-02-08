@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema, InsertUser } from "@shared/schema";
-import { useLocation } from "wouter";
+import { useNavigation } from "@/lib/use-navigation";
 import { useEffect } from "react";
 import {
   Form,
@@ -19,27 +19,17 @@ import {
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigation();
 
   useEffect(() => {
-    // Log the current state for debugging
-    console.log("AuthPage - Auth state check:", {
-      user: user ? { id: user.id, username: user.username } : null,
-      isLoginPending: loginMutation.isPending,
-      isRegisterPending: registerMutation.isPending,
-      currentLocation: window.location.pathname
-    });
-
-    // Only navigate if we have a user and no pending mutations
+    // If authenticated and no pending mutations, navigate to dashboard
     if (user && !loginMutation.isPending && !registerMutation.isPending) {
-      console.log("AuthPage - User authenticated, navigating to /");
-      setTimeout(() => setLocation("/"), 0); // Use setTimeout to ensure state updates complete
+      navigate("/");
     }
-  }, [user, loginMutation.isPending, registerMutation.isPending, setLocation]);
+  }, [user, loginMutation.isPending, registerMutation.isPending, navigate]);
 
   // If user exists and no pending mutations, don't render anything while redirecting
   if (user && !loginMutation.isPending && !registerMutation.isPending) {
-    console.log("AuthPage - Skipping render due to authenticated user");
     return null;
   }
 
@@ -60,7 +50,6 @@ export default function AuthPage() {
                 <AuthForm
                   mode="login"
                   onSubmit={(data) => {
-                    console.log("AuthPage - Attempting login");
                     loginMutation.mutate(data);
                   }}
                   isPending={loginMutation.isPending}
@@ -70,7 +59,6 @@ export default function AuthPage() {
                 <AuthForm
                   mode="register"
                   onSubmit={(data) => {
-                    console.log("AuthPage - Attempting registration");
                     registerMutation.mutate(data);
                   }}
                   isPending={registerMutation.isPending}
@@ -112,10 +100,7 @@ function AuthForm({
   return (
     <Form {...form}>
       <form 
-        onSubmit={form.handleSubmit((data) => {
-          console.log(`AuthForm - Submitting ${mode} form`);
-          onSubmit(data);
-        })} 
+        onSubmit={form.handleSubmit(onSubmit)} 
         className="space-y-4 mt-4"
       >
         <FormField
