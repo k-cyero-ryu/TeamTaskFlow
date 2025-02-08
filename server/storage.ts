@@ -9,38 +9,24 @@ import { sql } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
-export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  getUsers(): Promise<User[]>;
-
-  getTasks(): Promise<Task[]>;
-  getTask(id: number): Promise<Task | undefined>;
-  createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
-  updateTaskStatus(id: number, status: string): Promise<Task>;
-  deleteTask(id: number): Promise<void>;
-
-  getSubtasks(taskId: number): Promise<Subtask[]>;
-  getTaskSteps(taskId: number): Promise<TaskStep[]>;
-  getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]>;
-  updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
-  updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
-
-  sessionStore: session.Store;
-
-  // Comments
-  getTaskComments(taskId: number): Promise<(Comment & { user: User })[]>;
-  createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
-  updateComment(id: number, content: string): Promise<Comment>;
-  deleteComment(id: number): Promise<void>;
-
-  // Private Messages
-  getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: User })[]>;
-  getUnreadMessageCount(userId: number): Promise<number>;
-  getUserConversations(userId: number): Promise<{ user: User; lastMessage: PrivateMessage & { sender: User } }[]>;
-  createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage>;
-  markMessagesAsRead(userId: number, otherUserId: number): Promise<void>;
+// Add error handling wrapper
+async function withErrorHandling<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error('Database operation failed:', error);
+    // If it's a connection error, wait and retry once
+    if (error.message.includes('connection')) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        return await operation();
+      } catch (retryError) {
+        console.error('Retry failed:', retryError);
+        throw retryError;
+      }
+    }
+    throw error;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -53,19 +39,26 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // Wrap the first few critical methods with error handling
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return await withErrorHandling(async () => {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user;
+    });
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    return await withErrorHandling(async () => {
+      const [user] = await db.select().from(users).where(eq(users.username, username));
+      return user;
+    });
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    return await withErrorHandling(async () => {
+      const [user] = await db.insert(users).values(insertUser).returning();
+      return user;
+    });
   }
 
   async getUsers(): Promise<User[]> {
