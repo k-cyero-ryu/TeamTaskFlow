@@ -21,6 +21,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import TaskComments from "./task-comments";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
@@ -56,13 +58,10 @@ export default function TaskDetailDialog({
     onMutate: async ({ id, completed }) => {
       setUpdatingSubtaskId(id);
 
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
 
-      // Snapshot the previous value
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
 
-      // Create updated task data
       const updatedTasks = previousTasks?.map((t) => {
         if (t.id === task.id) {
           return {
@@ -75,7 +74,6 @@ export default function TaskDetailDialog({
         return t;
       });
 
-      // Update the cache with our optimistic value
       if (updatedTasks) {
         queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
       }
@@ -84,7 +82,6 @@ export default function TaskDetailDialog({
     },
     onError: (err, variables, context) => {
       if (context?.previousTasks) {
-        // If there was an error, roll back the optimistic update
         queryClient.setQueryData(["/api/tasks"], context.previousTasks);
       }
       toast({
@@ -101,7 +98,6 @@ export default function TaskDetailDialog({
     },
     onSettled: () => {
       setUpdatingSubtaskId(null);
-      // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
@@ -182,161 +178,169 @@ export default function TaskDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {task.description && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Description</h3>
-              <p className="text-muted-foreground">{task.description}</p>
-            </div>
-          )}
+        <Tabs defaultValue="details">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="comments">Comments</TabsTrigger>
+          </TabsList>
 
-          <Separator />
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-sm font-medium mb-2">Created</h3>
-              <p className="text-muted-foreground">
-                {format(new Date(task.createdAt), "PPP")}
-              </p>
-            </div>
-            {task.dueDate && (
+          <TabsContent value="details" className="space-y-6">
+            {task.description && (
               <div>
-                <h3 className="text-sm font-medium mb-2">Due Date</h3>
+                <h3 className="text-lg font-semibold mb-2">Description</h3>
+                <p className="text-muted-foreground">{task.description}</p>
+              </div>
+            )}
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium mb-2">Created</h3>
                 <p className="text-muted-foreground">
-                  {format(new Date(task.dueDate), "PPP")}
+                  {format(new Date(task.createdAt), "PPP")}
                 </p>
               </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {task.participants && task.participants.length > 0 && (
-            <>
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Participants</h3>
-                <div className="flex flex-wrap gap-2">
-                  {task.participants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className="flex items-center gap-2 bg-secondary p-2 rounded-lg"
-                    >
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback>
-                          {participant.username[0].toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>{participant.username}</span>
-                    </div>
-                  ))}
+              {task.dueDate && (
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Due Date</h3>
+                  <p className="text-muted-foreground">
+                    {format(new Date(task.dueDate), "PPP")}
+                  </p>
                 </div>
-              </div>
-              <Separator />
-            </>
-          )}
+              )}
+            </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {task.subtasks && task.subtasks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Subtasks</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {task.subtasks.map((subtask) => (
-                    <div
-                      key={subtask.id}
-                      className="flex items-center gap-2"
-                    >
-                      <div className="relative">
-                        <Checkbox
-                          id={`subtask-${subtask.id}`}
-                          checked={subtask.completed}
-                          disabled={updatingSubtaskId === subtask.id}
-                          onCheckedChange={(checked) => {
-                            updateSubtaskMutation.mutate({
-                              id: subtask.id,
-                              completed: checked as boolean,
-                            });
-                          }}
-                          className="transition-opacity duration-200"
-                          style={{
-                            opacity: updatingSubtaskId === subtask.id ? 0.5 : 1,
-                          }}
-                        />
-                        {updatingSubtaskId === subtask.id && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
-                          </div>
-                        )}
-                      </div>
-                      <label
-                        htmlFor={`subtask-${subtask.id}`}
-                        className={`${
-                          subtask.completed ? "line-through text-muted-foreground" : ""
-                        } transition-all duration-200 cursor-pointer`}
+            <Separator />
+
+            {task.participants && task.participants.length > 0 && (
+              <>
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Participants</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {task.participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        className="flex items-center gap-2 bg-secondary p-2 rounded-lg"
                       >
-                        {subtask.title}
-                      </label>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {task.steps && task.steps.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Steps</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {task.steps
-                    .sort((a, b) => a.order - b.order)
-                    .map((step) => (
-                      <div key={step.id} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <Checkbox
-                              id={`step-${step.id}`}
-                              checked={step.completed}
-                              disabled={updatingStepId === step.id}
-                              onCheckedChange={(checked) => {
-                                updateStepMutation.mutate({
-                                  id: step.id,
-                                  completed: checked as boolean,
-                                });
-                              }}
-                              className="transition-opacity duration-200"
-                              style={{
-                                opacity: updatingStepId === step.id ? 0.5 : 1,
-                              }}
-                            />
-                            {updatingStepId === step.id && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
-                              </div>
-                            )}
-                          </div>
-                          <label
-                            htmlFor={`step-${step.id}`}
-                            className={`font-medium ${
-                              step.completed ? "line-through text-muted-foreground" : ""
-                            } transition-all duration-200 cursor-pointer`}
-                          >
-                            {step.title}
-                          </label>
-                        </div>
-                        {step.description && (
-                          <p className="text-sm text-muted-foreground ml-6">
-                            {step.description}
-                          </p>
-                        )}
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback>
+                            {participant.username[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{participant.username}</span>
                       </div>
                     ))}
-                </CardContent>
-              </Card>
+                  </div>
+                </div>
+                <Separator />
+              </>
             )}
-          </div>
-        </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {task.subtasks && task.subtasks.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Subtasks</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {task.subtasks.map((subtask) => (
+                      <div key={subtask.id} className="flex items-center gap-2">
+                        <div className="relative">
+                          <Checkbox
+                            id={`subtask-${subtask.id}`}
+                            checked={subtask.completed}
+                            disabled={updatingSubtaskId === subtask.id}
+                            onCheckedChange={(checked) => {
+                              updateSubtaskMutation.mutate({
+                                id: subtask.id,
+                                completed: checked as boolean,
+                              });
+                            }}
+                            className="transition-opacity duration-200"
+                            style={{
+                              opacity: updatingSubtaskId === subtask.id ? 0.5 : 1,
+                            }}
+                          />
+                          {updatingSubtaskId === subtask.id && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                          )}
+                        </div>
+                        <label
+                          htmlFor={`subtask-${subtask.id}`}
+                          className={`${
+                            subtask.completed ? "line-through text-muted-foreground" : ""
+                          } transition-all duration-200 cursor-pointer`}
+                        >
+                          {subtask.title}
+                        </label>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {task.steps && task.steps.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Steps</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {task.steps
+                      .sort((a, b) => a.order - b.order)
+                      .map((step) => (
+                        <div key={step.id} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <Checkbox
+                                id={`step-${step.id}`}
+                                checked={step.completed}
+                                disabled={updatingStepId === step.id}
+                                onCheckedChange={(checked) => {
+                                  updateStepMutation.mutate({
+                                    id: step.id,
+                                    completed: checked as boolean,
+                                  });
+                                }}
+                                className="transition-opacity duration-200"
+                                style={{
+                                  opacity: updatingStepId === step.id ? 0.5 : 1,
+                                }}
+                              />
+                              {updatingStepId === step.id && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                                </div>
+                              )}
+                            </div>
+                            <label
+                              htmlFor={`step-${step.id}`}
+                              className={`font-medium ${
+                                step.completed ? "line-through text-muted-foreground" : ""
+                              } transition-all duration-200 cursor-pointer`}
+                            >
+                              {step.title}
+                            </label>
+                          </div>
+                          {step.description && (
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {step.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="comments">
+            <TaskComments taskId={task.id} />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

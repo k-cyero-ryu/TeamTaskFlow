@@ -1,7 +1,7 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -27,6 +27,12 @@ export interface IStorage {
   updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
 
   sessionStore: session.Store;
+
+  // Comments
+  getTaskComments(taskId: number): Promise<(Comment & { user: User })[]>;
+  createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
+  updateComment(id: number, content: string): Promise<Comment>;
+  deleteComment(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -160,6 +166,54 @@ export class DatabaseStorage implements IStorage {
 
   async updateTaskStepStatus(id: number, completed: boolean): Promise<void> {
     await db.update(taskSteps).set({ completed }).where(eq(taskSteps.id, id));
+  }
+
+  async getTaskComments(taskId: number): Promise<(Comment & { user: User })[]> {
+    return await db
+      .select({
+        id: comments.id,
+        content: comments.content,
+        taskId: comments.taskId,
+        userId: comments.userId,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+        user: {
+          id: users.id,
+          username: users.username,
+        },
+      })
+      .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.taskId, taskId))
+      .orderBy(comments.createdAt);
+  }
+
+  async createComment(comment: InsertComment & { userId: number }): Promise<Comment> {
+    const [newComment] = await db
+      .insert(comments)
+      .values({
+        content: comment.content,
+        taskId: comment.taskId,
+        userId: comment.userId,
+      })
+      .returning();
+    return newComment;
+  }
+
+  async updateComment(id: number, content: string): Promise<Comment> {
+    const [updatedComment] = await db
+      .update(comments)
+      .set({ 
+        content,
+        updatedAt: new Date()
+      })
+      .where(eq(comments.id, id))
+      .returning();
+    return updatedComment;
+  }
+
+  async deleteComment(id: number): Promise<void> {
+    await db.delete(comments).where(eq(comments.id, id));
   }
 }
 

@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema } from "@shared/schema";
+import { insertCommentSchema } from "@shared/schema"; // Assuming this schema exists
+
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -109,6 +111,65 @@ export function registerRoutes(app: Express): Server {
       res.sendStatus(204);
     } catch (error) {
       res.status(404).json({ message: "Task not found" });
+    }
+  });
+
+  // Comments endpoints
+  app.get("/api/tasks/:taskId/comments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const comments = await storage.getTaskComments(parseInt(req.params.taskId));
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching comments" });
+    }
+  });
+
+  app.post("/api/tasks/:taskId/comments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const result = insertCommentSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json(result.error);
+    }
+
+    try {
+      const comment = await storage.createComment({
+        ...result.data,
+        taskId: parseInt(req.params.taskId),
+        userId: req.user.id,
+      });
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating comment" });
+    }
+  });
+
+  app.patch("/api/comments/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ message: "Content is required" });
+    }
+
+    try {
+      const comment = await storage.updateComment(parseInt(req.params.id), content);
+      res.json(comment);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating comment" });
+    }
+  });
+
+  app.delete("/api/comments/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      await storage.deleteComment(parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting comment" });
     }
   });
 

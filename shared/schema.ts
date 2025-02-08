@@ -44,7 +44,16 @@ export const taskParticipants = pgTable("task_participants", {
   userId: integer("user_id").references(() => users.id).notNull(),
 });
 
-// Define relations
+// Add new comments table
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   creator: one(users, {
     fields: [tasks.creatorId],
@@ -57,6 +66,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   participants: many(taskParticipants),
   subtasks: many(subtasks),
   steps: many(taskSteps),
+  comments: many(comments),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
@@ -84,13 +94,26 @@ export const taskParticipantsRelations = relations(taskParticipants, ({ one }) =
   }),
 }));
 
+// Add comments relation to users
+export const commentsRelations = relations(comments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [comments.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id],
+  }),
+}));
+
+// Add comments to users relations
 export const usersRelations = relations(users, ({ many }) => ({
   createdTasks: many(tasks, { relationName: "creator" }),
   responsibleTasks: many(tasks, { relationName: "responsible" }),
   participatingTasks: many(taskParticipants),
+  comments: many(comments),
 }));
 
-// Update schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -104,6 +127,12 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
   title: true,
   description: true,
   order: true,
+});
+
+// Add comment schemas
+export const insertCommentSchema = createInsertSchema(comments).pick({
+  content: true,
+  taskId: true,
 });
 
 // Update the insertTaskSchema to properly handle dates
@@ -129,3 +158,6 @@ export type Subtask = typeof subtasks.$inferSelect;
 export type TaskStep = typeof taskSteps.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskParticipant = typeof taskParticipants.$inferSelect;
+// Add comment types
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
