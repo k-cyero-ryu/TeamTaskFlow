@@ -21,14 +21,21 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Handle navigation after render using useEffect
+  // Handle navigation on mutation success
+  useEffect(() => {
+    if (loginMutation.isSuccess || registerMutation.isSuccess) {
+      setLocation("/");
+    }
+  }, [loginMutation.isSuccess, registerMutation.isSuccess, setLocation]);
+
+  // Handle initial auth state
   useEffect(() => {
     if (user) {
       setLocation("/");
     }
   }, [user, setLocation]);
 
-  // If user exists, wait for the effect to handle navigation
+  // If user exists, don't render anything while redirecting
   if (user) {
     return null;
   }

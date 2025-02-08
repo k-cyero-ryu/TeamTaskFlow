@@ -1,4 +1,4 @@
-import { Link, useLocation, setLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { useEffect } from "react";
 
 export function MainNav() {
   const [location, setLocation] = useLocation();
@@ -26,6 +27,13 @@ export function MainNav() {
   const { data: unreadCount } = useQuery({
     queryKey: ["/api/messages/unread"],
   });
+
+  // Handle navigation after logout
+  useEffect(() => {
+    if (logoutMutation.isSuccess) {
+      setLocation("/auth");
+    }
+  }, [logoutMutation.isSuccess, setLocation]);
 
   return (
     <div className="border-b">
