@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema } from "@shared/schema";
-import { insertCommentSchema } from "@shared/schema"; // Assuming this schema exists
-import { WebSocketServer } from "ws";
+import { insertCommentSchema } from "@shared/schema";
+import { WebSocketServer, WebSocket } from "ws";
 import { insertPrivateMessageSchema } from "@shared/schema";
 
 export function registerRoutes(app: Express): Server {
@@ -252,8 +252,8 @@ export function registerRoutes(app: Express): Server {
   // Add WebSocket server for real-time messaging
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
-  wss.on('connection', (ws) => {
-    ws.on('message', async (data) => {
+  wss.on('connection', (ws: WebSocket) => {
+    ws.on('message', async (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
 
@@ -261,7 +261,7 @@ export function registerRoutes(app: Express): Server {
         switch (message.type) {
           case 'private_message':
             // Broadcast to connected clients
-            wss.clients.forEach((client) => {
+            wss.clients.forEach((client: WebSocket) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({
                   type: 'private_message',
