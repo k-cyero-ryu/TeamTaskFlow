@@ -22,6 +22,8 @@ export default function App() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+
+      {/* Protected Routes with Layout */}
       <Route path="/">
         <ProtectedRoute>
           <Layout>
@@ -29,6 +31,7 @@ export default function App() {
           </Layout>
         </ProtectedRoute>
       </Route>
+
       <Route path="/tasks">
         <ProtectedRoute>
           <Layout>
@@ -36,6 +39,7 @@ export default function App() {
           </Layout>
         </ProtectedRoute>
       </Route>
+
       <Route path="/chat">
         <ProtectedRoute>
           <Layout>
@@ -43,13 +47,17 @@ export default function App() {
           </Layout>
         </ProtectedRoute>
       </Route>
+
       <Route path="/chat/:id">
-        <ProtectedRoute>
-          <Layout>
-            <ChatConversation params={{ id: window.location.pathname.split("/")[2] }} />
-          </Layout>
-        </ProtectedRoute>
+        {(params) => (
+          <ProtectedRoute>
+            <Layout>
+              <ChatConversation params={params} />
+            </Layout>
+          </ProtectedRoute>
+        )}
       </Route>
+
       <Route path="/users">
         <ProtectedRoute>
           <Layout>
@@ -57,9 +65,8 @@ export default function App() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      <Route>
-        <NotFound />
-      </Route>
+
+      <Route component={NotFound} />
     </Switch>
   );
 }
