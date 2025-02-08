@@ -1,7 +1,8 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useNavigation } from "./use-navigation";
 import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 export function ProtectedRoute({
   children,
@@ -9,19 +10,21 @@ export function ProtectedRoute({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
-  const [location, setLocation] = useLocation();
+  const navigate = useNavigation();
+  const [location] = useLocation();
 
   useEffect(() => {
     if (!isLoading) {
-      if (!user && location !== "/auth") {
+      const currentPath = location.split('/').pop() || '';
+      if (!user && currentPath !== "auth") {
         console.log('User not authenticated, redirecting to /auth');
-        setLocation("/auth");
-      } else if (user && location === "/auth") {
+        navigate("/auth");
+      } else if (user && currentPath === "auth") {
         console.log('User authenticated, redirecting to /');
-        setLocation("/");
+        navigate("/");
       }
     }
-  }, [user, isLoading, location, setLocation]);
+  }, [user, isLoading, location, navigate]);
 
   if (isLoading) {
     return (
@@ -31,7 +34,6 @@ export function ProtectedRoute({
     );
   }
 
-  // Don't render protected content if user is not authenticated
   if (!user) {
     return null;
   }
