@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema, InsertUser } from "@shared/schema";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -20,8 +21,15 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Handle navigation after render using useEffect
+  useEffect(() => {
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
+  // If user exists, wait for the effect to handle navigation
   if (user) {
-    setLocation("/");
     return null;
   }
 
