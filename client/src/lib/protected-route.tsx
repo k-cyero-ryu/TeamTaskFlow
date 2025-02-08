@@ -9,13 +9,13 @@ export function ProtectedRoute({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !user && location !== "/auth") {
       setLocation("/auth");
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading, location, setLocation]);
 
   if (isLoading) {
     return (
