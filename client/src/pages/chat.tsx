@@ -1,11 +1,21 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import type { User } from "@shared/schema";
 
 type Conversation = {
   user: {
@@ -24,10 +34,17 @@ type Conversation = {
 export default function Chat() {
   const { user } = useAuth();
   const [_, setLocation] = useLocation();
+  const [open, setOpen] = useState(false);
 
-  const { data: conversations, isLoading } = useQuery<Conversation[]>({
+  const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/messages/conversations"],
   });
+
+  const { data: users, isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const isLoading = conversationsLoading || usersLoading;
 
   if (isLoading) {
     return (
@@ -41,6 +58,42 @@ export default function Chat() {
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Messages</h1>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Message
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Start a Conversation</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              {users?.filter(u => u.id !== user?.id).map((otherUser) => (
+                <Card
+                  key={otherUser.id}
+                  className="p-4 hover:bg-secondary/50 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setLocation(`/chat/${otherUser.id}`);
+                    setOpen(false);
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar>
+                      <AvatarFallback>
+                        {otherUser.username[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-medium">{otherUser.username}</h3>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4">
@@ -106,7 +159,7 @@ export default function Chat() {
             <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No messages yet</h3>
             <p className="text-muted-foreground mt-1">
-              Start a conversation with someone to see messages here
+              Start a conversation with someone using the "New Message" button above
             </p>
           </div>
         )}
