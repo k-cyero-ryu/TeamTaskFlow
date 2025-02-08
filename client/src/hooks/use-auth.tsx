@@ -30,12 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-  } = useQuery<SelectUser | undefined, Error>({
+  } = useQuery<SelectUser>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    onSuccess: (data) => {
-      console.log("Auth state updated:", data ? "authenticated" : "not authenticated");
-    },
+    retry: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   const loginMutation = useMutation({
@@ -48,19 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return res.json();
     },
-    onSuccess: (user: SelectUser) => {
+    onSuccess: async (user: SelectUser) => {
       console.log("Login successful, updating auth state...");
-      // First set the user data in the cache
-      queryClient.setQueryData(["/api/user"], user);
 
-      // Invalidate and refetch in sequence
-      Promise.resolve()
-        .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user"] }))
-        .then(() => queryClient.refetchQueries({ queryKey: ["/api/user"] }))
-        .then(() => {
-          console.log("Auth state fully updated, navigating to /");
-          navigate("/");
-        });
+      // Set query data and invalidate in sequence
+      queryClient.setQueryData(["/api/user"], user);
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
+      // Force a refetch to ensure we have fresh data
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+
+      console.log("Auth state fully updated after login");
+      navigate("/");
     },
     onError: (error: Error) => {
       console.error("Login failed:", error);
@@ -82,11 +81,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return res.json();
     },
-    onSuccess: (user: SelectUser) => {
+    onSuccess: async (user: SelectUser) => {
       console.log("Registration successful, updating auth state...");
+
+      // Set query data and invalidate in sequence
       queryClient.setQueryData(["/api/user"], user);
-      queryClient.invalidateQueries();
-      console.log("Auth state updated after registration, navigating to /");
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
+      // Force a refetch to ensure we have fresh data
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+
+      console.log("Auth state fully updated after registration");
       navigate("/");
     },
     onError: (error: Error) => {
@@ -108,21 +113,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message || "Logout failed");
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log("Logout successful, clearing auth state...");
 
-      // First clear the cache
-      queryClient.clear();
+      // First set the user to null
       queryClient.setQueryData(["/api/user"], null);
 
-      // Wait for all state updates to complete
-      Promise.resolve()
-        .then(() => queryClient.invalidateQueries())
-        .then(() => queryClient.resetQueries())
-        .then(() => {
-          console.log("Auth state fully cleared, navigating to /auth");
-          navigate("/auth");
-        });
+      // Then invalidate all queries
+      await queryClient.invalidateQueries();
+
+      // Finally clear the cache
+      queryClient.clear();
+
+      console.log("Auth state fully cleared after logout");
+      navigate("/auth");
     },
     onError: (error: Error) => {
       console.error("Logout failed:", error);

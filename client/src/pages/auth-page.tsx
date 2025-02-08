@@ -22,13 +22,22 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (user) {
+    console.log("AuthPage - Auth state check:", {
+      user: user ? { id: user.id, username: user.username } : null,
+      isLoginPending: loginMutation.isPending,
+      isRegisterPending: registerMutation.isPending
+    });
+
+    // Only redirect if we have a user and no pending mutations
+    if (user && !loginMutation.isPending && !registerMutation.isPending) {
+      console.log("AuthPage - User authenticated, redirecting to /");
       setLocation("/");
     }
-  }, [user, setLocation]);
+  }, [user, loginMutation.isPending, registerMutation.isPending, setLocation]);
 
-  // If user exists, don't render anything while redirecting
-  if (user) {
+  // If user exists and no pending mutations, don't render anything while redirecting
+  if (user && !loginMutation.isPending && !registerMutation.isPending) {
+    console.log("AuthPage - Skipping render due to authenticated user");
     return null;
   }
 
@@ -48,14 +57,20 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <AuthForm
                   mode="login"
-                  onSubmit={(data) => loginMutation.mutate(data)}
+                  onSubmit={(data) => {
+                    console.log("AuthPage - Attempting login");
+                    loginMutation.mutate(data);
+                  }}
                   isPending={loginMutation.isPending}
                 />
               </TabsContent>
               <TabsContent value="register">
                 <AuthForm
                   mode="register"
-                  onSubmit={(data) => registerMutation.mutate(data)}
+                  onSubmit={(data) => {
+                    console.log("AuthPage - Attempting registration");
+                    registerMutation.mutate(data);
+                  }}
                   isPending={registerMutation.isPending}
                 />
               </TabsContent>
@@ -94,7 +109,13 @@ function AuthForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+      <form 
+        onSubmit={form.handleSubmit((data) => {
+          console.log(`AuthForm - Submitting ${mode} form`);
+          onSubmit(data);
+        })} 
+        className="space-y-4 mt-4"
+      >
         <FormField
           control={form.control}
           name="username"

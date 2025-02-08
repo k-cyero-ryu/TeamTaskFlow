@@ -23,7 +23,7 @@ export function ProtectedRoute({
         user: user ? { id: user.id, username: user.username } : null
       });
 
-      // Always use absolute paths for navigation
+      // Only navigate if we need to and we're not already at the target location
       if (!user && location !== '/auth') {
         console.log('Protected route: Not authenticated, navigating to /auth');
         navigate('/auth');
@@ -33,11 +33,12 @@ export function ProtectedRoute({
       } else {
         console.log('Protected route: No navigation needed');
       }
+    } else {
+      console.log('Protected route: Loading auth state...');
     }
   }, [user, isLoading, location, navigate]);
 
   if (isLoading) {
-    console.log('Protected route: Loading auth state...');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -45,6 +46,7 @@ export function ProtectedRoute({
     );
   }
 
+  // If not loading and no user, render nothing while navigating
   if (!user) {
     console.log('Protected route: Not authenticated, rendering null');
     return null;
