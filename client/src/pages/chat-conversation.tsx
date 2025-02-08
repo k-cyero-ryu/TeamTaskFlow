@@ -34,6 +34,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const otherUserId = parseInt(params.id);
 
@@ -47,29 +48,40 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
         ws.onopen = () => {
           console.log('WebSocket connected');
-          reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+          setIsConnected(true);
+          reconnectAttempts = 0;
         };
 
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data);
           if (data.type === "private_message") {
-            queryClient.invalidateQueries({ queryKey: [`/api/messages/${otherUserId}`] });
+            // Only invalidate if the message is relevant to this conversation
+            const messageData = data.data;
+            if (
+              (messageData.senderId === otherUserId && messageData.recipientId === user?.id) ||
+              (messageData.senderId === user?.id && messageData.recipientId === otherUserId)
+            ) {
+              queryClient.invalidateQueries({ queryKey: [`/api/messages/${otherUserId}`] });
+            }
           }
         };
 
         ws.onclose = () => {
           console.log('WebSocket disconnected');
+          setIsConnected(false);
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts++;
-            setTimeout(connectWebSocket, 1000 * Math.min(reconnectAttempts, 30)); // Exponential backoff
+            setTimeout(connectWebSocket, 1000 * Math.min(reconnectAttempts, 30));
           }
         };
 
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
+          setIsConnected(false);
         };
       } catch (error) {
         console.error('Error establishing WebSocket connection:', error);
+        setIsConnected(false);
       }
     };
 
@@ -81,7 +93,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
         ws = null;
       }
     };
-  }, [otherUserId, queryClient]);
+  }, [otherUserId, queryClient, user?.id]);
 
   // Get the other user's data
   const { data: users } = useQuery<User[]>({
@@ -108,6 +120,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
       return res.json();
     },
     onSuccess: (newMessage) => {
+      // Optimistically update the messages list
       queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => [
         ...(old || []),
         newMessage,
@@ -119,6 +132,12 @@ export default function ChatConversation({ params }: { params: { id: string } })
           type: "private_message",
           data: newMessage,
         }));
+      } else {
+        toast({
+          title: "WebSocket disconnected",
+          description: "Message sent but real-time updates might be delayed.",
+          variant: "default",
+        });
       }
 
       setMessage("");
@@ -180,7 +199,14 @@ export default function ChatConversation({ params }: { params: { id: string } })
                 {otherUser.username[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <h2 className="font-semibold">{otherUser.username}</h2>
+            <div>
+              <h2 className="font-semibold">{otherUser.username}</h2>
+              {!isConnected && (
+                <p className="text-sm text-muted-foreground">
+                  Reconnecting...
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -261,7 +287,11 @@ export default function ChatConversation({ params }: { params: { id: string } })
               }}
               disabled={!message.trim() || sendMessageMutation.isPending}
             >
-              <Send className="h-4 w-4" />
+              {sendMessageMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
