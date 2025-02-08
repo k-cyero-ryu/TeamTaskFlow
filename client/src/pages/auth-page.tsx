@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema, InsertUser } from "@shared/schema";
-import { useNavigation } from "@/lib/use-navigation";
 import { useEffect } from "react";
 import {
   Form,
@@ -19,14 +18,13 @@ import {
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
-  const navigate = useNavigation();
 
   useEffect(() => {
-    // If authenticated and no pending mutations, navigate to dashboard
+    // If authenticated and no pending mutations, force navigation to dashboard
     if (user && !loginMutation.isPending && !registerMutation.isPending) {
-      navigate("/");
+      window.location.href = "/";
     }
-  }, [user, loginMutation.isPending, registerMutation.isPending, navigate]);
+  }, [user, loginMutation.isPending, registerMutation.isPending]);
 
   // If user exists and no pending mutations, don't render anything while redirecting
   if (user && !loginMutation.isPending && !registerMutation.isPending) {

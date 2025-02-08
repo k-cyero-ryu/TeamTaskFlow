@@ -7,7 +7,6 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigation } from "@/lib/use-navigation";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -24,7 +23,6 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const navigate = useNavigation();
 
   const {
     data: user,
@@ -50,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      navigate("/");
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({
@@ -73,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      navigate("/");
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({
@@ -96,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], null);
       await queryClient.invalidateQueries();
       queryClient.clear();
-      navigate("/auth");
+      window.location.href = "/auth";
     },
     onError: (error: Error) => {
       toast({

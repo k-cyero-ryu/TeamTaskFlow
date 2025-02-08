@@ -1,8 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-import { useNavigation } from "./use-navigation";
 import { useEffect } from "react";
-import { useLocation } from "wouter";
 
 export function ProtectedRoute({
   children,
@@ -10,17 +8,13 @@ export function ProtectedRoute({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
-  const navigate = useNavigation();
-  const [location] = useLocation();
 
   useEffect(() => {
-    if (!isLoading) {
-      // Only navigate if we need to and we're not already at the target location
-      if (!user && location !== '/auth') {
-        navigate('/auth');
-      }
+    if (!isLoading && !user) {
+      // Force direct navigation for protected routes
+      window.location.href = "/auth";
     }
-  }, [user, isLoading, location, navigate]);
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (
@@ -30,7 +24,7 @@ export function ProtectedRoute({
     );
   }
 
-  // If not loading and no user, render nothing while navigating
+  // If not logged in, render nothing while redirecting
   if (!user) {
     return null;
   }

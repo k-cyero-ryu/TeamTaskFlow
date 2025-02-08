@@ -321,86 +321,76 @@ export function registerRoutes(app: Express): Server {
     server: httpServer,
     path: "/ws",
     clientTracking: true,
-    verifyClient: async ({ req }, done) => {
-      try {
-        if (!req.headers.cookie) {
-          console.log('WebSocket connection rejected: No cookie');
-          return done(false, 401, 'Unauthorized');
-        }
-
-        const cookies = parseCookie(req.headers.cookie);
-        const sid = cookies['connect.sid'];
-
-        if (!sid) {
-          console.log('WebSocket connection rejected: No session ID');
-          return done(false, 401, 'Unauthorized');
-        }
-
-        const sessionStore = storage.sessionStore;
-        const sessionID = sid.split('.')[0].slice(2);
-
-        sessionStore.get(sessionID, (err, session) => {
-          if (err || !session) {
-            console.log('WebSocket connection rejected: Invalid session');
-            return done(false, 401, 'Unauthorized');
-          }
-
-          console.log('WebSocket connection authorized');
-          done(true);
-        });
-      } catch (error) {
-        console.error('WebSocket verification error:', error);
-        done(false, 500, 'Internal Server Error');
-      }
-    }
   });
 
-  wss.on("connection", (ws, req) => {
-    console.log("New WebSocket client connected");
+  wss.on("connection", async (ws, req) => {
+    try {
+      // Parse cookies from the upgrade request
+      const cookies = parseCookie(req.headers.cookie || '');
+      const sessionID = cookies['connect.sid']?.split('.')[0].slice(2);
 
-    ws.send(JSON.stringify({
-      type: "connection_status",
-      status: "connected"
-    }));
+      if (!sessionID) {
+        console.error('WebSocket connection rejected: No valid session ID');
+        ws.close(1008, 'Unauthorized');
+        return;
+      }
 
-    ws.on("message", (data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        console.log("Received WebSocket message:", message);
+      // Verify session and get user data
+      const sessionStore = storage.sessionStore;
+      sessionStore.get(sessionID, (err, session) => {
+        if (err || !session?.passport?.user) {
+          console.error('WebSocket connection rejected: Invalid session');
+          ws.close(1008, 'Unauthorized');
+          return;
+        }
 
-        if (message.type === "identify" && typeof message.userId === "number") {
-          clients.set(ws, message.userId);
-          console.log(`Client identified with userId: ${message.userId}`);
+        const userId = session.passport.user;
+        clients.set(ws, userId);
 
+        console.log(`WebSocket client connected and authenticated with userId: ${userId}`);
+
+        ws.send(JSON.stringify({
+          type: "connection_status",
+          status: "connected",
+          userId
+        }));
+      });
+
+      ws.on("message", (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          console.log("Received WebSocket message:", message);
+
+          if (message.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+          }
+        } catch (error) {
+          console.error("WebSocket message handling error:", error);
           ws.send(JSON.stringify({
-            type: "identification_status",
-            status: "success",
-            userId: message.userId
+            type: "error",
+            message: "Failed to process message"
           }));
         }
-      } catch (error) {
-        console.error("WebSocket message handling error:", error);
-        ws.send(JSON.stringify({
-          type: "error",
-          message: "Failed to process message"
-        }));
-      }
-    });
+      });
 
-    ws.on("close", () => {
-      console.log("WebSocket client disconnected");
-      clients.delete(ws);
-    });
+      ws.on("close", () => {
+        console.log("WebSocket client disconnected");
+        clients.delete(ws);
+      });
 
-    ws.on("error", (error) => {
-      console.error("WebSocket client error:", error);
-      clients.delete(ws);
-      try {
-        ws.close();
-      } catch (closeError) {
-        console.error("Error closing WebSocket:", closeError);
-      }
-    });
+      ws.on("error", (error) => {
+        console.error("WebSocket client error:", error);
+        clients.delete(ws);
+        try {
+          ws.close();
+        } catch (closeError) {
+          console.error("Error closing WebSocket:", closeError);
+        }
+      });
+    } catch (error) {
+      console.error("WebSocket connection error:", error);
+      ws.close(1011, 'Internal Server Error');
+    }
   });
 
   wss.on("error", (error) => {

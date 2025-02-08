@@ -8,6 +8,7 @@ import ChatConversation from "@/pages/chat-conversation";
 import Users from "@/pages/users";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
+import { useAuth } from "@/hooks/use-auth";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,9 +20,20 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { user } = useAuth();
+
+  // If user is authenticated, redirect from /auth to /
+  if (user && window.location.pathname === "/auth") {
+    window.location.href = "/";
+    return null;
+  }
+
   return (
     <Switch>
-      <Route path="/auth" component={AuthPage} />
+      {/* Public Route */}
+      <Route path="/auth">
+        <AuthPage />
+      </Route>
 
       {/* Protected Routes with Layout */}
       <Route path="/">
