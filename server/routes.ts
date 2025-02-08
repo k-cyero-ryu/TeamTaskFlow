@@ -214,7 +214,10 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/messages/:userId", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const result = insertPrivateMessageSchema.safeParse(req.body);
+    const result = insertPrivateMessageSchema.safeParse({
+      ...req.body,
+      recipientId: parseInt(req.params.userId),
+    });
     if (!result.success) {
       return res.status(400).json(result.error);
     }
@@ -223,7 +226,6 @@ export function registerRoutes(app: Express): Server {
       const message = await storage.createPrivateMessage({
         ...result.data,
         senderId: req.user.id,
-        recipientId: parseInt(req.params.userId),
       });
       res.status(201).json(message);
     } catch (error) {

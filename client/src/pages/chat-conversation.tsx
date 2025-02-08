@@ -71,7 +71,6 @@ export default function ChatConversation({ params }: { params: { id: string } })
     mutationFn: async (content: string) => {
       const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
         content,
-        recipientId: otherUserId,
       });
       if (!res.ok) {
         const error = await res.json();

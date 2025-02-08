@@ -162,8 +162,11 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
 // Add message schemas
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
   content: true,
-  recipientId: true,
 });
+
+// Add message types
+export type PrivateMessage = typeof privateMessages.$inferSelect;
+export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
 
 // Update the insertTaskSchema to properly handle dates
 export const insertTaskSchema = createInsertSchema(tasks).pick({
@@ -192,5 +195,3 @@ export type TaskParticipant = typeof taskParticipants.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 // Add message types
-export type PrivateMessage = typeof privateMessages.$inferSelect;
-export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
