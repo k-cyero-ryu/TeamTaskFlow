@@ -6,6 +6,7 @@ import { insertTaskSchema } from "@shared/schema";
 import { insertCommentSchema } from "@shared/schema";
 import { WebSocketServer, WebSocket } from "ws";
 import { insertPrivateMessageSchema } from "@shared/schema";
+import passport from 'passport';
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -211,24 +212,87 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/messages/:userId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const result = insertPrivateMessageSchema.safeParse({
-      ...req.body,
-      recipientId: parseInt(req.params.userId),
-    });
-    if (!result.success) {
-      return res.status(400).json(result.error);
-    }
-
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication failed" });
+      }
+      res.status(200).json(req.user);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/logout", (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      req.logout((err) => {
+        if (err) {
+          console.error("Logout error:", err);
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("Session destruction error:", err);
+            return res.status(500).json({ message: "Logout failed" });
+          }
+          res.status(200).json({ message: "Logged out successfully" });
+        });
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/messages/:userId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const result = insertPrivateMessageSchema.safeParse({
+        ...req.body,
+        recipientId: parseInt(req.params.userId),
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid message data", errors: result.error });
+      }
+
       const message = await storage.createPrivateMessage({
         ...result.data,
         senderId: req.user.id,
       });
+
+      // Send WebSocket notification
+      const recipientId = parseInt(req.params.userId);
+
+      // Convert clients Map to array for iteration
+      const clientEntries = Array.from(clients.entries());
+      for (const [client, userId] of clientEntries) {
+        if (
+          client.readyState === WebSocket.OPEN &&
+          (userId === recipientId || userId === req.user.id)
+        ) {
+          try {
+            client.send(JSON.stringify({
+              type: "private_message",
+              data: message,
+            }));
+          } catch (wsError) {
+            console.error("WebSocket send error:", wsError);
+            // Don't fail the request if WebSocket send fails
+          }
+        }
+      }
+
       res.status(201).json(message);
     } catch (error) {
+      console.error("Error sending message:", error);
       res.status(500).json({ message: "Error sending message" });
     }
   });
@@ -249,44 +313,24 @@ export function registerRoutes(app: Express): Server {
 
   const httpServer = createServer(app);
 
-  // Update the WebSocket server implementation
+  // WebSocket server setup
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
-
-  // Keep track of connected clients and their user IDs
   const clients = new Map<WebSocket, number>();
 
-  wss.on("connection", (ws, req) => {
+  wss.on("connection", (ws) => {
     console.log("WebSocket client connected");
 
-    ws.on("message", async (data) => {
+    ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
         console.log("Received message:", message);
 
-        // Handle different message types
-        if (message.type === "private_message") {
-          // Get the recipient's WebSocket connections
-          const recipientId = message.data.recipientId;
-          const senderId = message.data.senderId;
-
-          // Broadcast to relevant clients only
-          for (const [client, userId] of clients.entries()) {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              (userId === recipientId || userId === senderId)
-            ) {
-              client.send(JSON.stringify({
-                type: "private_message",
-                data: message.data,
-              }));
-            }
-          }
-        } else if (message.type === "identify") {
-          // Store the user ID associated with this connection
+        if (message.type === "identify" && typeof message.userId === "number") {
           clients.set(ws, message.userId);
+          console.log(`Client identified with userId: ${message.userId}`);
         }
       } catch (error) {
-        console.error("WebSocket error:", error);
+        console.error("WebSocket message handling error:", error);
       }
     });
 

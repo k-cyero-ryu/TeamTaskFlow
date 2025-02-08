@@ -21,6 +21,7 @@ type AuthContextType = {
 type LoginData = Pick<InsertUser, "username" | "password">;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
@@ -41,12 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const error = await res.json();
         throw new Error(error.message || "Login failed");
       }
-      return res.json();
+      const data = await res.json();
+      return data;
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
-      // Navigate to dashboard after successful login
-      setLocation("/");
+      // Delay navigation slightly to ensure state is updated
+      setTimeout(() => setLocation("/"), 100);
     },
     onError: (error: Error) => {
       toast({
@@ -68,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
-      // Navigate to dashboard after successful registration
-      setLocation("/");
+      // Delay navigation slightly to ensure state is updated
+      setTimeout(() => setLocation("/"), 100);
     },
     onError: (error: Error) => {
       toast({
@@ -84,16 +86,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/logout");
       if (!res.ok) {
-        throw new Error("Logout failed");
+        const error = await res.json();
+        throw new Error(error.message || "Logout failed");
       }
     },
     onSuccess: () => {
-      // Clear all queries from the cache
+      // Clear cache and reset state before navigation
       queryClient.clear();
-      // Reset user state
       queryClient.setQueryData(["/api/user"], null);
-      // Navigate to auth page after successful logout
-      setLocation("/auth");
+      // Delay navigation slightly to ensure state is updated
+      setTimeout(() => setLocation("/auth"), 100);
     },
     onError: (error: Error) => {
       toast({
