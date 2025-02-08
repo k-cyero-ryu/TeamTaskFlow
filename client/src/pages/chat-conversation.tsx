@@ -24,10 +24,6 @@ type Message = {
   };
 };
 
-let ws: WebSocket | null = null;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
-
 export default function ChatConversation({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const [_, setLocation] = useLocation();
@@ -36,131 +32,132 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const [message, setMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const otherUserId = parseInt(params.id);
+  let reconnectAttempts = 0;
 
-  // Connect to WebSocket
+
+  // Initialize WebSocket connection
   useEffect(() => {
     const connectWebSocket = () => {
-      try {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        ws = new WebSocket(wsUrl);
+      if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-        ws.onopen = () => {
-          console.log('WebSocket connected');
-          setIsConnected(true);
-          reconnectAttempts = 0;
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-          // Send identify message
-          if (user?.id && ws) {
-            ws.send(JSON.stringify({
-              type: 'identify',
-              userId: user.id
-            }));
-          }
-        };
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        if (user?.id) {
+          ws.send(JSON.stringify({
+            type: 'identify',
+            userId: user.id
+          }));
+        }
+        reconnectAttempts = 0;
+      };
 
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "private_message") {
-              const messageData = data.data;
-              if (
-                (messageData.senderId === otherUserId && messageData.recipientId === user?.id) ||
-                (messageData.senderId === user?.id && messageData.recipientId === otherUserId)
-              ) {
-                // Update messages optimistically
-                queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => {
-                  if (!old) return [messageData];
-                  // Avoid duplicates
-                  if (old.some(m => m.id === messageData.id)) return old;
-                  return [...old, messageData];
-                });
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "private_message") {
+            const messageData = data.data;
+            queryClient.setQueryData<Message[]>(
+              [`/api/messages/${otherUserId}`],
+              (old) => {
+                if (!old) return [messageData];
+                if (old.some(m => m.id === messageData.id)) return old;
+                return [...old, messageData];
               }
-            }
-          } catch (error) {
-            console.error('Error processing WebSocket message:', error);
+            );
           }
-        };
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error);
+        }
+      };
 
-        ws.onclose = () => {
-          console.log('WebSocket disconnected');
-          setIsConnected(false);
-          if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
-            setTimeout(connectWebSocket, 1000 * Math.min(reconnectAttempts, 30));
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setIsConnected(false);
-        };
-      } catch (error) {
-        console.error('Error establishing WebSocket connection:', error);
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
         setIsConnected(false);
-      }
+        wsRef.current = null;
+
+        // Clear any existing reconnection timeout
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+
+        // Set up reconnection with exponential backoff
+        const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
+        reconnectAttempts++;
+      };
+
+      ws.onerror = () => {
+        console.log('WebSocket error');
+        setIsConnected(false);
+      };
     };
 
+    // Start connection if we have a user
     if (user?.id) {
       connectWebSocket();
     }
 
+    // Cleanup on unmount
     return () => {
-      if (ws) {
-        ws.close();
-        ws = null;
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [otherUserId, queryClient, user?.id]);
+  }, [user?.id, otherUserId, queryClient]);
 
-  // Get the other user's data and messages with error boundaries
-  const { data: users, isError: usersError } = useQuery<User[]>({
+  // Get messages and user data
+  const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
 
   const otherUser = users?.find(u => u.id === otherUserId);
 
-  const { data: messages = [], isLoading: isLoadingMessages, isError: messagesError } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<Message[]>({
     queryKey: [`/api/messages/${otherUserId}`],
     enabled: !isNaN(otherUserId),
   });
 
+  // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (messageContent: string) => {
       const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
         content: messageContent,
         recipientId: otherUserId
       });
+
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to send message");
       }
+
       return res.json();
     },
     onSuccess: (newMessage) => {
-      // Update messages optimistically
+      // Update messages in the cache
       queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => {
         if (!old) return [newMessage];
         if (old.some(m => m.id === newMessage.id)) return old;
         return [...old, newMessage];
       });
 
-      // Send message through WebSocket
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: "private_message",
-          data: newMessage,
-        }));
-      } else {
-        toast({
-          title: "WebSocket disconnected",
-          description: "Message sent but real-time updates might be delayed.",
-          variant: "default",
-        });
-      }
-
+      // Clear input
       setMessage("");
+
+      // Scroll to bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (error: Error) => {
       toast({
@@ -171,30 +168,24 @@ export default function ChatConversation({ params }: { params: { id: string } })
     },
   });
 
-  // Handle errors
-  if (usersError || messagesError) {
-    toast({
-      title: "Error",
-      description: "Failed to load chat data. Please try again.",
-      variant: "destructive",
-    });
-    return null;
-  }
-
-  if (isNaN(otherUserId)) {
+  // Handle navigation
+  if (isNaN(otherUserId) || !otherUser) {
     setLocation("/chat");
     return null;
   }
 
-  if (!otherUser) {
-    setLocation("/chat");
-    return null;
+  // Loading state
+  if (isLoadingMessages) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   const handleSendMessage = () => {
-    if (message.trim()) {
-      sendMessageMutation.mutate(message);
-    }
+    if (!message.trim()) return;
+    sendMessageMutation.mutate(message);
   };
 
   return (

@@ -281,7 +281,13 @@ export function registerRoutes(app: Express): Server {
           try {
             client.send(JSON.stringify({
               type: "private_message",
-              data: message,
+              data: {
+                ...message,
+                sender: {
+                  id: req.user.id,
+                  username: req.user.username,
+                },
+              },
             }));
           } catch (wsError) {
             console.error("WebSocket send error:", wsError);
