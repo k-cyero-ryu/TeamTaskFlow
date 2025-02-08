@@ -37,14 +37,18 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const otherUserId = parseInt(params.id);
   let reconnectAttempts = 0;
 
-
   // Initialize WebSocket connection
   useEffect(() => {
     const connectWebSocket = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+      // Use window.location.host instead of hardcoding localhost
+      const host = window.location.host;
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const wsUrl = `${protocol}//${host}/ws`;
+
+      console.log('Connecting to WebSocket:', wsUrl); // Debug log
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -73,6 +77,8 @@ export default function ChatConversation({ params }: { params: { id: string } })
                 return [...old, messageData];
               }
             );
+            // Scroll to bottom on new message
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
           }
         } catch (error) {
           console.error('Error processing WebSocket message:', error);
@@ -84,29 +90,25 @@ export default function ChatConversation({ params }: { params: { id: string } })
         setIsConnected(false);
         wsRef.current = null;
 
-        // Clear any existing reconnection timeout
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
 
-        // Set up reconnection with exponential backoff
         const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
         reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
         reconnectAttempts++;
       };
 
-      ws.onerror = () => {
-        console.log('WebSocket error');
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
         setIsConnected(false);
       };
     };
 
-    // Start connection if we have a user
     if (user?.id) {
       connectWebSocket();
     }
 
-    // Cleanup on unmount
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -146,17 +148,13 @@ export default function ChatConversation({ params }: { params: { id: string } })
       return res.json();
     },
     onSuccess: (newMessage) => {
-      // Update messages in the cache
       queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => {
         if (!old) return [newMessage];
         if (old.some(m => m.id === newMessage.id)) return old;
         return [...old, newMessage];
       });
 
-      // Clear input
       setMessage("");
-
-      // Scroll to bottom
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (error: Error) => {
