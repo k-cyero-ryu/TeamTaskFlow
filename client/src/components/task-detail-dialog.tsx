@@ -5,21 +5,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
-import { Task, Subtask, TaskStep } from "@shared/schema";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { Task, Subtask, TaskStep } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 
 interface ExtendedTask extends Task {
@@ -46,7 +46,6 @@ export default function TaskDetailDialog({
 
   const updateSubtaskMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      setUpdatingSubtaskId(id);
       const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
         completed,
       });
@@ -54,33 +53,38 @@ export default function TaskDetailDialog({
       return { id, completed, data };
     },
     onMutate: async ({ id, completed }) => {
-      // Cancel any outgoing refetches
+      setUpdatingSubtaskId(id);
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
 
-      // Snapshot the previous value
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
 
-      // Optimistically update to the new value
-      queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
-        if (!old) return [];
-        return old.map((t) => {
-          if (t.id === task.id) {
-            return {
-              ...t,
-              subtasks: t.subtasks?.map((s) =>
-                s.id === id ? { ...s, completed } : s
-              ),
-            };
-          }
-          return t;
+      // Optimistically update the task in the cache
+      if (previousTasks) {
+        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
+          if (!old) return previousTasks;
+          return old.map((t) => {
+            if (t.id === task.id) {
+              return {
+                ...t,
+                subtasks: t.subtasks?.map((s) =>
+                  s.id === id ? { ...s, completed } : s
+                ),
+              };
+            }
+            return t;
+          });
         });
-      });
+      }
 
-      // Return a context object with the snapshotted value
       return { previousTasks };
     },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Subtask updated",
+        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
+      });
+    },
     onError: (err, variables, context) => {
-      // Roll back to the previous value if there's an error
       if (context?.previousTasks) {
         queryClient.setQueryData(["/api/tasks"], context.previousTasks);
       }
@@ -88,12 +92,6 @@ export default function TaskDetailDialog({
         title: "Error updating subtask",
         description: err.message,
         variant: "destructive",
-      });
-    },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Subtask updated",
-        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
       });
     },
     onSettled: () => {
@@ -104,7 +102,6 @@ export default function TaskDetailDialog({
 
   const updateStepMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      setUpdatingStepId(id);
       const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
         completed,
       });
@@ -112,25 +109,36 @@ export default function TaskDetailDialog({
       return { id, completed, data };
     },
     onMutate: async ({ id, completed }) => {
+      setUpdatingStepId(id);
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
 
-      queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
-        if (!old) return [];
-        return old.map((t) => {
-          if (t.id === task.id) {
-            return {
-              ...t,
-              steps: t.steps?.map((s) =>
-                s.id === id ? { ...s, completed } : s
-              ),
-            };
-          }
-          return t;
+      // Optimistically update the task in the cache
+      if (previousTasks) {
+        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
+          if (!old) return previousTasks;
+          return old.map((t) => {
+            if (t.id === task.id) {
+              return {
+                ...t,
+                steps: t.steps?.map((s) =>
+                  s.id === id ? { ...s, completed } : s
+                ),
+              };
+            }
+            return t;
+          });
         });
-      });
+      }
 
       return { previousTasks };
+    },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Step updated",
+        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
+      });
     },
     onError: (err, variables, context) => {
       if (context?.previousTasks) {
@@ -142,23 +150,11 @@ export default function TaskDetailDialog({
         variant: "destructive",
       });
     },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Step updated",
-        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
-      });
-    },
     onSettled: () => {
       setUpdatingStepId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
-
-  const statusColors = {
-    todo: "bg-slate-500",
-    "in-progress": "bg-blue-500",
-    done: "bg-green-500",
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -169,7 +165,11 @@ export default function TaskDetailDialog({
             <Badge
               variant="secondary"
               className={`${
-                statusColors[task.status as keyof typeof statusColors]
+                task.status === "todo"
+                  ? "bg-slate-500"
+                  : task.status === "in-progress"
+                  ? "bg-blue-500"
+                  : "bg-green-500"
               }`}
             >
               {task.status}
@@ -187,7 +187,6 @@ export default function TaskDetailDialog({
 
           <Separator />
 
-          {/* Task Details */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-medium mb-2">Created</h3>
@@ -203,26 +202,10 @@ export default function TaskDetailDialog({
                 </p>
               </div>
             )}
-            {task.responsibleId && (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Responsible Person</h3>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback>
-                      {task.responsible?.username?.[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-muted-foreground">
-                    {task.responsible?.username}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
 
           <Separator />
 
-          {/* Participants */}
           {task.participants && task.participants.length > 0 && (
             <>
               <div>
@@ -247,9 +230,7 @@ export default function TaskDetailDialog({
             </>
           )}
 
-          {/* Progress Tracking */}
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Subtasks */}
             {task.subtasks && task.subtasks.length > 0 && (
               <Card>
                 <CardHeader>
@@ -295,7 +276,6 @@ export default function TaskDetailDialog({
               </Card>
             )}
 
-            {/* Steps */}
             {task.steps && task.steps.length > 0 && (
               <Card>
                 <CardHeader>
