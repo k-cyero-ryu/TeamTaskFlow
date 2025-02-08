@@ -27,13 +27,6 @@ export default function AuthPage() {
     }
   }, [user, setLocation]);
 
-  // Handle navigation on successful auth
-  useEffect(() => {
-    if (loginMutation.isSuccess || registerMutation.isSuccess) {
-      setLocation("/");
-    }
-  }, [loginMutation.isSuccess, registerMutation.isSuccess, setLocation]);
-
   // If user exists, don't render anything while redirecting
   if (user) {
     return null;

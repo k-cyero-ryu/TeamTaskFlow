@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -23,6 +24,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const {
     data: user,
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       queryClient.invalidateQueries();
+      setLocation("/");
     },
     onError: (error: Error) => {
       toast({
@@ -67,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       queryClient.invalidateQueries();
+      setLocation("/");
     },
     onError: (error: Error) => {
       toast({
@@ -88,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.clear();
       queryClient.setQueryData(["/api/user"], null);
+      setLocation("/auth");
     },
     onError: (error: Error) => {
       toast({

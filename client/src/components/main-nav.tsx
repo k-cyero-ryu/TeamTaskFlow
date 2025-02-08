@@ -18,23 +18,15 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { useEffect } from "react";
 
 export function MainNav() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
 
-  const { data: unreadCount } = useQuery({
+  const { data: unreadCount = 0 } = useQuery({
     queryKey: ["/api/messages/unread"],
     select: (data: any) => data?.count ?? 0,
   });
-
-  // Handle navigation after logout
-  useEffect(() => {
-    if (logoutMutation.isSuccess) {
-      setLocation("/auth");
-    }
-  }, [logoutMutation.isSuccess, setLocation]);
 
   return (
     <div className="border-b">
@@ -103,8 +95,9 @@ export function MainNav() {
               <DropdownMenuItem
                 className="cursor-pointer text-destructive focus:text-destructive"
                 onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
               >
-                Logout
+                {logoutMutation.isPending ? "Logging out..." : "Logout"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
