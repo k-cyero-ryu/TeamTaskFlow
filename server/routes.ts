@@ -4,7 +4,7 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema } from "@shared/schema";
 import { insertCommentSchema } from "@shared/schema";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { insertPrivateMessageSchema } from "@shared/schema";
 
 export function registerRoutes(app: Express): Server {
@@ -249,39 +249,55 @@ export function registerRoutes(app: Express): Server {
 
   const httpServer = createServer(app);
 
-  // Add WebSocket server for real-time messaging
-  const wss = new WebSocketServer({
-    server: httpServer,
-    path: '/ws'
-  });
+  // Update the WebSocket server implementation
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
+  // Keep track of connected clients and their user IDs
+  const clients = new Map<WebSocket, number>();
 
-    ws.on('message', async (data) => {
+  wss.on("connection", (ws, req) => {
+    console.log("WebSocket client connected");
+
+    ws.on("message", async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log('Received message:', message);
+        console.log("Received message:", message);
 
         // Handle different message types
-        if (message.type === 'private_message') {
-          // Broadcast to connected clients
-          wss.clients.forEach((client) => {
-            if (client.readyState === 1) { // 1 represents OPEN state
+        if (message.type === "private_message") {
+          // Get the recipient's WebSocket connections
+          const recipientId = message.data.recipientId;
+          const senderId = message.data.senderId;
+
+          // Broadcast to relevant clients only
+          for (const [client, userId] of clients.entries()) {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (userId === recipientId || userId === senderId)
+            ) {
               client.send(JSON.stringify({
-                type: 'private_message',
+                type: "private_message",
                 data: message.data,
               }));
             }
-          });
+          }
+        } else if (message.type === "identify") {
+          // Store the user ID associated with this connection
+          clients.set(ws, message.userId);
         }
       } catch (error) {
-        console.error('WebSocket error:', error);
+        console.error("WebSocket error:", error);
       }
     });
 
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected");
+      clients.delete(ws);
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
+      clients.delete(ws);
     });
   });
 

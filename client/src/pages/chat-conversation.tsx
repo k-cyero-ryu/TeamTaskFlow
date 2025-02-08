@@ -50,19 +50,36 @@ export default function ChatConversation({ params }: { params: { id: string } })
           console.log('WebSocket connected');
           setIsConnected(true);
           reconnectAttempts = 0;
+
+          // Send identify message
+          if (user?.id) {
+            ws.send(JSON.stringify({
+              type: 'identify',
+              userId: user.id
+            }));
+          }
         };
 
         ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          if (data.type === "private_message") {
-            // Only invalidate if the message is relevant to this conversation
-            const messageData = data.data;
-            if (
-              (messageData.senderId === otherUserId && messageData.recipientId === user?.id) ||
-              (messageData.senderId === user?.id && messageData.recipientId === otherUserId)
-            ) {
-              queryClient.invalidateQueries({ queryKey: [`/api/messages/${otherUserId}`] });
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "private_message") {
+              const messageData = data.data;
+              if (
+                (messageData.senderId === otherUserId && messageData.recipientId === user?.id) ||
+                (messageData.senderId === user?.id && messageData.recipientId === otherUserId)
+              ) {
+                // Update messages optimistically
+                queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => {
+                  if (!old) return [messageData];
+                  // Avoid duplicates
+                  if (old.some(m => m.id === messageData.id)) return old;
+                  return [...old, messageData];
+                });
+              }
             }
+          } catch (error) {
+            console.error('Error processing WebSocket message:', error);
           }
         };
 
@@ -85,7 +102,9 @@ export default function ChatConversation({ params }: { params: { id: string } })
       }
     };
 
-    connectWebSocket();
+    if (user?.id) {
+      connectWebSocket();
+    }
 
     return () => {
       if (ws) {
@@ -120,11 +139,12 @@ export default function ChatConversation({ params }: { params: { id: string } })
       return res.json();
     },
     onSuccess: (newMessage) => {
-      // Optimistically update the messages list
-      queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => [
-        ...(old || []),
-        newMessage,
-      ]);
+      // Update messages optimistically
+      queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (old) => {
+        if (!old) return [newMessage];
+        if (old.some(m => m.id === newMessage.id)) return old;
+        return [...old, newMessage];
+      });
 
       // Send message through WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -138,6 +158,11 @@ export default function ChatConversation({ params }: { params: { id: string } })
           description: "Message sent but real-time updates might be delayed.",
           variant: "default",
         });
+        // Try to reconnect
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          ws?.close(); // Force close and reconnect
+        }
       }
 
       setMessage("");
