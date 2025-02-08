@@ -1,19 +1,31 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, MessageCircle, Check, ChevronRight } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+
+type Conversation = {
+  user: {
+    id: number;
+    username: string;
+  };
+  lastMessage: {
+    id: number;
+    content: string;
+    senderId: number;
+    createdAt: string;
+    readAt: string | null;
+  };
+};
 
 export default function Chat() {
   const { user } = useAuth();
   const [_, setLocation] = useLocation();
 
-  const { data: conversations, isLoading } = useQuery({
+  const { data: conversations, isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/messages/conversations"],
   });
 
@@ -57,13 +69,23 @@ export default function Chat() {
 
                 <div className="flex items-center gap-2 mt-1">
                   {lastMessage.senderId === user?.id && (
-                    <Check
+                    <svg
                       className={`h-4 w-4 flex-shrink-0 ${
                         lastMessage.readAt
                           ? "text-primary"
                           : "text-muted-foreground"
                       }`}
-                    />
+                      fill="none"
+                      height="24"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      width="24"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                   )}
                   <p className="text-sm text-muted-foreground truncate">
                     {lastMessage.content}
@@ -73,14 +95,13 @@ export default function Chat() {
                       New
                     </Badge>
                   )}
-                  <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto flex-shrink-0" />
                 </div>
               </div>
             </div>
           </Card>
         ))}
 
-        {conversations?.length === 0 && (
+        {!conversations?.length && (
           <div className="text-center py-8">
             <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No messages yet</h3>

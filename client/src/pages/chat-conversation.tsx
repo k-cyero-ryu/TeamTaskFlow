@@ -9,13 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { PrivateMessage } from "@shared/schema";
 
-type Message = PrivateMessage & {
+type Message = {
+  id: number;
+  content: string;
+  senderId: number;
+  recipientId: number;
+  createdAt: string;
+  readAt: string | null;
   sender: {
     id: number;
     username: string;
   };
+};
+
+type User = {
+  id: number;
+  username: string;
 };
 
 let ws: WebSocket | null = null;
@@ -49,7 +59,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
     };
   }, [otherUserId, queryClient]);
 
-  const { data: otherUser } = useQuery({
+  const { data: otherUser } = useQuery<User>({
     queryKey: ["/api/users", otherUserId],
   });
 
@@ -63,6 +73,10 @@ export default function ChatConversation({ params }: { params: { id: string } })
         content,
         recipientId: otherUserId,
       });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to send message");
+      }
       return res.json();
     },
     onSuccess: (newMessage) => {
@@ -70,7 +84,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
         ...(old || []),
         newMessage,
       ]);
-      
+
       // Send message through WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -78,7 +92,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
           data: newMessage,
         }));
       }
-      
+
       setMessage("");
     },
     onError: (error: Error) => {
@@ -125,7 +139,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
             </Button>
             <Avatar>
               <AvatarFallback>
-                {otherUser?.username[0].toUpperCase()}
+                {otherUser?.username?.[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <h2 className="font-semibold">{otherUser?.username}</h2>
@@ -170,7 +184,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
                     }`}
                   >
                     <p className="break-words">{message.content}</p>
-                    <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 ${isOwn ? 'left-0 translate-x-[-100%] pl-1' : 'right-0 translate-x-[100%] pr-1'}">
+                    <span className={`text-xs opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 ${isOwn ? 'left-0 translate-x-[-100%] pl-1' : 'right-0 translate-x-[100%] pr-1'}`}>
                       {format(new Date(message.createdAt), "p")}
                     </span>
                   </div>
