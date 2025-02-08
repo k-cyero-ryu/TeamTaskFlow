@@ -22,16 +22,18 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    // Log the current state for debugging
     console.log("AuthPage - Auth state check:", {
       user: user ? { id: user.id, username: user.username } : null,
       isLoginPending: loginMutation.isPending,
-      isRegisterPending: registerMutation.isPending
+      isRegisterPending: registerMutation.isPending,
+      currentLocation: window.location.pathname
     });
 
-    // Only redirect if we have a user and no pending mutations
+    // Only navigate if we have a user and no pending mutations
     if (user && !loginMutation.isPending && !registerMutation.isPending) {
-      console.log("AuthPage - User authenticated, redirecting to /");
-      setLocation("/");
+      console.log("AuthPage - User authenticated, navigating to /");
+      setTimeout(() => setLocation("/"), 0); // Use setTimeout to ensure state updates complete
     }
   }, [user, loginMutation.isPending, registerMutation.isPending, setLocation]);
 

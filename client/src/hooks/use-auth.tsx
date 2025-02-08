@@ -51,15 +51,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async (user: SelectUser) => {
       console.log("Login successful, updating auth state...");
 
-      // Set query data and invalidate in sequence
+      // First update the query data synchronously
       queryClient.setQueryData(["/api/user"], user);
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
 
-      // Force a refetch to ensure we have fresh data
-      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      // Wait for all query updates to complete
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/user"] })
+      ]);
 
-      console.log("Auth state fully updated after login");
-      navigate("/");
+      console.log("Auth state fully updated after login, navigating...");
+
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => navigate("/"), 0);
     },
     onError: (error: Error) => {
       console.error("Login failed:", error);
@@ -84,15 +88,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async (user: SelectUser) => {
       console.log("Registration successful, updating auth state...");
 
-      // Set query data and invalidate in sequence
+      // First update the query data synchronously
       queryClient.setQueryData(["/api/user"], user);
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
 
-      // Force a refetch to ensure we have fresh data
-      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      // Wait for all query updates to complete
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/user"] })
+      ]);
 
-      console.log("Auth state fully updated after registration");
-      navigate("/");
+      console.log("Auth state fully updated after registration, navigating...");
+
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => navigate("/"), 0);
     },
     onError: (error: Error) => {
       console.error("Registration failed:", error);
@@ -116,17 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: async () => {
       console.log("Logout successful, clearing auth state...");
 
-      // First set the user to null
+      // First set the user to null synchronously
       queryClient.setQueryData(["/api/user"], null);
 
-      // Then invalidate all queries
+      // Invalidate all queries
       await queryClient.invalidateQueries();
 
-      // Finally clear the cache
+      // Clear the cache
       queryClient.clear();
 
-      console.log("Auth state fully cleared after logout");
-      navigate("/auth");
+      console.log("Auth state fully cleared, navigating to auth page...");
+
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => navigate("/auth"), 0);
     },
     onError: (error: Error) => {
       console.error("Logout failed:", error);
