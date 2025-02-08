@@ -25,6 +25,8 @@ type Message = {
 };
 
 let ws: WebSocket | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 export default function ChatConversation({ params }: { params: { id: string } }) {
   const { user } = useAuth();
@@ -37,20 +39,46 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
   // Connect to WebSocket
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    ws = new WebSocket(wsUrl);
+    const connectWebSocket = () => {
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        ws = new WebSocket(wsUrl);
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "private_message") {
-        queryClient.invalidateQueries({ queryKey: [`/api/messages/${otherUserId}`] });
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === "private_message") {
+            queryClient.invalidateQueries({ queryKey: [`/api/messages/${otherUserId}`] });
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket disconnected');
+          if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            reconnectAttempts++;
+            setTimeout(connectWebSocket, 1000 * Math.min(reconnectAttempts, 30)); // Exponential backoff
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
+      } catch (error) {
+        console.error('Error establishing WebSocket connection:', error);
       }
     };
+
+    connectWebSocket();
 
     return () => {
       if (ws) {
         ws.close();
+        ws = null;
       }
     };
   }, [otherUserId, queryClient]);
