@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,11 +17,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Task, Subtask, TaskStep } from "@shared/schema";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useState } from "react";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
@@ -41,6 +41,7 @@ export default function TaskDetailDialog({
   onOpenChange,
 }: TaskDetailDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
   const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
 
@@ -54,38 +55,36 @@ export default function TaskDetailDialog({
     },
     onMutate: async ({ id, completed }) => {
       setUpdatingSubtaskId(id);
+
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
 
+      // Snapshot the previous value
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
 
-      // Optimistically update the task in the cache
-      if (previousTasks) {
-        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
-          if (!old) return previousTasks;
-          return old.map((t) => {
-            if (t.id === task.id) {
-              return {
-                ...t,
-                subtasks: t.subtasks?.map((s) =>
-                  s.id === id ? { ...s, completed } : s
-                ),
-              };
-            }
-            return t;
-          });
-        });
+      // Create updated task data
+      const updatedTasks = previousTasks?.map((t) => {
+        if (t.id === task.id) {
+          return {
+            ...t,
+            subtasks: t.subtasks?.map((s) =>
+              s.id === id ? { ...s, completed } : s
+            ),
+          };
+        }
+        return t;
+      });
+
+      // Update the cache with our optimistic value
+      if (updatedTasks) {
+        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
       }
 
       return { previousTasks };
     },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Subtask updated",
-        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
-      });
-    },
     onError: (err, variables, context) => {
       if (context?.previousTasks) {
+        // If there was an error, roll back the optimistic update
         queryClient.setQueryData(["/api/tasks"], context.previousTasks);
       }
       toast({
@@ -94,8 +93,15 @@ export default function TaskDetailDialog({
         variant: "destructive",
       });
     },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Subtask updated",
+        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
+      });
+    },
     onSettled: () => {
       setUpdatingSubtaskId(null);
+      // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
@@ -110,35 +116,28 @@ export default function TaskDetailDialog({
     },
     onMutate: async ({ id, completed }) => {
       setUpdatingStepId(id);
+
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
 
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
 
-      // Optimistically update the task in the cache
-      if (previousTasks) {
-        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], (old) => {
-          if (!old) return previousTasks;
-          return old.map((t) => {
-            if (t.id === task.id) {
-              return {
-                ...t,
-                steps: t.steps?.map((s) =>
-                  s.id === id ? { ...s, completed } : s
-                ),
-              };
-            }
-            return t;
-          });
-        });
+      const updatedTasks = previousTasks?.map((t) => {
+        if (t.id === task.id) {
+          return {
+            ...t,
+            steps: t.steps?.map((s) =>
+              s.id === id ? { ...s, completed } : s
+            ),
+          };
+        }
+        return t;
+      });
+
+      if (updatedTasks) {
+        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
       }
 
       return { previousTasks };
-    },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Step updated",
-        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
-      });
     },
     onError: (err, variables, context) => {
       if (context?.previousTasks) {
@@ -148,6 +147,12 @@ export default function TaskDetailDialog({
         title: "Error updating step",
         description: err.message,
         variant: "destructive",
+      });
+    },
+    onSuccess: (_, { completed }) => {
+      toast({
+        title: "Step updated",
+        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
       });
     },
     onSettled: () => {
@@ -244,14 +249,15 @@ export default function TaskDetailDialog({
                     >
                       <div className="relative">
                         <Checkbox
+                          id={`subtask-${subtask.id}`}
                           checked={subtask.completed}
                           disabled={updatingSubtaskId === subtask.id}
-                          onCheckedChange={(checked) =>
+                          onCheckedChange={(checked) => {
                             updateSubtaskMutation.mutate({
                               id: subtask.id,
                               completed: checked as boolean,
-                            })
-                          }
+                            });
+                          }}
                           className="transition-opacity duration-200"
                           style={{
                             opacity: updatingSubtaskId === subtask.id ? 0.5 : 1,
@@ -263,13 +269,14 @@ export default function TaskDetailDialog({
                           </div>
                         )}
                       </div>
-                      <span
+                      <label
+                        htmlFor={`subtask-${subtask.id}`}
                         className={`${
                           subtask.completed ? "line-through text-muted-foreground" : ""
-                        } transition-all duration-200`}
+                        } transition-all duration-200 cursor-pointer`}
                       >
                         {subtask.title}
-                      </span>
+                      </label>
                     </div>
                   ))}
                 </CardContent>
@@ -289,14 +296,15 @@ export default function TaskDetailDialog({
                         <div className="flex items-center gap-2">
                           <div className="relative">
                             <Checkbox
+                              id={`step-${step.id}`}
                               checked={step.completed}
                               disabled={updatingStepId === step.id}
-                              onCheckedChange={(checked) =>
+                              onCheckedChange={(checked) => {
                                 updateStepMutation.mutate({
                                   id: step.id,
                                   completed: checked as boolean,
-                                })
-                              }
+                                });
+                              }}
                               className="transition-opacity duration-200"
                               style={{
                                 opacity: updatingStepId === step.id ? 0.5 : 1,
@@ -308,13 +316,14 @@ export default function TaskDetailDialog({
                               </div>
                             )}
                           </div>
-                          <span
+                          <label
+                            htmlFor={`step-${step.id}`}
                             className={`font-medium ${
                               step.completed ? "line-through text-muted-foreground" : ""
-                            } transition-all duration-200`}
+                            } transition-all duration-200 cursor-pointer`}
                           >
                             {step.title}
-                          </span>
+                          </label>
                         </div>
                         {step.description && (
                           <p className="text-sm text-muted-foreground ml-6">
