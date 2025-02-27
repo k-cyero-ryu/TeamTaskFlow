@@ -325,21 +325,40 @@ export function registerRoutes(app: Express): Server {
 
   wss.on("connection", async (ws, req) => {
     try {
+      console.log("WebSocket connection attempt");
+
       // Parse cookies from the upgrade request
       const cookies = parseCookie(req.headers.cookie || '');
       const sessionID = cookies['connect.sid']?.split('.')[0].slice(2);
 
       if (!sessionID) {
         console.error('WebSocket connection rejected: No valid session ID');
+        console.log('Available cookies:', cookies);
+        console.log('Headers:', req.headers);
         ws.close(1008, 'Unauthorized');
         return;
       }
 
+      console.log('WebSocket connection attempt with session ID:', sessionID);
+
       // Verify session and get user data
       const sessionStore = storage.sessionStore;
       sessionStore.get(sessionID, (err, session) => {
-        if (err || !session?.passport?.user) {
-          console.error('WebSocket connection rejected: Invalid session');
+        if (err) {
+          console.error('Session store error:', err);
+          ws.close(1008, 'Session store error');
+          return;
+        }
+
+        if (!session) {
+          console.error('WebSocket connection rejected: No session found');
+          ws.close(1008, 'No session found');
+          return;
+        }
+
+        if (!session.passport?.user) {
+          console.error('WebSocket connection rejected: No passport user in session');
+          console.log('Session data:', session);
           ws.close(1008, 'Unauthorized');
           return;
         }

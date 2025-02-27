@@ -29,8 +29,13 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // Ensure we have a valid secret
+  if (!process.env.SESSION_SECRET && !process.env.REPL_ID) {
+    throw new Error("Neither SESSION_SECRET nor REPL_ID environment variable is set");
+  }
+
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID!,
+    secret: process.env.SESSION_SECRET || process.env.REPL_ID!,
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
@@ -38,13 +43,19 @@ export function setupAuth(app: Express) {
       secure: app.get("env") === "production",
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/'  // Explicitly set path to ensure WebSocket can access the cookie
     }
   };
 
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
   }
+
+  // Monitor session store errors
+  storage.sessionStore.on('error', (error) => {
+    console.error('Session store error:', error);
+  });
 
   app.use(session(sessionSettings));
   app.use(passport.initialize());
@@ -77,6 +88,10 @@ export function setupAuth(app: Express) {
     try {
       console.log(`Deserializing user: ${id}`);
       const user = await storage.getUser(id);
+      if (!user) {
+        console.log(`User not found during deserialization: ${id}`);
+        return done(null, false);
+      }
       done(null, user);
     } catch (error) {
       console.error("Deserialization error:", error);
@@ -87,6 +102,12 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res, next) => {
     try {
       console.log("Registration attempt for:", req.body.username);
+
+      if (!req.body.username || !req.body.password) {
+        console.log("Registration failed: Missing credentials");
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         console.log("Registration failed: Username exists");
@@ -114,6 +135,12 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", (req, res, next) => {
     console.log("Login attempt for:", req.body.username);
+
+    if (!req.body.username || !req.body.password) {
+      console.log("Login failed: Missing credentials");
+      return res.status(400).json({ message: "Username and password are required" });
+    }
+
     passport.authenticate("local", (err, user, info) => {
       if (err) {
         console.error("Login error:", err);
@@ -151,6 +178,7 @@ export function setupAuth(app: Express) {
           console.error("Session destruction error:", err);
           return next(err);
         }
+        res.clearCookie('connect.sid', { path: '/' });
         console.log("Logout successful, session destroyed");
         res.status(200).json({ message: "Logged out successfully" });
       });
@@ -159,8 +187,11 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     console.log("User status check:", req.isAuthenticated() ? "authenticated" : "not authenticated");
+    console.log("Session ID:", req.sessionID);
+    console.log("Session data:", req.session);
+
     if (!req.isAuthenticated()) {
-      return res.sendStatus(401);
+      return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
   });

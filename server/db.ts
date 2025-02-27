@@ -28,7 +28,7 @@ pool.on('error', (err, client) => {
 
 // Add connect listener
 pool.on('connect', (client) => {
-  console.log('New client connected to the pool');
+  console.log('Database connection established successfully');
 });
 
 export const db = drizzle({ client: pool, schema });
