@@ -326,9 +326,12 @@ export function registerRoutes(app: Express): Server {
   wss.on("connection", async (ws, req) => {
     try {
       console.log("WebSocket connection attempt");
+      console.log("Request headers:", req.headers);
 
       // Parse cookies from the upgrade request
       const cookies = parseCookie(req.headers.cookie || '');
+      console.log('Parsed cookies:', cookies);
+
       const sessionID = cookies['connect.sid']?.split('.')[0].slice(2);
 
       if (!sessionID) {
@@ -406,8 +409,10 @@ export function registerRoutes(app: Express): Server {
           console.error("Error closing WebSocket:", closeError);
         }
       });
+
     } catch (error) {
       console.error("WebSocket connection error:", error);
+      console.error("Error stack:", error.stack);
       ws.close(1011, 'Internal Server Error');
     }
   });

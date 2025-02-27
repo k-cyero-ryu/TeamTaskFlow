@@ -6,6 +6,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
+// Initialize PostgreSQL session store with proper error handling
 const PostgresSessionStore = connectPg(session);
 
 // Add error handling wrapper
@@ -34,7 +35,14 @@ export class DatabaseStorage implements IStorage {
   constructor() {
     this.sessionStore = new PostgresSessionStore({
       pool,
+      tableName: 'session', // Explicitly set the session table name
       createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
+    });
+
+    // Monitor session store
+    this.sessionStore.on('error', (error) => {
+      console.error('Session store error:', error);
     });
   }
 
