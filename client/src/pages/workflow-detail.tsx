@@ -38,24 +38,12 @@ export default function WorkflowDetailPage() {
     queryKey: [`/api/workflows/${workflowId}/stages`],
   });
 
-  // Query tasks for each stage
-  const stageTasks = useQuery<{ [key: number]: Task[] }>({
-    queryKey: [`/api/workflows/${workflowId}/tasks`],
-    queryFn: async () => {
-      const tasksByStage: { [key: number]: Task[] } = {};
-      await Promise.all(
-        stages.map(async (stage) => {
-          const response = await apiRequest(
-            "GET", 
-            `/api/workflows/${workflowId}/stages/${stage.id}/tasks`
-          );
-          const tasks = await response.json();
-          tasksByStage[stage.id] = tasks;
-        })
-      );
-      return tasksByStage;
-    },
-    enabled: stages.length > 0,
+  // Query tasks for each stage individually
+  const stageTasks = stages.map((stage) => {
+    return useQuery<Task[]>({
+      queryKey: [`/api/workflows/${workflowId}/stages/${stage.id}/tasks`],
+      enabled: !!stage.id,
+    });
   });
 
   const moveTaskMutation = useMutation({
@@ -64,7 +52,12 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/workflows/${workflowId}/tasks`] });
+      // Invalidate queries for all stages to refresh the tasks
+      stages.forEach((stage) => {
+        queryClient.invalidateQueries({
+          queryKey: [`/api/workflows/${workflowId}/stages/${stage.id}/tasks`],
+        });
+      });
       toast({
         title: "Success",
         description: "Task moved successfully",
@@ -195,7 +188,7 @@ export default function WorkflowDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stages.map((stage) => (
+              {stages.map((stage, index) => (
                 <div
                   key={stage.id}
                   className="p-4 border rounded-lg"
@@ -209,7 +202,7 @@ export default function WorkflowDetailPage() {
                     {stage.description}
                   </p>
                   <div className="mt-4 space-y-2">
-                    {stageTasks.data?.[stage.id]?.map((task) => (
+                    {stageTasks[index]?.data?.map((task) => (
                       <div
                         key={task.id}
                         className="bg-background p-3 rounded border"
