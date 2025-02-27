@@ -30,21 +30,21 @@ export default function WorkflowDetailPage() {
   const { toast } = useToast();
   const workflowId = parseInt(params.id!);
 
-  const { data: workflow } = useQuery<Workflow>({
+  const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
   });
 
-  const { data: stages = [] } = useQuery<WorkflowStage[]>({
+  const { data: stages = [], isLoading: isStagesLoading } = useQuery<WorkflowStage[]>({
     queryKey: [`/api/workflows/${workflowId}/stages`],
   });
 
-  // Query tasks for each stage individually
-  const stageTasks = stages.map((stage) => {
+  // Query tasks for each stage
+  const stageTaskQueries = stages?.map((stage) => {
     return useQuery<Task[]>({
       queryKey: [`/api/workflows/${workflowId}/stages/${stage.id}/tasks`],
       enabled: !!stage.id,
     });
-  });
+  }) || [];
 
   const moveTaskMutation = useMutation({
     mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
@@ -53,7 +53,7 @@ export default function WorkflowDetailPage() {
     },
     onSuccess: () => {
       // Invalidate queries for all stages to refresh the tasks
-      stages.forEach((stage) => {
+      stages?.forEach((stage) => {
         queryClient.invalidateQueries({
           queryKey: [`/api/workflows/${workflowId}/stages/${stage.id}/tasks`],
         });
@@ -64,6 +64,7 @@ export default function WorkflowDetailPage() {
       });
     },
     onError: (error: Error) => {
+      console.error("Task movement error:", error);
       toast({
         title: "Error",
         description: "Failed to move task",
@@ -77,7 +78,7 @@ export default function WorkflowDetailPage() {
     defaultValues: {
       name: "",
       description: "",
-      order: 0,
+      order: stages?.length || 0,
       color: "#4444FF",
       metadata: null,
     },
@@ -97,6 +98,7 @@ export default function WorkflowDetailPage() {
       form.reset();
     },
     onError: (error: Error) => {
+      console.error("Stage creation error:", error);
       toast({
         title: "Error",
         description: "Failed to create stage",
@@ -105,13 +107,21 @@ export default function WorkflowDetailPage() {
     },
   });
 
+  if (isWorkflowLoading || isStagesLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (!workflow) {
+    return <div className="flex items-center justify-center min-h-screen">Workflow not found</div>;
+  }
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">{workflow?.name}</h1>
-            <p className="text-muted-foreground">{workflow?.description}</p>
+            <h1 className="text-2xl font-bold">{workflow.name}</h1>
+            <p className="text-muted-foreground">{workflow.description}</p>
           </div>
           <CreateTaskDialog />
         </div>
@@ -171,11 +181,10 @@ export default function WorkflowDetailPage() {
                 />
                 <Button
                   type="submit"
+                  className="w-full"
                   disabled={createStageMutation.isPending}
                 >
-                  {createStageMutation.isPending
-                    ? "Creating..."
-                    : "Add Stage"}
+                  {createStageMutation.isPending ? "Creating..." : "Add Stage"}
                 </Button>
               </form>
             </Form>
@@ -188,58 +197,78 @@ export default function WorkflowDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stages.map((stage, index) => (
-                <div
-                  key={stage.id}
-                  className="p-4 border rounded-lg"
-                  style={{
-                    borderLeftColor: stage.color || '#4444FF',
-                    borderLeftWidth: '4px'
-                  }}
-                >
-                  <h3 className="font-medium">{stage.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {stage.description}
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    {stageTasks[index]?.data?.map((task) => (
-                      <div
-                        key={task.id}
-                        className="bg-background p-3 rounded border"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{task.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {task.description}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            {stages.map((targetStage) =>
-                              targetStage.id !== stage.id ? (
-                                <Button
-                                  key={targetStage.id}
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    moveTaskMutation.mutate({
-                                      taskId: task.id,
-                                      stageId: targetStage.id,
-                                    })
-                                  }
-                                  disabled={moveTaskMutation.isPending}
-                                >
-                                  Move to {targetStage.name}
-                                </Button>
-                              ) : null
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {stages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-4">
+                  No stages created yet. Add a stage to get started.
                 </div>
-              ))}
+              ) : (
+                stages.map((stage, index) => (
+                  <div
+                    key={stage.id}
+                    className="p-4 border rounded-lg"
+                    style={{
+                      borderLeftColor: stage.color || '#4444FF',
+                      borderLeftWidth: '4px'
+                    }}
+                  >
+                    <h3 className="font-medium">{stage.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {stage.description}
+                    </p>
+                    <div className="mt-4 space-y-2">
+                      {stageTaskQueries[index]?.isLoading ? (
+                        <div className="text-center text-muted-foreground py-2">
+                          Loading tasks...
+                        </div>
+                      ) : stageTaskQueries[index]?.isError ? (
+                        <div className="text-center text-destructive py-2">
+                          Error loading tasks
+                        </div>
+                      ) : stageTaskQueries[index]?.data?.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-2">
+                          No tasks in this stage
+                        </div>
+                      ) : (
+                        stageTaskQueries[index]?.data?.map((task) => (
+                          <div
+                            key={task.id}
+                            className="bg-background p-3 rounded border"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{task.title}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {task.description}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                {stages.map((targetStage) =>
+                                  targetStage.id !== stage.id ? (
+                                    <Button
+                                      key={targetStage.id}
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        moveTaskMutation.mutate({
+                                          taskId: task.id,
+                                          stageId: targetStage.id,
+                                        })
+                                      }
+                                      disabled={moveTaskMutation.isPending}
+                                    >
+                                      Move to {targetStage.name}
+                                    </Button>
+                                  ) : null
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
