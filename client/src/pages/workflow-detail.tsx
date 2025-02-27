@@ -38,9 +38,15 @@ export default function WorkflowDetailPage() {
     queryKey: [`/api/workflows/${workflowId}/stages`],
   });
 
-  // Create a single query for all tasks
+  // Query tasks for the current workflow.
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
     queryKey: [`/api/tasks`],
+    select: (data) => {
+      // Filter tasks by workflowId
+      const filteredTasks = data.filter(task => task.workflowId === workflowId);
+      console.log('Filtered tasks for workflow:', filteredTasks);
+      return filteredTasks;
+    },
     enabled: !!stages?.length,
   });
 
@@ -118,6 +124,9 @@ export default function WorkflowDetailPage() {
     }
     return acc;
   }, {});
+
+  // Log the grouped tasks for debugging
+  console.log('Tasks grouped by stage:', tasksByStage);
 
   return (
     <div className="container mx-auto py-6">
@@ -220,41 +229,47 @@ export default function WorkflowDetailPage() {
                       {stage.description}
                     </p>
                     <div className="mt-4 space-y-2">
-                      {tasksByStage[stage.id]?.map((task) => (
-                        <div
-                          key={task.id}
-                          className="bg-background p-3 rounded border"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{task.title}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {task.description}
-                              </p>
-                            </div>
-                            <div className="flex gap-2">
-                              {stages.map((targetStage) =>
-                                targetStage.id !== stage.id ? (
-                                  <Button
-                                    key={targetStage.id}
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      moveTaskMutation.mutate({
-                                        taskId: task.id,
-                                        stageId: targetStage.id,
-                                      })
-                                    }
-                                    disabled={moveTaskMutation.isPending}
-                                  >
-                                    Move to {targetStage.name}
-                                  </Button>
-                                ) : null
-                              )}
+                      {tasksByStage[stage.id]?.length ? (
+                        tasksByStage[stage.id].map((task) => (
+                          <div
+                            key={task.id}
+                            className="bg-background p-3 rounded border"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{task.title}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {task.description}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                {stages.map((targetStage) =>
+                                  targetStage.id !== stage.id ? (
+                                    <Button
+                                      key={targetStage.id}
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        moveTaskMutation.mutate({
+                                          taskId: task.id,
+                                          stageId: targetStage.id,
+                                        })
+                                      }
+                                      disabled={moveTaskMutation.isPending}
+                                    >
+                                      Move to {targetStage.name}
+                                    </Button>
+                                  ) : null
+                                )}
+                              </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-muted-foreground py-2">
+                          No tasks in this stage
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 ))
