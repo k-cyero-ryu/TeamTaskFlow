@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,15 @@ import {
   type InsertWorkflowStage,
   type WorkflowStage,
   type Workflow,
+  type Task,
 } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function WorkflowDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
   const { toast } = useToast();
-  const workflowId = parseInt(id);
+  const workflowId = parseInt(params.id!);
 
   const { data: workflow } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
@@ -122,7 +123,7 @@ export default function WorkflowDetailPage() {
                     <FormItem>
                       <FormLabel>Color</FormLabel>
                       <FormControl>
-                        <Input type="color" {...field} />
+                        <Input type="color" {...field} value={field.value || '#4444FF'} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -160,6 +161,7 @@ export default function WorkflowDetailPage() {
                   <p className="text-sm text-muted-foreground">
                     {stage.description}
                   </p>
+                  {/* Task list will be added here */}
                 </div>
               ))}
             </div>
