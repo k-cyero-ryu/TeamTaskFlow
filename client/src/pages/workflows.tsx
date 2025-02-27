@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function WorkflowsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [, setLocation] = useLocation();
 
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
@@ -130,7 +131,7 @@ export default function WorkflowsPage() {
                   <div
                     key={workflow.id}
                     className="p-4 border rounded-lg cursor-pointer hover:bg-accent"
-                    onClick={() => setSelectedWorkflow(workflow)}
+                    onClick={() => setLocation(`/workflows/${workflow.id}`)}
                   >
                     <h3 className="font-medium">{workflow.name}</h3>
                     <p className="text-sm text-muted-foreground">

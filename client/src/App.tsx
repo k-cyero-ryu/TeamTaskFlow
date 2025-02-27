@@ -7,6 +7,7 @@ import Chat from "@/pages/chat";
 import ChatConversation from "@/pages/chat-conversation";
 import Users from "@/pages/users";
 import Workflows from "@/pages/workflows";
+import WorkflowDetail from "@/pages/workflow-detail";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -59,6 +60,16 @@ export default function App() {
             <Workflows />
           </Layout>
         </ProtectedRoute>
+      </Route>
+
+      <Route path="/workflows/:id">
+        {(params) => (
+          <ProtectedRoute>
+            <Layout>
+              <WorkflowDetail params={params} />
+            </Layout>
+          </ProtectedRoute>
+        )}
       </Route>
 
       <Route path="/chat">
