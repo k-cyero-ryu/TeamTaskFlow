@@ -1,14 +1,49 @@
-import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Existing tables remain unchanged
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
 
+// Add workflows table
+export const workflows = pgTable("workflows", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  creatorId: integer("creator_id").references(() => users.id).notNull(),
+  isDefault: boolean("is_default").default(false),
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Add workflow stages table
+export const workflowStages = pgTable("workflow_stages", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  workflowId: integer("workflow_id").references(() => workflows.id).notNull(),
+  order: integer("order").notNull(),
+  color: text("color"),
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Add workflow transitions table
+export const workflowTransitions = pgTable("workflow_transitions", {
+  id: serial("id").primaryKey(),
+  fromStageId: integer("from_stage_id").references(() => workflowStages.id).notNull(),
+  toStageId: integer("to_stage_id").references(() => workflowStages.id).notNull(),
+  conditions: json("conditions"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Modify tasks table to include workflowId and stageId
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -18,6 +53,8 @@ export const tasks = pgTable("tasks", {
   dueDate: timestamp("due_date"),
   creatorId: integer("creator_id").references(() => users.id).notNull(),
   responsibleId: integer("responsible_id").references(() => users.id),
+  workflowId: integer("workflow_id").references(() => workflows.id),
+  stageId: integer("stage_id").references(() => workflowStages.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -44,7 +81,6 @@ export const taskParticipants = pgTable("task_participants", {
   userId: integer("user_id").references(() => users.id).notNull(),
 });
 
-// Add new comments table
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
@@ -54,7 +90,6 @@ export const comments = pgTable("comments", {
   updatedAt: timestamp("updated_at"),
 });
 
-// Add private messages table
 export const privateMessages = pgTable("private_messages", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
@@ -72,6 +107,14 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   responsible: one(users, {
     fields: [tasks.responsibleId],
     references: [users.id],
+  }),
+  workflow: one(workflows, {
+    fields: [tasks.workflowId],
+    references: [workflows.id],
+  }),
+  stage: one(workflowStages, {
+    fields: [tasks.stageId],
+    references: [workflowStages.id],
   }),
   participants: many(taskParticipants),
   subtasks: many(subtasks),
@@ -104,7 +147,6 @@ export const taskParticipantsRelations = relations(taskParticipants, ({ one }) =
   }),
 }));
 
-// Add comments relation to users
 export const commentsRelations = relations(comments, ({ one }) => ({
   task: one(tasks, {
     fields: [comments.taskId],
@@ -116,7 +158,6 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   }),
 }));
 
-// Add private messages relations
 export const privateMessagesRelations = relations(privateMessages, ({ one }) => ({
   sender: one(users, {
     fields: [privateMessages.senderId],
@@ -128,7 +169,6 @@ export const privateMessagesRelations = relations(privateMessages, ({ one }) => 
   }),
 }));
 
-// Update user relations to include messages
 export const usersRelations = relations(users, ({ many }) => ({
   createdTasks: many(tasks, { relationName: "creator" }),
   responsibleTasks: many(tasks, { relationName: "responsible" }),
@@ -136,6 +176,36 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   sentMessages: many(privateMessages, { relationName: "sender" }),
   receivedMessages: many(privateMessages, { relationName: "recipient" }),
+}));
+
+export const workflowsRelations = relations(workflows, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [workflows.creatorId],
+    references: [users.id],
+  }),
+  stages: many(workflowStages),
+  tasks: many(tasks),
+}));
+
+export const workflowStagesRelations = relations(workflowStages, ({ one, many }) => ({
+  workflow: one(workflows, {
+    fields: [workflowStages.workflowId],
+    references: [workflows.id],
+  }),
+  incomingTransitions: many(workflowTransitions, { relationName: "toStage" }),
+  outgoingTransitions: many(workflowTransitions, { relationName: "fromStage" }),
+  tasks: many(tasks),
+}));
+
+export const workflowTransitionsRelations = relations(workflowTransitions, ({ one }) => ({
+  fromStage: one(workflowStages, {
+    fields: [workflowTransitions.fromStageId],
+    references: [workflowStages.id],
+  }),
+  toStage: one(workflowStages, {
+    fields: [workflowTransitions.toStageId],
+    references: [workflowStages.id],
+  }),
 }));
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -153,24 +223,39 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
   order: true,
 });
 
-// Add comment schemas
 export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
   taskId: true,
 });
 
-// Update the insertPrivateMessageSchema to include recipientId
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
   content: true,
 }).extend({
   recipientId: z.number(),
 });
 
-// Add message types
-export type PrivateMessage = typeof privateMessages.$inferSelect;
-export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
+export const insertWorkflowSchema = createInsertSchema(workflows).pick({
+  name: true,
+  description: true,
+  isDefault: true,
+  metadata: true,
+});
 
-// Update the insertTaskSchema to properly handle dates
+export const insertWorkflowStageSchema = createInsertSchema(workflowStages).pick({
+  name: true,
+  description: true,
+  order: true,
+  color: true,
+  metadata: true,
+});
+
+export const insertWorkflowTransitionSchema = createInsertSchema(workflowTransitions).pick({
+  fromStageId: true,
+  toStageId: true,
+  conditions: true,
+});
+
+
 export const insertTaskSchema = createInsertSchema(tasks).pick({
   title: true,
   description: true,
@@ -193,7 +278,13 @@ export type Subtask = typeof subtasks.$inferSelect;
 export type TaskStep = typeof taskSteps.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskParticipant = typeof taskParticipants.$inferSelect;
-// Add comment types
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
-// Add message types
+export type PrivateMessage = typeof privateMessages.$inferSelect;
+export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
+export type Workflow = typeof workflows.$inferSelect;
+export type WorkflowStage = typeof workflowStages.$inferSelect;
+export type WorkflowTransition = typeof workflowTransitions.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+export type InsertWorkflowStage = z.infer<typeof insertWorkflowStageSchema>;
+export type InsertWorkflowTransition = z.infer<typeof insertWorkflowTransitionSchema>;

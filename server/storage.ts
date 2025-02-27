@@ -1,11 +1,10 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages } from "@shared/schema";
+import { eq, and, or, inArray } from "drizzle-orm";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
-import { sql } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -354,6 +353,88 @@ export class DatabaseStorage implements IStorage {
           sql`${privateMessages.readAt} IS NULL`
         )
       );
+  }
+
+  async getWorkflows(): Promise<Workflow[]> {
+    return await db.select().from(workflows);
+  }
+
+  async getWorkflow(id: number): Promise<Workflow | undefined> {
+    const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
+    return workflow;
+  }
+
+  async createWorkflow(workflow: InsertWorkflow & { creatorId: number }): Promise<Workflow> {
+    const [newWorkflow] = await db
+      .insert(workflows)
+      .values(workflow)
+      .returning();
+    return newWorkflow;
+  }
+
+  async getWorkflowStages(workflowId: number): Promise<WorkflowStage[]> {
+    return await db
+      .select()
+      .from(workflowStages)
+      .where(eq(workflowStages.workflowId, workflowId))
+      .orderBy(workflowStages.order);
+  }
+
+  async createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage> {
+    const [newStage] = await db
+      .insert(workflowStages)
+      .values(stage)
+      .returning();
+    return newStage;
+  }
+
+  async getWorkflowTransitions(workflowId: number): Promise<WorkflowTransition[]> {
+    const stages = await this.getWorkflowStages(workflowId);
+    const stageIds = stages.map(s => s.id);
+
+    return await db
+      .select()
+      .from(workflowTransitions)
+      .where(
+        or(
+          inArray(workflowTransitions.fromStageId, stageIds),
+          inArray(workflowTransitions.toStageId, stageIds)
+        )
+      );
+  }
+
+  async createWorkflowTransition(transition: InsertWorkflowTransition): Promise<WorkflowTransition> {
+    const [newTransition] = await db
+      .insert(workflowTransitions)
+      .values(transition)
+      .returning();
+    return newTransition;
+  }
+
+  async getTasksByWorkflowStage(workflowId: number, stageId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.workflowId, workflowId),
+          eq(tasks.stageId, stageId)
+        )
+      );
+  }
+
+  async updateTaskStage(taskId: number, stageId: number): Promise<Task> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({ stageId })
+      .where(eq(tasks.id, taskId))
+      .returning();
+
+    if (!updatedTask) {
+      throw new Error("Task not found");
+    }
+
+    return updatedTask;
   }
 }
 
