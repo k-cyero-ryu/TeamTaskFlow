@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown } from "lucide-react";
+import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork } from "lucide-react";
 import { Badge } from "./ui/badge";
 
 export function MainNav() {
@@ -51,6 +51,16 @@ export function MainNav() {
               >
                 <CheckSquare className="mr-2 h-4 w-4" />
                 Tasks
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location === "/workflows"}
+                onClick={() => setLocation("/workflows")}
+              >
+                <GitFork className="mr-2 h-4 w-4" />
+                Workflows
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>

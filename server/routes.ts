@@ -421,5 +421,131 @@ export function registerRoutes(app: Express): Server {
     console.error("WebSocket server error:", error);
   });
 
+  app.get("/api/workflows", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const workflows = await storage.getWorkflows();
+      res.json(workflows);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching workflows" });
+    }
+  });
+
+  app.post("/api/workflows", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const result = insertWorkflowSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json(result.error);
+    }
+
+    try {
+      const workflow = await storage.createWorkflow({
+        ...result.data,
+        creatorId: req.user.id,
+      });
+      res.status(201).json(workflow);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating workflow" });
+    }
+  });
+
+  app.get("/api/workflows/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const workflow = await storage.getWorkflow(parseInt(req.params.id));
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      res.json(workflow);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching workflow" });
+    }
+  });
+
+  app.get("/api/workflows/:id/stages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const stages = await storage.getWorkflowStages(parseInt(req.params.id));
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching workflow stages" });
+    }
+  });
+
+  app.post("/api/workflows/:id/stages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const result = insertWorkflowStageSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json(result.error);
+    }
+
+    try {
+      const stage = await storage.createWorkflowStage({
+        ...result.data,
+        workflowId: parseInt(req.params.id),
+      });
+      res.status(201).json(stage);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating workflow stage" });
+    }
+  });
+
+  app.get("/api/workflows/:id/transitions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const transitions = await storage.getWorkflowTransitions(parseInt(req.params.id));
+      res.json(transitions);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching workflow transitions" });
+    }
+  });
+
+  app.post("/api/workflows/:id/transitions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const result = insertWorkflowTransitionSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json(result.error);
+    }
+
+    try {
+      const transition = await storage.createWorkflowTransition(result.data);
+      res.status(201).json(transition);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating workflow transition" });
+    }
+  });
+
+  app.patch("/api/tasks/:id/stage", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { stageId } = req.body;
+    if (!stageId) {
+      return res.status(400).json({ message: "Stage ID is required" });
+    }
+
+    try {
+      const task = await storage.updateTaskStage(parseInt(req.params.id), stageId);
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating task stage" });
+    }
+  });
+
+  app.get("/api/workflows/:workflowId/stages/:stageId/tasks", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const tasks = await storage.getTasksByWorkflowStage(
+        parseInt(req.params.workflowId),
+        parseInt(req.params.stageId)
+      );
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching tasks" });
+    }
+  });
+
   return httpServer;
 }
