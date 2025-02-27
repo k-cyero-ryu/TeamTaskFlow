@@ -16,52 +16,62 @@ export function useWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-    const socket = new WebSocket(wsUrl);
-    socketRef.current = socket;
+    console.log('Attempting WebSocket connection to:', wsUrl);
 
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-      // Start heartbeat
-      const pingInterval = setInterval(() => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: 'ping' }));
+    try {
+      const socket = new WebSocket(wsUrl);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        console.log('WebSocket connection established');
+        // Start heartbeat when connection opens
+        const pingInterval = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000);
+
+        // Clean up interval when connection closes
+        socket.onclose = () => {
+          clearInterval(pingInterval);
+        };
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data);
+          console.log('WebSocket message received:', message);
+
+          if (message.type === 'pong') {
+            console.log('Heartbeat acknowledged');
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
         }
-      }, 30000);
+      };
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
 
       socket.onclose = () => {
-        clearInterval(pingInterval);
+        console.log('WebSocket connection closed');
+        // Attempt to reconnect after a delay
+        setTimeout(() => {
+          if (user) {
+            connect();
+          }
+        }, 5000);
       };
-    };
 
-    socket.onmessage = (event) => {
-      try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-        console.log('WebSocket message received:', message);
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-      // Attempt to reconnect after a delay
-      setTimeout(() => {
-        if (user) {
-          connect();
+      return () => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.close();
         }
-      }, 5000);
-    };
-
-    return () => {
-      clearInterval(pingInterval);
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
+      };
+    } catch (error) {
+      console.error('Error creating WebSocket connection:', error);
+    }
   }, [user]);
 
   useEffect(() => {

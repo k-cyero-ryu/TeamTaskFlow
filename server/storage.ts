@@ -1,6 +1,6 @@
 import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, inArray } from "drizzle-orm";
+import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
 import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -12,10 +12,10 @@ const PostgresSessionStore = connectPg(session);
 async function withErrorHandling<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Database operation failed:', error);
     // If it's a connection error, wait and retry once
-    if (error.message.includes('connection')) {
+    if (error instanceof Error && error.message.includes('connection')) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       try {
         return await operation();
@@ -65,7 +65,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTasks(): Promise<Task[]> {
-    return await db.select().from(tasks);
+    return await withErrorHandling(async () => {
+      const result = await db.select().from(tasks);
+      return result;
+    });
   }
 
   async getTask(id: number): Promise<Task | undefined> {
