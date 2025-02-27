@@ -23,6 +23,7 @@ import {
 } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import CreateTaskDialog from "@/components/create-task-dialog";
 
 export default function WorkflowDetailPage() {
   const params = useParams();
@@ -35,6 +36,47 @@ export default function WorkflowDetailPage() {
 
   const { data: stages = [] } = useQuery<WorkflowStage[]>({
     queryKey: [`/api/workflows/${workflowId}/stages`],
+  });
+
+  // Query tasks for each stage
+  const stageTasks = useQuery<{ [key: number]: Task[] }>({
+    queryKey: [`/api/workflows/${workflowId}/tasks`],
+    queryFn: async () => {
+      const tasksByStage: { [key: number]: Task[] } = {};
+      await Promise.all(
+        stages.map(async (stage) => {
+          const response = await apiRequest(
+            "GET", 
+            `/api/workflows/${workflowId}/stages/${stage.id}/tasks`
+          );
+          const tasks = await response.json();
+          tasksByStage[stage.id] = tasks;
+        })
+      );
+      return tasksByStage;
+    },
+    enabled: stages.length > 0,
+  });
+
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/workflows/${workflowId}/tasks`] });
+      toast({
+        title: "Success",
+        description: "Task moved successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: "Failed to move task",
+        variant: "destructive",
+      });
+    },
   });
 
   const form = useForm<InsertWorkflowStage>({
@@ -73,8 +115,13 @@ export default function WorkflowDetailPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{workflow?.name}</h1>
-        <p className="text-muted-foreground">{workflow?.description}</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">{workflow?.name}</h1>
+            <p className="text-muted-foreground">{workflow?.description}</p>
+          </div>
+          <CreateTaskDialog />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -161,7 +208,43 @@ export default function WorkflowDetailPage() {
                   <p className="text-sm text-muted-foreground">
                     {stage.description}
                   </p>
-                  {/* Task list will be added here */}
+                  <div className="mt-4 space-y-2">
+                    {stageTasks.data?.[stage.id]?.map((task) => (
+                      <div
+                        key={task.id}
+                        className="bg-background p-3 rounded border"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{task.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {task.description}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {stages.map((targetStage) =>
+                              targetStage.id !== stage.id ? (
+                                <Button
+                                  key={targetStage.id}
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    moveTaskMutation.mutate({
+                                      taskId: task.id,
+                                      stageId: targetStage.id,
+                                    })
+                                  }
+                                  disabled={moveTaskMutation.isPending}
+                                >
+                                  Move to {targetStage.name}
+                                </Button>
+                              ) : null
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

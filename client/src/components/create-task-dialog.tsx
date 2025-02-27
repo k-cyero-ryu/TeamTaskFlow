@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertTaskSchema, type InsertTask, type User } from "@shared/schema";
+import { insertTaskSchema, type InsertTask, type User, type Workflow, type WorkflowStage } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -38,9 +38,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function CreateTaskDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: workflows = [] } = useQuery<Workflow[]>({
+    queryKey: ["/api/workflows"],
+  });
+
+  const { data: stages = [] } = useQuery<WorkflowStage[]>({
+    queryKey: [`/api/workflows/${selectedWorkflowId}/stages`],
+    enabled: !!selectedWorkflowId,
   });
 
   const form = useForm<InsertTask>({
@@ -54,6 +64,8 @@ export default function CreateTaskDialog() {
       subtasks: [],
       steps: [],
       dueDate: null,
+      workflowId: null,
+      stageId: null,
     },
   });
 
@@ -64,6 +76,13 @@ export default function CreateTaskDialog() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      if (form.getValues("workflowId") && form.getValues("stageId")) {
+        queryClient.invalidateQueries({ 
+          queryKey: [
+            `/api/workflows/${form.getValues("workflowId")}/stages/${form.getValues("stageId")}/tasks`
+          ] 
+        });
+      }
       toast({
         title: "Task created",
         description: "Your task has been created successfully.",
@@ -220,7 +239,6 @@ export default function CreateTaskDialog() {
               />
             </div>
 
-            {/* Participants Selection */}
             <FormField
               control={form.control}
               name="participantIds"
@@ -279,7 +297,6 @@ export default function CreateTaskDialog() {
               )}
             />
 
-            {/* Subtasks Section */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Subtasks</FormLabel>
@@ -313,7 +330,6 @@ export default function CreateTaskDialog() {
               ))}
             </div>
 
-            {/* Steps Section */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Steps</FormLabel>
@@ -392,6 +408,73 @@ export default function CreateTaskDialog() {
                 </FormItem>
               )}
             />
+
+            {/* Add Workflow Selection */}
+            <FormField
+              control={form.control}
+              name="workflowId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Workflow</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      const id = parseInt(value);
+                      field.onChange(id);
+                      setSelectedWorkflowId(id);
+                      // Reset stage when workflow changes
+                      form.setValue("stageId", null);
+                    }}
+                    value={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select workflow" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {workflows.map((workflow) => (
+                        <SelectItem key={workflow.id} value={workflow.id.toString()}>
+                          {workflow.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Add Stage Selection */}
+            {selectedWorkflowId && (
+              <FormField
+                control={form.control}
+                name="stageId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stage</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select stage" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id.toString()}>
+                            {stage.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <Button
               type="submit"
               className="w-full"
