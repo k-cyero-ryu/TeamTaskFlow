@@ -22,16 +22,18 @@ export default function WorkflowsPage() {
   const { toast } = useToast();
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 
-  const { data: workflows, isLoading } = useQuery({
+  const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
 
   const createWorkflowMutation = useMutation({
-    mutationFn: (data: InsertWorkflow) =>
-      apiRequest("/api/workflows", {
+    mutationFn: async (data: InsertWorkflow) => {
+      const response = await apiRequest("/api/workflows", {
         method: "POST",
         body: JSON.stringify(data),
-      }),
+      });
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       toast({
@@ -99,7 +101,7 @@ export default function WorkflowsPage() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} value={field.value || ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -126,7 +128,7 @@ export default function WorkflowsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {workflows?.map((workflow: Workflow) => (
+                {workflows?.map((workflow) => (
                   <div
                     key={workflow.id}
                     className="p-4 border rounded-lg cursor-pointer hover:bg-accent"
