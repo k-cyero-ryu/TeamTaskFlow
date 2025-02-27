@@ -28,10 +28,7 @@ export default function WorkflowsPage() {
 
   const createWorkflowMutation = useMutation({
     mutationFn: async (data: InsertWorkflow) => {
-      const response = await apiRequest("/api/workflows", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/workflows", data);
       return response.json();
     },
     onSuccess: () => {
@@ -42,7 +39,8 @@ export default function WorkflowsPage() {
       });
       form.reset();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
+      console.error("Workflow creation error:", error);
       toast({
         title: "Error",
         description: "Failed to create workflow",
