@@ -230,10 +230,10 @@ export default function TaskDetailDialog({
 
             {(task.workflow || task.stage) && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {task.workflow && (
                     <div>
-                      <h3 className="text-sm font-medium mb-2">Workflow</h3>
+                      <h3 className="text-lg font-semibold">Workflow</h3>
                       <p className="text-muted-foreground">{task.workflow.name}</p>
                       {task.workflow.description && (
                         <p className="text-sm text-muted-foreground mt-1">
@@ -243,16 +243,18 @@ export default function TaskDetailDialog({
                     </div>
                   )}
                   {task.stage && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Current Stage</h3>
-                      <div 
-                        className="inline-block px-2 py-1 rounded text-sm"
-                        style={{
-                          backgroundColor: task.stage.color || '#4444FF',
-                          color: '#fff'
-                        }}
-                      >
-                        {task.stage.name}
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold">Current Stage</h3>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className="px-3 py-1 rounded-md text-sm font-medium"
+                          style={{
+                            backgroundColor: task.stage.color || '#4444FF',
+                            color: '#fff'
+                          }}
+                        >
+                          {task.stage.name}
+                        </div>
                       </div>
                       {task.stage.description && (
                         <p className="text-sm text-muted-foreground mt-2">
