@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import TaskList from "@/components/task-list";
+import TaskCard from "@/components/task-card";
 import CreateTaskDialog from "@/components/create-task-dialog";
 import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Loader2, CheckCircle2, Circle, Clock } from "lucide-react";
@@ -103,31 +104,18 @@ export default function Dashboard() {
                 return (
                   <div key={workflow.id} className="space-y-4">
                     <h3 className="text-lg font-semibold">{workflow.name}</h3>
-                    <div className="grid gap-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {workflowTasks.map(task => {
                         const stage = workflowStages.find(s => s.id === task.stageId);
                         return (
-                          <div key={task.id} className="border rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-medium">{task.title}</span>
-                              {stage && (
-                                <span 
-                                  className="text-xs px-2 py-1 rounded-full" 
-                                  style={{ 
-                                    backgroundColor: stage.color || '#4444FF',
-                                    color: '#fff'
-                                  }}
-                                >
-                                  {stage.name}
-                                </span>
-                              )}
-                            </div>
-                            {task.description && (
-                              <p className="text-sm text-muted-foreground">
-                                {task.description}
-                              </p>
-                            )}
-                          </div>
+                          <TaskCard
+                            key={task.id}
+                            task={{
+                              ...task,
+                              workflow,
+                              stage,
+                            }}
+                          />
                         );
                       })}
                     </div>

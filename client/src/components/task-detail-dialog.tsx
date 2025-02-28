@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Task, Subtask, TaskStep } from "@shared/schema";
+import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,8 @@ interface ExtendedTask extends Task {
   steps?: TaskStep[];
   participants?: { username: string; id: number }[];
   responsible?: { username: string; id: number };
+  workflow?: Workflow;
+  stage?: WorkflowStage;
 }
 
 interface TaskDetailDialogProps {
@@ -163,18 +165,31 @@ export default function TaskDetailDialog({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl">{task.title}</DialogTitle>
-            <Badge
-              variant="secondary"
-              className={`${
-                task.status === "todo"
-                  ? "bg-slate-500"
-                  : task.status === "in-progress"
-                  ? "bg-blue-500"
-                  : "bg-green-500"
-              }`}
-            >
-              {task.status}
-            </Badge>
+            <div className="flex gap-2">
+              <Badge
+                variant="secondary"
+                className={`${
+                  task.status === "todo"
+                    ? "bg-slate-500"
+                    : task.status === "in-progress"
+                    ? "bg-blue-500"
+                    : "bg-green-500"
+                }`}
+              >
+                {task.status}
+              </Badge>
+              {task.workflow && task.stage && (
+                <Badge
+                  variant="outline"
+                  style={{
+                    borderColor: task.stage.color || '#4444FF',
+                    color: task.stage.color || '#4444FF'
+                  }}
+                >
+                  {task.workflow.name} - {task.stage.name}
+                </Badge>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
@@ -212,6 +227,44 @@ export default function TaskDetailDialog({
             </div>
 
             <Separator />
+
+            {(task.workflow || task.stage) && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  {task.workflow && (
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Workflow</h3>
+                      <p className="text-muted-foreground">{task.workflow.name}</p>
+                      {task.workflow.description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {task.workflow.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {task.stage && (
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Current Stage</h3>
+                      <div 
+                        className="inline-block px-2 py-1 rounded text-sm"
+                        style={{
+                          backgroundColor: task.stage.color || '#4444FF',
+                          color: '#fff'
+                        }}
+                      >
+                        {task.stage.name}
+                      </div>
+                      {task.stage.description && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {task.stage.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <Separator />
+              </>
+            )}
 
             {task.participants && task.participants.length > 0 && (
               <>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Task, Subtask, TaskStep } from "@shared/schema";
+import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,7 +13,7 @@ import {
 import { MoreVertical, Trash2, ChevronRight, CheckCircle, Clock, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TaskDetailDialog from "./task-detail-dialog";
@@ -24,6 +24,8 @@ interface ExtendedTask extends Task {
   steps?: TaskStep[];
   participants?: { username: string; id: number }[];
   responsible?: { username: string; id: number };
+  workflow?: Workflow;
+  stage?: WorkflowStage;
 }
 
 export default function TaskCard({ task }: { task: ExtendedTask }) {
@@ -31,6 +33,17 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Fetch workflow and stage information if they exist
+  const { data: workflow } = useQuery<Workflow>({
+    queryKey: [`/api/workflows/${task.workflowId}`],
+    enabled: !!task.workflowId,
+  });
+
+  const { data: stage } = useQuery<WorkflowStage>({
+    queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
+    enabled: !!task.workflowId && !!task.stageId,
+  });
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -45,7 +58,6 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       toast({
         title: "Task updated",
         description: `Task status changed to ${status}`,
-        icon: status === "done" ? CheckCircle : status === "in-progress" ? Clock : Circle,
       });
     },
     onSettled: () => {
@@ -99,16 +111,30 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
         onClick={() => setDetailOpen(true)}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <Badge
-            variant="secondary"
-            className={cn(
-              "transition-colors duration-300 flex items-center gap-1",
-              statusConfig[task.status as keyof typeof statusConfig].color
+          <div className="flex gap-2">
+            <Badge
+              variant="secondary"
+              className={cn(
+                "transition-colors duration-300 flex items-center gap-1",
+                statusConfig[task.status as keyof typeof statusConfig].color
+              )}
+            >
+              <StatusIcon className="h-3 w-3" />
+              {task.status}
+            </Badge>
+            {workflow && stage && (
+              <Badge
+                variant="outline"
+                className="flex items-center gap-1"
+                style={{
+                  borderColor: stage.color || '#4444FF',
+                  color: stage.color || '#4444FF'
+                }}
+              >
+                {workflow.name} - {stage.name}
+              </Badge>
             )}
-          >
-            <StatusIcon className="h-3 w-3" />
-            {task.status}
-          </Badge>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -190,7 +216,7 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
           <div className="flex items-center space-x-4">
             <Avatar className="h-8 w-8">
               <AvatarFallback>
-                {task.responsibleId ? "R" : "C"}
+                {task.responsible?.username?.[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
@@ -219,7 +245,11 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       </Card>
 
       <TaskDetailDialog
-        task={task}
+        task={{
+          ...task,
+          workflow,
+          stage,
+        }}
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
