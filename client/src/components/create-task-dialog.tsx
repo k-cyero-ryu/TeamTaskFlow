@@ -35,10 +35,10 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?: number, stageId?: number }) {
+export default function CreateTaskDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(workflowId || null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -64,8 +64,8 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
       subtasks: [],
       steps: [],
       dueDate: null,
-      workflowId: workflowId || null,
-      stageId: stageId || null,
+      workflowId: null,
+      stageId: null,
     },
   });
 
@@ -74,15 +74,15 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
       const res = await apiRequest("POST", "/api/tasks", data);
       return res.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-
-      if (data.workflowId && data.stageId) {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      if (form.getValues("workflowId") && form.getValues("stageId")) {
         queryClient.invalidateQueries({ 
-          queryKey: ['/api/tasks', { workflowId: data.workflowId }]
+          queryKey: [
+            `/api/workflows/${form.getValues("workflowId")}/stages/${form.getValues("stageId")}/tasks`
+          ] 
         });
       }
-
       toast({
         title: "Task created",
         description: "Your task has been created successfully.",
@@ -99,10 +99,45 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
     },
   });
 
+  function onSubmit(data: InsertTask) {
+    createTaskMutation.mutate(data);
+  }
+
+  const addSubtask = () => {
+    const subtasks = form.getValues("subtasks") || [];
+    form.setValue("subtasks", [...subtasks, { title: "" }]);
+  };
+
+  const removeSubtask = (index: number) => {
+    const subtasks = form.getValues("subtasks") || [];
+    form.setValue(
+      "subtasks",
+      subtasks.filter((_, i) => i !== index)
+    );
+  };
+
+  const addStep = () => {
+    const steps = form.getValues("steps") || [];
+    form.setValue("steps", [
+      ...steps,
+      { title: "", description: "", order: steps.length },
+    ]);
+  };
+
+  const removeStep = (index: number) => {
+    const steps = form.getValues("steps") || [];
+    form.setValue(
+      "steps",
+      steps
+        .filter((_, i) => i !== index)
+        .map((step, i) => ({ ...step, order: i }))
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button>
           <Plus className="h-4 w-4 mr-2" /> New Task
         </Button>
       </DialogTrigger>
@@ -111,7 +146,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="title"
@@ -203,6 +238,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 )}
               />
             </div>
+
             <FormField
               control={form.control}
               name="participantIds"
@@ -260,10 +296,11 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 </FormItem>
               )}
             />
+
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Subtasks</FormLabel>
-                <Button type="button" variant="outline" size="sm" onClick={form.append}>
+                <Button type="button" variant="outline" size="sm" onClick={addSubtask}>
                   <Plus className="h-4 w-4 mr-2" /> Add Subtask
                 </Button>
               </div>
@@ -285,17 +322,18 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => form.remove(index)}
+                    onClick={() => removeSubtask(index)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
             </div>
+
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Steps</FormLabel>
-                <Button type="button" variant="outline" size="sm" onClick={form.append}>
+                <Button type="button" variant="outline" size="sm" onClick={addStep}>
                   <Plus className="h-4 w-4 mr-2" /> Add Step
                 </Button>
               </div>
@@ -318,7 +356,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => form.remove(index)}
+                      onClick={() => removeStep(index)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -342,6 +380,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 </div>
               ))}
             </div>
+
             <FormField
               control={form.control}
               name="responsibleId"
@@ -369,6 +408,8 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 </FormItem>
               )}
             />
+
+            {/* Add Workflow Selection */}
             <FormField
               control={form.control}
               name="workflowId"
@@ -380,6 +421,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                       const id = parseInt(value);
                       field.onChange(id);
                       setSelectedWorkflowId(id);
+                      // Reset stage when workflow changes
                       form.setValue("stageId", null);
                     }}
                     value={field.value?.toString()}
@@ -401,6 +443,8 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 </FormItem>
               )}
             />
+
+            {/* Add Stage Selection */}
             {selectedWorkflowId && (
               <FormField
                 control={form.control}
@@ -430,6 +474,7 @@ export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?:
                 )}
               />
             )}
+
             <Button
               type="submit"
               className="w-full"

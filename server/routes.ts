@@ -485,23 +485,6 @@ export function registerRoutes(app: Express): Server {
         ...result.data,
         workflowId: parseInt(req.params.id),
       });
-
-      // Notify all connected clients about the new stage
-      const clientEntries = Array.from(clients.entries());
-      for (const [client, userId] of clientEntries) {
-        if (client.readyState === WebSocket.OPEN) {
-          try {
-            client.send(JSON.stringify({
-              type: "workflow_stage_update",
-              workflowId: parseInt(req.params.id),
-              data: stage
-            }));
-          } catch (wsError) {
-            console.error("WebSocket send error:", wsError);
-          }
-        }
-      }
-
       res.status(201).json(stage);
     } catch (error) {
       res.status(500).json({ message: "Error creating workflow stage" });

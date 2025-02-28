@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -24,69 +24,52 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CreateTaskDialog from "@/components/create-task-dialog";
-import { Plus } from "lucide-react";
 
 export default function WorkflowDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const workflowId = parseInt(params.id!);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-
-  // WebSocket setup
-  useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("WebSocket message received:", data);
-
-        if (data.type === "workflow_stage_update" && data.workflowId === workflowId) {
-          console.log("Invalidating stages query");
-          queryClient.invalidateQueries({ 
-            queryKey: ['/api/workflows', workflowId, 'stages']
-          });
-        }
-      } catch (error) {
-        console.error("Error processing WebSocket message:", error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    setSocket(ws);
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, [workflowId]);
 
   const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
   });
 
   const { data: stages = [], isLoading: isStagesLoading } = useQuery<WorkflowStage[]>({
-    queryKey: ['/api/workflows', workflowId, 'stages'],
+    queryKey: [`/api/workflows/${workflowId}/stages`],
   });
 
+  // Query tasks for the current workflow.
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
-    queryKey: ['/api/tasks', { workflowId }],
+    queryKey: [`/api/tasks`],
     select: (data) => {
+      // Filter tasks by workflowId
       const filteredTasks = data.filter(task => task.workflowId === workflowId);
       console.log('Filtered tasks for workflow:', filteredTasks);
       return filteredTasks;
     },
     enabled: !!stages?.length,
+  });
+
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks`] });
+      toast({
+        title: "Success",
+        description: "Task moved successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Task movement error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move task",
+        variant: "destructive",
+      });
+    },
   });
 
   const form = useForm<InsertWorkflowStage>({
@@ -106,7 +89,7 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/workflows', workflowId, 'stages'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/workflows/${workflowId}/stages`] });
       toast({
         title: "Success",
         description: "Stage created successfully",
@@ -123,31 +106,6 @@ export default function WorkflowDetailPage() {
     },
   });
 
-  const moveTaskMutation = useMutation({
-    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/tasks', { workflowId }]
-      });
-      toast({
-        title: "Success",
-        description: "Task moved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Task movement error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to move task",
-        variant: "destructive",
-      });
-    },
-  });
-
   if (isWorkflowLoading || isStagesLoading || isTasksLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -156,6 +114,7 @@ export default function WorkflowDetailPage() {
     return <div className="flex items-center justify-center min-h-screen">Workflow not found</div>;
   }
 
+  // Group tasks by stage
   const tasksByStage = tasks.reduce<Record<number, Task[]>>((acc, task) => {
     if (task.stageId) {
       if (!acc[task.stageId]) {
@@ -166,6 +125,9 @@ export default function WorkflowDetailPage() {
     return acc;
   }, {});
 
+  // Log the grouped tasks for debugging
+  console.log('Tasks grouped by stage:', tasksByStage);
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -174,6 +136,7 @@ export default function WorkflowDetailPage() {
             <h1 className="text-2xl font-bold">{workflow.name}</h1>
             <p className="text-muted-foreground">{workflow.description}</p>
           </div>
+          <CreateTaskDialog />
         </div>
       </div>
 
@@ -186,7 +149,7 @@ export default function WorkflowDetailPage() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit((data) =>
-                  createStageMutation.mutate(data)
+                  createStageMutation.mutate({ ...data, order: stages.length })
                 )}
                 className="space-y-4"
               >
@@ -234,7 +197,6 @@ export default function WorkflowDetailPage() {
                   className="w-full"
                   disabled={createStageMutation.isPending}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
                   {createStageMutation.isPending ? "Creating..." : "Add Stage"}
                 </Button>
               </form>
@@ -262,17 +224,10 @@ export default function WorkflowDetailPage() {
                       borderLeftWidth: '4px'
                     }}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{stage.name}</h3>
-                        {stage.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {stage.description}
-                          </p>
-                        )}
-                      </div>
-                      <CreateTaskDialog workflowId={workflowId} stageId={stage.id} />
-                    </div>
+                    <h3 className="font-medium">{stage.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {stage.description}
+                    </p>
                     <div className="mt-4 space-y-2">
                       {tasksByStage[stage.id]?.length ? (
                         tasksByStage[stage.id].map((task) => (
