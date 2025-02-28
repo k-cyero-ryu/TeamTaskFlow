@@ -49,13 +49,14 @@ export default function TaskDetailDialog({
   const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
   const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
 
-  // Always fetch workflow and stage data when dialog is open
-  const { data: workflow } = useQuery<Workflow>({
+  // Fetch workflow if not provided
+  const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
     enabled: open && !!task.workflowId && !task.workflow,
   });
 
-  const { data: stage } = useQuery<WorkflowStage>({
+  // Fetch stage if not provided and workflowId exists
+  const { data: stage, isLoading: isStageLoading } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
     enabled: open && !!task.workflowId && !!task.stageId && !task.stage,
   });
@@ -63,8 +64,14 @@ export default function TaskDetailDialog({
   const effectiveWorkflow = task.workflow || workflow;
   const effectiveStage = task.stage || stage;
 
+  console.log('Task Detail Dialog - Task:', { 
+    id: task.id, 
+    workflowId: task.workflowId, 
+    stageId: task.stageId 
+  });
   console.log('Task Detail Dialog - Workflow:', effectiveWorkflow);
   console.log('Task Detail Dialog - Stage:', effectiveStage);
+  console.log('Task Detail Dialog - Loading:', { workflow: isWorkflowLoading, stage: isStageLoading });
 
   // Rest of your existing mutations remain unchanged
   const updateSubtaskMutation = useMutation({
@@ -186,7 +193,7 @@ export default function TaskDetailDialog({
               >
                 {task.status}
               </Badge>
-              {effectiveWorkflow && effectiveStage && (
+              {(effectiveWorkflow && effectiveStage) && (
                 <Badge
                   variant="outline"
                   style={{
@@ -236,42 +243,46 @@ export default function TaskDetailDialog({
 
             <Separator />
 
-            <div className="space-y-4">
-              {effectiveWorkflow && (
-                <div>
-                  <h3 className="text-lg font-semibold">Workflow</h3>
-                  <p className="text-muted-foreground">{effectiveWorkflow.name}</p>
-                  {effectiveWorkflow.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {effectiveWorkflow.description}
-                    </p>
-                  )}
-                </div>
-              )}
-              {effectiveStage && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold">Current Stage</h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div
-                      className="px-3 py-1 rounded-md text-sm font-medium"
-                      style={{
-                        backgroundColor: effectiveStage.color || '#4444FF',
-                        color: '#fff'
-                      }}
-                    >
-                      {effectiveStage.name}
+            {(effectiveWorkflow || effectiveStage) && (
+              <>
+                <div className="space-y-4">
+                  {effectiveWorkflow && (
+                    <div>
+                      <h3 className="text-lg font-semibold">Workflow</h3>
+                      <p className="text-muted-foreground">{effectiveWorkflow.name}</p>
+                      {effectiveWorkflow.description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {effectiveWorkflow.description}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  {effectiveStage.description && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {effectiveStage.description}
-                    </p>
+                  )}
+
+                  {effectiveStage && !isStageLoading && (
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold">Current Stage</h3>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className="px-3 py-1 rounded-md text-sm font-medium"
+                          style={{
+                            backgroundColor: effectiveStage.color || '#4444FF',
+                            color: '#fff'
+                          }}
+                        >
+                          {effectiveStage.name}
+                        </div>
+                      </div>
+                      {effectiveStage.description && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {effectiveStage.description}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {task.participants && task.participants.length > 0 && (
               <>

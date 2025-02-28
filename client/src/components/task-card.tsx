@@ -34,12 +34,13 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch workflow and stage information if they exist and not already provided
+  // Fetch workflow if not provided
   const { data: workflow } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
     enabled: !!task.workflowId && !task.workflow,
   });
 
+  // Fetch stage if not provided and workflowId exists
   const { data: stage } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
     enabled: !!task.workflowId && !!task.stageId && !task.stage,
@@ -47,6 +48,14 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
 
   const effectiveWorkflow = task.workflow || workflow;
   const effectiveStage = task.stage || stage;
+
+  console.log('Task Card - Task:', { 
+    id: task.id, 
+    workflowId: task.workflowId, 
+    stageId: task.stageId 
+  });
+  console.log('Task Card - Workflow:', effectiveWorkflow);
+  console.log('Task Card - Stage:', effectiveStage);
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
