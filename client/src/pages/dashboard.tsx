@@ -3,15 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import TaskList from "@/components/task-list";
 import CreateTaskDialog from "@/components/create-task-dialog";
-import { Task } from "@shared/schema";
+import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Loader2, CheckCircle2, Circle, Clock } from "lucide-react";
 
 export default function Dashboard() {
-  const { data: tasks, isLoading } = useQuery<Task[]>({
+  const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
   });
 
-  if (isLoading) {
+  const { data: workflows = [], isLoading: workflowsLoading } = useQuery<Workflow[]>({
+    queryKey: ["/api/workflows"],
+  });
+
+  // Query stages for each workflow
+  const workflowStages = workflows?.map(workflow => {
+    const { data: stages } = useQuery<WorkflowStage[]>({
+      queryKey: [`/api/workflows/${workflow.id}/stages`],
+      enabled: !!workflow.id,
+    });
+    return { workflow, stages: stages || [] };
+  });
+
+  if (tasksLoading || workflowsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -23,6 +36,9 @@ export default function Dashboard() {
   const completedTasks = tasks?.filter((task) => task.status === "done").length || 0;
   const inProgressTasks = tasks?.filter((task) => task.status === "in-progress").length || 0;
   const progressPercentage = totalTasks ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Group tasks by workflow
+  const workflowTasks = tasks?.filter(task => task.workflowId !== null) || [];
 
   return (
     <div className="container mx-auto py-8">
@@ -72,6 +88,57 @@ export default function Dashboard() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Workflow Tasks Section */}
+      {workflowTasks.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Workflow Tasks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {workflowStages?.map(({ workflow, stages }) => {
+                const workflowTasks = tasks?.filter(task => task.workflowId === workflow.id) || [];
+                if (workflowTasks.length === 0) return null;
+
+                return (
+                  <div key={workflow.id} className="space-y-4">
+                    <h3 className="text-lg font-semibold">{workflow.name}</h3>
+                    <div className="grid gap-4">
+                      {workflowTasks.map(task => {
+                        const stage = stages.find(s => s.id === task.stageId);
+                        return (
+                          <div key={task.id} className="border rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm font-medium">{task.title}</span>
+                              {stage && (
+                                <span 
+                                  className="text-xs px-2 py-1 rounded-full" 
+                                  style={{ 
+                                    backgroundColor: stage.color || '#4444FF',
+                                    color: '#fff'
+                                  }}
+                                >
+                                  {stage.name}
+                                </span>
+                              )}
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
