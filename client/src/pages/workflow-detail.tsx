@@ -42,12 +42,19 @@ export default function WorkflowDetailPage() {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "workflow_stage_update" && data.workflowId === workflowId) {
-        // Invalidate stages query when we receive a stage update
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/workflows', workflowId, 'stages']
-        });
+      try {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message received:", data);
+
+        if (data.type === "workflow_stage_update" && data.workflowId === workflowId) {
+          console.log("Invalidating stages query");
+          // Invalidate stages query when we receive a stage update
+          queryClient.invalidateQueries({ 
+            queryKey: ['/api/workflows', workflowId, 'stages']
+          });
+        }
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error);
       }
     };
 
@@ -58,7 +65,9 @@ export default function WorkflowDetailPage() {
     setSocket(ws);
 
     return () => {
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [workflowId]);
 
@@ -81,32 +90,6 @@ export default function WorkflowDetailPage() {
       return filteredTasks;
     },
     enabled: !!stages?.length,
-  });
-
-  const moveTaskMutation = useMutation({
-    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
-      return response.json();
-    },
-    onSuccess: () => {
-      // Invalidate both tasks and workflow-specific tasks
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/tasks', { workflowId }]
-      });
-      toast({
-        title: "Success",
-        description: "Task moved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Task movement error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to move task",
-        variant: "destructive",
-      });
-    },
   });
 
   const form = useForm<InsertWorkflowStage>({
@@ -144,6 +127,32 @@ export default function WorkflowDetailPage() {
     },
   });
 
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate both tasks and workflow-specific tasks
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/tasks', { workflowId }]
+      });
+      toast({
+        title: "Success",
+        description: "Task moved successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Task movement error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move task",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isWorkflowLoading || isStagesLoading || isTasksLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -174,7 +183,7 @@ export default function WorkflowDetailPage() {
             <h1 className="text-2xl font-bold">{workflow.name}</h1>
             <p className="text-muted-foreground">{workflow.description}</p>
           </div>
-          <CreateTaskDialog />
+          <CreateTaskDialog workflowId={workflowId} />
         </div>
       </div>
 
@@ -187,7 +196,7 @@ export default function WorkflowDetailPage() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit((data) =>
-                  createStageMutation.mutate({ ...data, order: stages.length })
+                  createStageMutation.mutate(data)
                 )}
                 className="space-y-4"
               >
@@ -263,10 +272,13 @@ export default function WorkflowDetailPage() {
                     }}
                   >
                     <h3 className="font-medium">{stage.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {stage.description}
-                    </p>
+                    {stage.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {stage.description}
+                      </p>
+                    )}
                     <div className="mt-4 space-y-2">
+                      <CreateTaskDialog workflowId={workflowId} stageId={stage.id} />
                       {tasksByStage[stage.id]?.length ? (
                         tasksByStage[stage.id].map((task) => (
                           <div
