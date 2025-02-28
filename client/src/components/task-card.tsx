@@ -34,28 +34,16 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch workflow if not provided
+  // Fetch workflow and stage information if they exist
   const { data: workflow } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
-    enabled: !!task.workflowId && !task.workflow,
+    enabled: !!task.workflowId,
   });
 
-  // Fetch stage if not provided and workflowId exists
   const { data: stage } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
-    enabled: !!task.workflowId && !!task.stageId && !task.stage,
+    enabled: !!task.workflowId && !!task.stageId,
   });
-
-  const effectiveWorkflow = task.workflow || workflow;
-  const effectiveStage = task.stage || stage;
-
-  console.log('Task Card - Task:', { 
-    id: task.id, 
-    workflowId: task.workflowId, 
-    stageId: task.stageId 
-  });
-  console.log('Task Card - Workflow:', effectiveWorkflow);
-  console.log('Task Card - Stage:', effectiveStage);
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -134,16 +122,16 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
               <StatusIcon className="h-3 w-3" />
               {task.status}
             </Badge>
-            {effectiveWorkflow && effectiveStage && (
+            {workflow && stage && (
               <Badge
                 variant="outline"
                 className="flex items-center gap-1"
                 style={{
-                  borderColor: effectiveStage.color || '#4444FF',
-                  color: effectiveStage.color || '#4444FF'
+                  borderColor: stage.color || '#4444FF',
+                  color: stage.color || '#4444FF'
                 }}
               >
-                {effectiveWorkflow.name} - {effectiveStage.name}
+                {workflow.name} - {stage.name}
               </Badge>
             )}
           </div>
@@ -224,7 +212,6 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
             )}
           </div>
         </CardContent>
-
         <CardFooter className="flex justify-between">
           <div className="flex items-center space-x-4">
             <Avatar className="h-8 w-8">
@@ -260,8 +247,8 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       <TaskDetailDialog
         task={{
           ...task,
-          workflow: effectiveWorkflow,
-          stage: effectiveStage,
+          workflow,
+          stage,
         }}
         open={detailOpen}
         onOpenChange={setDetailOpen}
