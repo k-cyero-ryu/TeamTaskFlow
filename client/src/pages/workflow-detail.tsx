@@ -38,11 +38,9 @@ export default function WorkflowDetailPage() {
     queryKey: [`/api/workflows/${workflowId}/stages`],
   });
 
-  // Query tasks for the current workflow.
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
     queryKey: [`/api/tasks`],
     select: (data) => {
-      // Filter tasks by workflowId
       const filteredTasks = data.filter(task => task.workflowId === workflowId);
       console.log('Filtered tasks for workflow:', filteredTasks);
       return filteredTasks;
@@ -114,7 +112,6 @@ export default function WorkflowDetailPage() {
     return <div className="flex items-center justify-center min-h-screen">Workflow not found</div>;
   }
 
-  // Group tasks by stage
   const tasksByStage = tasks.reduce<Record<number, Task[]>>((acc, task) => {
     if (task.stageId) {
       if (!acc[task.stageId]) {
@@ -125,34 +122,22 @@ export default function WorkflowDetailPage() {
     return acc;
   }, {});
 
-  // Log the grouped tasks for debugging
-  console.log('Tasks grouped by stage:', tasksByStage);
-
   return (
-    <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">{workflow.name}</h1>
-            <p className="text-muted-foreground">{workflow.description}</p>
-          </div>
-          <CreateTaskDialog />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Add New Stage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit((data) =>
-                  createStageMutation.mutate({ ...data, order: stages.length })
-                )}
-                className="space-y-4"
-              >
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Stage Creation Form - Moved to top */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New Stage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((data) =>
+                createStageMutation.mutate({ ...data, order: stages.length })
+              )}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -161,19 +146,6 @@ export default function WorkflowDetailPage() {
                       <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -192,91 +164,115 @@ export default function WorkflowDetailPage() {
                     </FormItem>
                   )}
                 />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createStageMutation.isPending}
-                >
-                  {createStageMutation.isPending ? "Creating..." : "Add Stage"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+              </div>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createStageMutation.isPending}
+              >
+                {createStageMutation.isPending ? "Creating..." : "Add Stage"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Workflow Stages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stages.length === 0 ? (
-                <div className="text-center text-muted-foreground py-4">
-                  No stages created yet. Add a stage to get started.
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{workflow.name}</h1>
+          <p className="text-muted-foreground">{workflow.description}</p>
+        </div>
+        <CreateTaskDialog />
+      </div>
+
+      {/* Stages List - Full width */}
+      <div className="w-full space-y-6"> {/* Added w-full for full width */}
+        <h2 className="text-xl font-semibold">Workflow Stages</h2>
+        {stages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-4">
+            No stages created yet. Add a stage to get started.
+          </div>
+        ) : (
+          stages.map((stage) => (
+            <Card key={stage.id} className="w-full"> {/* Added w-full for full width */}
+              <div className="mb-4"> {/* Added margin for spacing */}
+                {/* Stage Actions - Moved above content */}
+                <div className="flex gap-2 overflow-x-auto">
+                  {stages
+                    .filter((targetStage) => targetStage.id !== stage.id)
+                    .map((targetStage) => (
+                      <Button
+                        key={targetStage.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const tasksInCurrentStage = tasksByStage[stage.id] || [];
+                          tasksInCurrentStage.forEach(task => {
+                            moveTaskMutation.mutate({
+                              taskId: task.id,
+                              stageId: targetStage.id,
+                            });
+                          });
+                        }}
+                        disabled={moveTaskMutation.isPending}
+                      >
+                        Move all to {targetStage.name}
+                      </Button>
+                    ))}
                 </div>
-              ) : (
-                stages.map((stage) => (
-                  <div
-                    key={stage.id}
-                    className="p-4 border rounded-lg"
-                    style={{
-                      borderLeftColor: stage.color || '#4444FF',
-                      borderLeftWidth: '4px'
-                    }}
-                  >
-                    <h3 className="font-medium">{stage.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {stage.description}
-                    </p>
-                    <div className="mt-4 space-y-2">
-                      {tasksByStage[stage.id]?.length ? (
-                        tasksByStage[stage.id].map((task) => (
-                          <div
-                            key={task.id}
-                            className="bg-background p-3 rounded border"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium">{task.title}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {task.description}
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                {stages.map((targetStage) =>
-                                  targetStage.id !== stage.id ? (
-                                    <Button
-                                      key={targetStage.id}
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        moveTaskMutation.mutate({
-                                          taskId: task.id,
-                                          stageId: targetStage.id,
-                                        })
-                                      }
-                                      disabled={moveTaskMutation.isPending}
-                                    >
-                                      Move to {targetStage.name}
-                                    </Button>
-                                  ) : null
-                                )}
-                              </div>
-                            </div>
+              </div>
+              <CardContent className="pt-4"> {/* Adjusted padding */}
+                {/* Stage Content */}
+                <div
+                  className="border rounded-lg p-4 w-full"
+                  style={{
+                    borderLeftColor: stage.color || '#4444FF',
+                    borderLeftWidth: '4px'
+                  }}
+                >
+                  <h3 className="font-medium text-lg">{stage.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {stage.description}
+                  </p>
+                  <div className="mt-4 space-y-2">
+                    {tasksByStage[stage.id]?.length ? (
+                      tasksByStage[stage.id].map((task) => (
+                        <div
+                          key={task.id}
+                          className="bg-background p-3 rounded border"
+                        >
+                          <div>
+                            <h4 className="font-medium">{task.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {task.description}
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center text-muted-foreground py-2">
-                          No tasks in this stage
                         </div>
-                      )}
-                    </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-muted-foreground py-2">
+                        No tasks in this stage
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
