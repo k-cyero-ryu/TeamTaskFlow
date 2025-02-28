@@ -35,10 +35,10 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-export default function CreateTaskDialog() {
+export default function CreateTaskDialog({ workflowId, stageId }: { workflowId?: number, stageId?: number }) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(workflowId || null);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -64,8 +64,8 @@ export default function CreateTaskDialog() {
       subtasks: [],
       steps: [],
       dueDate: null,
-      workflowId: null,
-      stageId: null,
+      workflowId: workflowId || null,
+      stageId: stageId || null,
     },
   });
 
@@ -74,15 +74,15 @@ export default function CreateTaskDialog() {
       const res = await apiRequest("POST", "/api/tasks", data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      if (form.getValues("workflowId") && form.getValues("stageId")) {
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+
+      if (data.workflowId && data.stageId) {
         queryClient.invalidateQueries({ 
-          queryKey: [
-            `/api/workflows/${form.getValues("workflowId")}/stages/${form.getValues("stageId")}/tasks`
-          ] 
+          queryKey: ['/api/tasks', { workflowId: data.workflowId }]
         });
       }
+
       toast({
         title: "Task created",
         description: "Your task has been created successfully.",
@@ -409,7 +409,6 @@ export default function CreateTaskDialog() {
               )}
             />
 
-            {/* Add Workflow Selection */}
             <FormField
               control={form.control}
               name="workflowId"
@@ -421,7 +420,6 @@ export default function CreateTaskDialog() {
                       const id = parseInt(value);
                       field.onChange(id);
                       setSelectedWorkflowId(id);
-                      // Reset stage when workflow changes
                       form.setValue("stageId", null);
                     }}
                     value={field.value?.toString()}
@@ -444,7 +442,6 @@ export default function CreateTaskDialog() {
               )}
             />
 
-            {/* Add Stage Selection */}
             {selectedWorkflowId && (
               <FormField
                 control={form.control}

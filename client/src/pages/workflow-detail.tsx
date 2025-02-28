@@ -30,19 +30,20 @@ export default function WorkflowDetailPage() {
   const { toast } = useToast();
   const workflowId = parseInt(params.id!);
 
+  // Fetch workflow details
   const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
   });
 
+  // Fetch stages with proper query key structure
   const { data: stages = [], isLoading: isStagesLoading } = useQuery<WorkflowStage[]>({
-    queryKey: [`/api/workflows/${workflowId}/stages`],
+    queryKey: ['/api/workflows', workflowId, 'stages'],
   });
 
-  // Query tasks for the current workflow.
+  // Query tasks for the current workflow with proper structure
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
-    queryKey: [`/api/tasks`],
+    queryKey: ['/api/tasks', { workflowId }],
     select: (data) => {
-      // Filter tasks by workflowId
       const filteredTasks = data.filter(task => task.workflowId === workflowId);
       console.log('Filtered tasks for workflow:', filteredTasks);
       return filteredTasks;
@@ -56,7 +57,11 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/tasks`] });
+      // Invalidate both tasks and workflow-specific tasks
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/tasks', { workflowId }]
+      });
       toast({
         title: "Success",
         description: "Task moved successfully",
@@ -89,7 +94,8 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/workflows/${workflowId}/stages`] });
+      // Update the query key structure to match the fetch
+      queryClient.invalidateQueries({ queryKey: ['/api/workflows', workflowId, 'stages'] });
       toast({
         title: "Success",
         description: "Stage created successfully",
