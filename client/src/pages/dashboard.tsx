@@ -15,16 +15,13 @@ export default function Dashboard() {
     queryKey: ["/api/workflows"],
   });
 
-  // Query stages for each workflow
-  const workflowStages = workflows?.map(workflow => {
-    const { data: stages } = useQuery<WorkflowStage[]>({
-      queryKey: [`/api/workflows/${workflow.id}/stages`],
-      enabled: !!workflow.id,
-    });
-    return { workflow, stages: stages || [] };
+  // Query all stages in a single request
+  const { data: allStages = [], isLoading: stagesLoading } = useQuery<WorkflowStage[]>({
+    queryKey: ["/api/stages"],
+    enabled: workflows.length > 0,
   });
 
-  if (tasksLoading || workflowsLoading) {
+  if (tasksLoading || workflowsLoading || stagesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -97,16 +94,18 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {workflowStages?.map(({ workflow, stages }) => {
+              {workflows.map(workflow => {
                 const workflowTasks = tasks?.filter(task => task.workflowId === workflow.id) || [];
                 if (workflowTasks.length === 0) return null;
+
+                const workflowStages = allStages.filter(stage => stage.workflowId === workflow.id);
 
                 return (
                   <div key={workflow.id} className="space-y-4">
                     <h3 className="text-lg font-semibold">{workflow.name}</h3>
                     <div className="grid gap-4">
                       {workflowTasks.map(task => {
-                        const stage = stages.find(s => s.id === task.stageId);
+                        const stage = workflowStages.find(s => s.id === task.stageId);
                         return (
                           <div key={task.id} className="border rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-2">
