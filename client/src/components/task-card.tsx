@@ -34,16 +34,19 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch workflow and stage information if they exist
+  // Fetch workflow and stage information if they exist and not already provided
   const { data: workflow } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
-    enabled: !!task.workflowId,
+    enabled: !!task.workflowId && !task.workflow,
   });
 
   const { data: stage } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
-    enabled: !!task.workflowId && !!task.stageId,
+    enabled: !!task.workflowId && !!task.stageId && !task.stage,
   });
+
+  const effectiveWorkflow = task.workflow || workflow;
+  const effectiveStage = task.stage || stage;
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -122,16 +125,16 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
               <StatusIcon className="h-3 w-3" />
               {task.status}
             </Badge>
-            {workflow && stage && (
+            {effectiveWorkflow && effectiveStage && (
               <Badge
                 variant="outline"
                 className="flex items-center gap-1"
                 style={{
-                  borderColor: stage.color || '#4444FF',
-                  color: stage.color || '#4444FF'
+                  borderColor: effectiveStage.color || '#4444FF',
+                  color: effectiveStage.color || '#4444FF'
                 }}
               >
-                {workflow.name} - {stage.name}
+                {effectiveWorkflow.name} - {effectiveStage.name}
               </Badge>
             )}
           </div>
@@ -212,6 +215,7 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
             )}
           </div>
         </CardContent>
+
         <CardFooter className="flex justify-between">
           <div className="flex items-center space-x-4">
             <Avatar className="h-8 w-8">
@@ -247,8 +251,8 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       <TaskDetailDialog
         task={{
           ...task,
-          workflow,
-          stage,
+          workflow: effectiveWorkflow,
+          stage: effectiveStage,
         }}
         open={detailOpen}
         onOpenChange={setDetailOpen}

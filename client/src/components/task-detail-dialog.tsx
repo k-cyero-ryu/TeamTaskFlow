@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -49,6 +49,24 @@ export default function TaskDetailDialog({
   const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
   const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
 
+  // Always fetch workflow and stage data when dialog is open
+  const { data: workflow } = useQuery<Workflow>({
+    queryKey: [`/api/workflows/${task.workflowId}`],
+    enabled: open && !!task.workflowId && !task.workflow,
+  });
+
+  const { data: stage } = useQuery<WorkflowStage>({
+    queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
+    enabled: open && !!task.workflowId && !!task.stageId && !task.stage,
+  });
+
+  const effectiveWorkflow = task.workflow || workflow;
+  const effectiveStage = task.stage || stage;
+
+  console.log('Task Detail Dialog - Workflow:', effectiveWorkflow);
+  console.log('Task Detail Dialog - Stage:', effectiveStage);
+
+  // Rest of your existing mutations remain unchanged
   const updateSubtaskMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
       const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
@@ -59,11 +77,8 @@ export default function TaskDetailDialog({
     },
     onMutate: async ({ id, completed }) => {
       setUpdatingSubtaskId(id);
-
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
-
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
-
       const updatedTasks = previousTasks?.map((t) => {
         if (t.id === task.id) {
           return {
@@ -75,11 +90,9 @@ export default function TaskDetailDialog({
         }
         return t;
       });
-
       if (updatedTasks) {
         queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
       }
-
       return { previousTasks };
     },
     onError: (err, variables, context) => {
@@ -114,11 +127,8 @@ export default function TaskDetailDialog({
     },
     onMutate: async ({ id, completed }) => {
       setUpdatingStepId(id);
-
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
-
       const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
-
       const updatedTasks = previousTasks?.map((t) => {
         if (t.id === task.id) {
           return {
@@ -130,11 +140,9 @@ export default function TaskDetailDialog({
         }
         return t;
       });
-
       if (updatedTasks) {
         queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
       }
-
       return { previousTasks };
     },
     onError: (err, variables, context) => {
@@ -178,15 +186,15 @@ export default function TaskDetailDialog({
               >
                 {task.status}
               </Badge>
-              {task.workflow && task.stage && (
+              {effectiveWorkflow && effectiveStage && (
                 <Badge
                   variant="outline"
                   style={{
-                    borderColor: task.stage.color || '#4444FF',
-                    color: task.stage.color || '#4444FF'
+                    borderColor: effectiveStage.color || '#4444FF',
+                    color: effectiveStage.color || '#4444FF'
                   }}
                 >
-                  {task.workflow.name} - {task.stage.name}
+                  {effectiveWorkflow.name} - {effectiveStage.name}
                 </Badge>
               )}
             </div>
@@ -229,39 +237,40 @@ export default function TaskDetailDialog({
             <Separator />
 
             <div className="space-y-4">
-              {task.workflow && (
+              {effectiveWorkflow && (
                 <div>
                   <h3 className="text-lg font-semibold">Workflow</h3>
-                  <p className="text-muted-foreground">{task.workflow.name}</p>
-                  {task.workflow.description && (
+                  <p className="text-muted-foreground">{effectiveWorkflow.name}</p>
+                  {effectiveWorkflow.description && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      {task.workflow.description}
+                      {effectiveWorkflow.description}
                     </p>
                   )}
                 </div>
               )}
-              {task.stage && (
+              {effectiveStage && (
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold">Current Stage</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <div
                       className="px-3 py-1 rounded-md text-sm font-medium"
                       style={{
-                        backgroundColor: task.stage.color || '#4444FF',
+                        backgroundColor: effectiveStage.color || '#4444FF',
                         color: '#fff'
                       }}
                     >
-                      {task.stage.name}
+                      {effectiveStage.name}
                     </div>
                   </div>
-                  {task.stage.description && (
+                  {effectiveStage.description && (
                     <p className="text-sm text-muted-foreground mt-2">
-                      {task.stage.description}
+                      {effectiveStage.description}
                     </p>
                   )}
                 </div>
               )}
             </div>
+
             <Separator />
 
             {task.participants && task.participants.length > 0 && (

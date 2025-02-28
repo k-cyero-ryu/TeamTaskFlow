@@ -24,6 +24,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CreateTaskDialog from "@/components/create-task-dialog";
+import TaskCard from "@/components/task-card";
 
 export default function WorkflowDetailPage() {
   const params = useParams();
@@ -124,7 +125,6 @@ export default function WorkflowDetailPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Stage Creation Form - Moved to top */}
       <Card>
         <CardHeader>
           <CardTitle>Add New Stage</CardTitle>
@@ -198,8 +198,7 @@ export default function WorkflowDetailPage() {
         <CreateTaskDialog />
       </div>
 
-      {/* Stages List - Full width */}
-      <div className="w-full space-y-6"> {/* Added w-full for full width */}
+      <div className="w-full space-y-6">
         <h2 className="text-xl font-semibold">Workflow Stages</h2>
         {stages.length === 0 ? (
           <div className="text-center text-muted-foreground py-4">
@@ -207,9 +206,8 @@ export default function WorkflowDetailPage() {
           </div>
         ) : (
           stages.map((stage) => (
-            <Card key={stage.id} className="w-full"> {/* Added w-full for full width */}
-              <div className="mb-4"> {/* Added margin for spacing */}
-                {/* Stage Actions - Moved above content */}
+            <Card key={stage.id} className="w-full">
+              <div className="mb-4">
                 <div className="flex gap-2 overflow-x-auto">
                   {stages
                     .filter((targetStage) => targetStage.id !== stage.id)
@@ -234,8 +232,7 @@ export default function WorkflowDetailPage() {
                     ))}
                 </div>
               </div>
-              <CardContent className="pt-4"> {/* Adjusted padding */}
-                {/* Stage Content */}
+              <CardContent className="pt-4">
                 <div
                   className="border rounded-lg p-4 w-full"
                   style={{
@@ -250,17 +247,14 @@ export default function WorkflowDetailPage() {
                   <div className="mt-4 space-y-2">
                     {tasksByStage[stage.id]?.length ? (
                       tasksByStage[stage.id].map((task) => (
-                        <div
+                        <TaskCard
                           key={task.id}
-                          className="bg-background p-3 rounded border"
-                        >
-                          <div>
-                            <h4 className="font-medium">{task.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {task.description}
-                            </p>
-                          </div>
-                        </div>
+                          task={{
+                            ...task,
+                            workflow,
+                            stage
+                          }}
+                        />
                       ))
                     ) : (
                       <div className="text-center text-muted-foreground py-2">
