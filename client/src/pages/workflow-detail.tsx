@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,38 @@ export default function WorkflowDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const workflowId = parseInt(params.id!);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+
+  // WebSocket setup
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "workflow_stage_update" && data.workflowId === workflowId) {
+        // Invalidate stages query when we receive a stage update
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/workflows', workflowId, 'stages']
+        });
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    setSocket(ws);
+
+    return () => {
+      ws.close();
+    };
+  }, [workflowId]);
 
   // Fetch workflow details
   const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
