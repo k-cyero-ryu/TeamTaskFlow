@@ -11,6 +11,8 @@ import WorkflowDetail from "@/pages/workflow-detail";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
 import { useAuth } from "@/hooks/use-auth";
+import { wsClient } from "./lib/websocket";
+import { useEffect } from "react";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +25,14 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      wsClient.connect();
+    } else {
+      wsClient.disconnect();
+    }
+  }, [user]);
 
   // If user is authenticated, redirect from /auth to /
   if (user && window.location.pathname === "/auth") {

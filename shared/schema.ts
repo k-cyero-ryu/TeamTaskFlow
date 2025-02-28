@@ -261,6 +261,8 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   description: true,
   responsibleId: true,
   priority: true,
+  workflowId: true,
+  stageId: true,
 }).extend({
   participantIds: z.array(z.number()).optional(),
   subtasks: z.array(insertSubtaskSchema).optional(),

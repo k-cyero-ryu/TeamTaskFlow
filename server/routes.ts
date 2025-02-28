@@ -54,10 +54,31 @@ export function registerRoutes(app: Express): Server {
       return res.status(400).json(result.error);
     }
 
+    // Extract workflow and stage IDs from the request
+    const { workflowId, stageId, ...taskData } = result.data;
+
     const task = await storage.createTask({
-      ...result.data,
+      ...taskData,
+      workflowId: workflowId || null,
+      stageId: stageId || null,
       creatorId: req.user.id,
     });
+
+    // Notify connected clients about the new task
+    const clientEntries = Array.from(clients.entries());
+    for (const [client, _] of clientEntries) {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(JSON.stringify({
+            type: "task_created",
+            data: task,
+          }));
+        } catch (wsError) {
+          console.error("WebSocket send error:", wsError);
+        }
+      }
+    }
+
     res.status(201).json(task);
   });
 
@@ -472,6 +493,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add this to the POST /api/workflows/:id/stages endpoint
   app.post("/api/workflows/:id/stages", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
@@ -485,6 +507,22 @@ export function registerRoutes(app: Express): Server {
         ...result.data,
         workflowId: parseInt(req.params.id),
       });
+
+      // Notify all connected clients about the new stage
+      const clientEntries = Array.from(clients.entries());
+      for (const [client, _] of clientEntries) {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(JSON.stringify({
+              type: "workflow_stage_created",
+              data: stage,
+            }));
+          } catch (wsError) {
+            console.error("WebSocket send error:", wsError);
+          }
+        }
+      }
+
       res.status(201).json(stage);
     } catch (error) {
       res.status(500).json({ message: "Error creating workflow stage" });
