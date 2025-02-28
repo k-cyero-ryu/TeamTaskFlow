@@ -24,6 +24,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CreateTaskDialog from "@/components/create-task-dialog";
+import { Plus } from "lucide-react";
 
 export default function WorkflowDetailPage() {
   const params = useParams();
@@ -48,7 +49,6 @@ export default function WorkflowDetailPage() {
 
         if (data.type === "workflow_stage_update" && data.workflowId === workflowId) {
           console.log("Invalidating stages query");
-          // Invalidate stages query when we receive a stage update
           queryClient.invalidateQueries({ 
             queryKey: ['/api/workflows', workflowId, 'stages']
           });
@@ -71,17 +71,14 @@ export default function WorkflowDetailPage() {
     };
   }, [workflowId]);
 
-  // Fetch workflow details
   const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
   });
 
-  // Fetch stages with proper query key structure
   const { data: stages = [], isLoading: isStagesLoading } = useQuery<WorkflowStage[]>({
     queryKey: ['/api/workflows', workflowId, 'stages'],
   });
 
-  // Query tasks for the current workflow with proper structure
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
     queryKey: ['/api/tasks', { workflowId }],
     select: (data) => {
@@ -109,7 +106,6 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      // Update the query key structure to match the fetch
       queryClient.invalidateQueries({ queryKey: ['/api/workflows', workflowId, 'stages'] });
       toast({
         title: "Success",
@@ -133,7 +129,6 @@ export default function WorkflowDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate both tasks and workflow-specific tasks
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       queryClient.invalidateQueries({ 
         queryKey: ['/api/tasks', { workflowId }]
@@ -161,7 +156,6 @@ export default function WorkflowDetailPage() {
     return <div className="flex items-center justify-center min-h-screen">Workflow not found</div>;
   }
 
-  // Group tasks by stage
   const tasksByStage = tasks.reduce<Record<number, Task[]>>((acc, task) => {
     if (task.stageId) {
       if (!acc[task.stageId]) {
@@ -172,9 +166,6 @@ export default function WorkflowDetailPage() {
     return acc;
   }, {});
 
-  // Log the grouped tasks for debugging
-  console.log('Tasks grouped by stage:', tasksByStage);
-
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -183,7 +174,6 @@ export default function WorkflowDetailPage() {
             <h1 className="text-2xl font-bold">{workflow.name}</h1>
             <p className="text-muted-foreground">{workflow.description}</p>
           </div>
-          <CreateTaskDialog workflowId={workflowId} />
         </div>
       </div>
 
@@ -244,6 +234,7 @@ export default function WorkflowDetailPage() {
                   className="w-full"
                   disabled={createStageMutation.isPending}
                 >
+                  <Plus className="h-4 w-4 mr-2" />
                   {createStageMutation.isPending ? "Creating..." : "Add Stage"}
                 </Button>
               </form>
@@ -271,14 +262,18 @@ export default function WorkflowDetailPage() {
                       borderLeftWidth: '4px'
                     }}
                   >
-                    <h3 className="font-medium">{stage.name}</h3>
-                    {stage.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {stage.description}
-                      </p>
-                    )}
-                    <div className="mt-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{stage.name}</h3>
+                        {stage.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {stage.description}
+                          </p>
+                        )}
+                      </div>
                       <CreateTaskDialog workflowId={workflowId} stageId={stage.id} />
+                    </div>
+                    <div className="mt-4 space-y-2">
                       {tasksByStage[stage.id]?.length ? (
                         tasksByStage[stage.id].map((task) => (
                           <div
