@@ -228,45 +228,41 @@ export default function TaskDetailDialog({
 
             <Separator />
 
-            {(task.workflow || task.stage) && (
-              <>
-                <div className="space-y-4">
-                  {task.workflow && (
-                    <div>
-                      <h3 className="text-lg font-semibold">Workflow</h3>
-                      <p className="text-muted-foreground">{task.workflow.name}</p>
-                      {task.workflow.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {task.workflow.description}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {task.stage && (
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold">Current Stage</h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div
-                          className="px-3 py-1 rounded-md text-sm font-medium"
-                          style={{
-                            backgroundColor: task.stage.color || '#4444FF',
-                            color: '#fff'
-                          }}
-                        >
-                          {task.stage.name}
-                        </div>
-                      </div>
-                      {task.stage.description && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {task.stage.description}
-                        </p>
-                      )}
-                    </div>
+            <div className="space-y-4">
+              {task.workflow && (
+                <div>
+                  <h3 className="text-lg font-semibold">Workflow</h3>
+                  <p className="text-muted-foreground">{task.workflow.name}</p>
+                  {task.workflow.description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {task.workflow.description}
+                    </p>
                   )}
                 </div>
-                <Separator />
-              </>
-            )}
+              )}
+              {task.stage && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold">Current Stage</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div
+                      className="px-3 py-1 rounded-md text-sm font-medium"
+                      style={{
+                        backgroundColor: task.stage.color || '#4444FF',
+                        color: '#fff'
+                      }}
+                    >
+                      {task.stage.name}
+                    </div>
+                  </div>
+                  {task.stage.description && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {task.stage.description}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <Separator />
 
             {task.participants && task.participants.length > 0 && (
               <>
