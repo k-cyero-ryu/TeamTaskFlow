@@ -1,33 +1,17 @@
 import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition } from "@shared/schema";
-import { db } from "./db";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
 import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+import { pool, db, executeWithRetry } from "./database/connection";
+import { Logger } from "./utils/logger";
+import { DatabaseError } from "./utils/errors";
+
+// Initialize logger for storage operations
+const logger = new Logger('Storage');
 
 // Initialize PostgreSQL session store with proper error handling
 const PostgresSessionStore = connectPg(session);
-
-// Add error handling wrapper
-async function withErrorHandling<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    console.error('Database operation failed:', error);
-    // If it's a connection error, wait and retry once
-    if (error instanceof Error && error.message.includes('connection')) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      try {
-        return await operation();
-      } catch (retryError) {
-        console.error('Retry failed:', retryError);
-        throw retryError;
-      }
-    }
-    throw error;
-  }
-}
 
 // Define storage interface
 interface IStorage {
@@ -80,42 +64,75 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // Wrap the first few critical methods with error handling
+  // User methods with improved error handling
   async getUser(id: number): Promise<User | undefined> {
-    return await withErrorHandling(async () => {
-      const [user] = await db.select().from(users).where(eq(users.id, id));
-      return user;
-    });
+    try {
+      return await executeWithRetry(async () => {
+        const [user] = await db.select().from(users).where(eq(users.id, id));
+        return user;
+      }, 'Get user by ID');
+    } catch (error) {
+      logger.error(`Failed to get user with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get user: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return await withErrorHandling(async () => {
-      const [user] = await db.select().from(users).where(eq(users.username, username));
-      return user;
-    });
+    try {
+      return await executeWithRetry(async () => {
+        const [user] = await db.select().from(users).where(eq(users.username, username));
+        return user;
+      }, 'Get user by username');
+    } catch (error) {
+      logger.error(`Failed to get user with username ${username}`, { error });
+      throw new DatabaseError(`Failed to get user by username: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    return await withErrorHandling(async () => {
-      const [user] = await db.insert(users).values(insertUser).returning();
-      return user;
-    });
+    try {
+      return await executeWithRetry(async () => {
+        const [user] = await db.insert(users).values(insertUser).returning();
+        return user;
+      }, 'Create user');
+    } catch (error) {
+      logger.error('Failed to create user', { error, username: insertUser.username });
+      throw new DatabaseError(`Failed to create user: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(users);
+      }, 'Get all users');
+    } catch (error) {
+      logger.error('Failed to get users', { error });
+      throw new DatabaseError(`Failed to get users: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTasks(): Promise<Task[]> {
-    return await withErrorHandling(async () => {
-      const result = await db.select().from(tasks);
-      return result;
-    });
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(tasks);
+      }, 'Get all tasks');
+    } catch (error) {
+      logger.error('Failed to get tasks', { error });
+      throw new DatabaseError(`Failed to get tasks: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTask(id: number): Promise<Task | undefined> {
-    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
-    return task;
+    try {
+      return await executeWithRetry(async () => {
+        const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+        return task;
+      }, 'Get task by ID');
+    } catch (error) {
+      logger.error(`Failed to get task with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get task: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task> {
@@ -426,27 +443,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllStages(): Promise<WorkflowStage[]> {
-    return await withErrorHandling(async () => {
-      return await db
-        .select()
-        .from(workflowStages)
-        .orderBy(workflowStages.workflowId, workflowStages.order);
-    });
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select()
+          .from(workflowStages)
+          .orderBy(workflowStages.workflowId, workflowStages.order);
+      }, 'Get all workflow stages');
+    } catch (error) {
+      logger.error('Failed to get all workflow stages', { error });
+      throw new DatabaseError(`Failed to get workflow stages: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getWorkflowStage(workflowId: number, stageId: number): Promise<WorkflowStage | undefined> {
-    return await withErrorHandling(async () => {
-      const [stage] = await db
-        .select()
-        .from(workflowStages)
-        .where(
-          and(
-            eq(workflowStages.workflowId, workflowId),
-            eq(workflowStages.id, stageId)
-          )
-        );
-      return stage;
-    });
+    try {
+      return await executeWithRetry(async () => {
+        const [stage] = await db
+          .select()
+          .from(workflowStages)
+          .where(
+            and(
+              eq(workflowStages.workflowId, workflowId),
+              eq(workflowStages.id, stageId)
+            )
+          );
+        return stage;
+      }, 'Get workflow stage');
+    } catch (error) {
+      logger.error(`Failed to get workflow stage (workflowId: ${workflowId}, stageId: ${stageId})`, { error });
+      throw new DatabaseError(`Failed to get workflow stage: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage> {

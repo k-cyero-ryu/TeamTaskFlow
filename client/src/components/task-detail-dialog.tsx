@@ -17,12 +17,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import TaskComments from "./task-comments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 interface ExtendedTask extends Task {
   subtasks?: Subtask[];
@@ -48,6 +49,22 @@ export default function TaskDetailDialog({
   const queryClient = useQueryClient();
   const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
   const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
+  
+  // Fetch workflow data if needed
+  const { data: workflow } = useQuery<Workflow>({
+    queryKey: [`/api/workflows/${task.workflowId}`],
+    enabled: !!task.workflowId && !task.workflow,
+  });
+
+  // Fetch stage data if needed
+  const { data: stage } = useQuery<WorkflowStage>({
+    queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
+    enabled: !!task.workflowId && !!task.stageId && !task.stage,
+  });
+  
+  // Use provided or fetched workflow/stage
+  const displayWorkflow = task.workflow || workflow;
+  const displayStage = task.stage || stage;
 
   const updateSubtaskMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
@@ -168,25 +185,25 @@ export default function TaskDetailDialog({
             <div className="flex gap-2">
               <Badge
                 variant="secondary"
-                className={`${
+                className={cn(
                   task.status === "todo"
                     ? "bg-slate-500"
                     : task.status === "in-progress"
                     ? "bg-blue-500"
                     : "bg-green-500"
-                }`}
+                )}
               >
                 {task.status}
               </Badge>
-              {task.workflow && task.stage && (
+              {(displayWorkflow && displayStage) && (
                 <Badge
                   variant="outline"
                   style={{
-                    borderColor: task.stage.color || '#4444FF',
-                    color: task.stage.color || '#4444FF'
+                    borderColor: displayStage.color || '#4444FF',
+                    color: displayStage.color || '#4444FF'
                   }}
                 >
-                  {task.workflow.name} - {task.stage.name}
+                  {displayWorkflow.name} - {displayStage.name}
                 </Badge>
               )}
             </div>
@@ -229,34 +246,34 @@ export default function TaskDetailDialog({
             <Separator />
 
             <div className="space-y-4">
-              {task.workflow && (
+              {displayWorkflow && (
                 <div>
                   <h3 className="text-lg font-semibold">Workflow</h3>
-                  <p className="text-muted-foreground">{task.workflow.name}</p>
-                  {task.workflow.description && (
+                  <p className="text-muted-foreground">{displayWorkflow.name}</p>
+                  {displayWorkflow.description && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      {task.workflow.description}
+                      {displayWorkflow.description}
                     </p>
                   )}
                 </div>
               )}
-              {task.stage && (
+              {displayStage && (
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold">Current Stage</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <div
                       className="px-3 py-1 rounded-md text-sm font-medium"
                       style={{
-                        backgroundColor: task.stage.color || '#4444FF',
+                        backgroundColor: displayStage.color || '#4444FF',
                         color: '#fff'
                       }}
                     >
-                      {task.stage.name}
+                      {displayStage.name}
                     </div>
                   </div>
-                  {task.stage.description && (
+                  {displayStage.description && (
                     <p className="text-sm text-muted-foreground mt-2">
-                      {task.stage.description}
+                      {displayStage.description}
                     </p>
                   )}
                 </div>
