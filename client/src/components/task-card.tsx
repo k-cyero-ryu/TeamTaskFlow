@@ -31,19 +31,23 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
 // Error fallback component for TaskCard
 function TaskCardError({ task }: { task: ExtendedTask }) {
   return (
-    <Card className="border-destructive/30 bg-destructive/5">
+    <Card 
+      className="border-destructive/30 bg-destructive/5"
+      role="alert"
+      aria-labelledby="error-task-title"
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-destructive" />
-          <h3 className="font-semibold text-sm">Error Loading Task</h3>
+          <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
+          <h3 id="error-task-title" className="font-semibold text-sm">Error Loading Task</h3>
         </div>
       </CardHeader>
       <CardContent>
         <p className="text-sm">
           {task?.title || "Task"}
         </p>
-        <Alert className="mt-2">
-          <AlertCircle className="h-4 w-4" />
+        <Alert className="mt-2" role="alert">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription className="text-xs">
             Unable to load some task data. Try refreshing the page.
           </AlertDescription>
@@ -56,9 +60,13 @@ function TaskCardError({ task }: { task: ExtendedTask }) {
 // Loading skeleton for workflow and stage data
 function TaskCardSkeleton() {
   return (
-    <div className="flex gap-2 items-center">
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-5 w-36" />
+    <div 
+      className="flex gap-2 items-center" 
+      aria-busy="true"
+      aria-label="Loading workflow and stage information"
+    >
+      <Skeleton className="h-5 w-24" aria-hidden="true" />
+      <Skeleton className="h-5 w-36" aria-hidden="true" />
     </div>
   );
 }
@@ -144,9 +152,13 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
                 stageColor={displayStage.color || undefined}
               />
             ) : hasRelatedDataError ? (
-              <span className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Data Error
+              <span 
+                className="text-xs text-destructive flex items-center gap-1"
+                role="alert"
+                aria-label="Workflow data could not be loaded"
+              >
+                <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                <span>Data Error</span>
               </span>
             ) : null}
           </div>
@@ -161,53 +173,80 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
         <CardContent>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <h3 className="font-semibold">{task.title}</h3>
+              <h3 className="font-semibold" id={`task-title-${task.id}`}>{task.title}</h3>
               {task.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">
+                <p 
+                  className="text-sm text-muted-foreground line-clamp-2"
+                  aria-describedby={`task-title-${task.id}`}
+                >
                   {task.description}
                 </p>
               )}
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           </div>
 
           <div className="mt-4 space-y-2">
             {totalSubtasks > 0 && (
               <p className="text-sm text-muted-foreground">
                 Subtasks: {completedSubtasks}/{totalSubtasks} completed
+                <span className="sr-only">
+                  , {Math.round((completedSubtasks / totalSubtasks) * 100)}% of subtasks completed
+                </span>
               </p>
             )}
             {totalSteps > 0 && (
               <p className="text-sm text-muted-foreground">
                 Steps: {completedSteps}/{totalSteps} completed
+                <span className="sr-only">
+                  , {Math.round((completedSteps / totalSteps) * 100)}% of steps completed
+                </span>
               </p>
             )}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="flex items-center space-x-4">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback>
+            <Avatar 
+              className="h-8 w-8"
+              aria-label={task.responsible?.username ? `Assigned to ${task.responsible.username}` : "Unassigned"}
+            >
+              <AvatarFallback aria-hidden="true">
                 {task.responsible?.username?.[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
               <p className="text-sm">
                 Due {task.dueDate ? format(new Date(task.dueDate), "MMM d") : "No date"}
+                {task.dueDate && (
+                  <span className="sr-only">
+                    , which is on {format(new Date(task.dueDate), "MMMM do, yyyy")}
+                  </span>
+                )}
               </p>
             </div>
           </div>
           {task.participants && task.participants.length > 0 && (
-            <div className="flex -space-x-2">
+            <div 
+              className="flex -space-x-2"
+              aria-label={`${task.participants.length} task participants`}
+            >
               {task.participants.slice(0, 3).map((participant) => (
-                <Avatar key={participant.id} className="h-8 w-8 border-2 border-background">
-                  <AvatarFallback>
+                <Avatar 
+                  key={participant.id} 
+                  className="h-8 w-8 border-2 border-background"
+                  aria-label={`Participant: ${participant.username}`}
+                >
+                  <AvatarFallback aria-hidden="true">
                     {participant.username[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               ))}
               {task.participants.length > 3 && (
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-muted text-xs">
+                <div 
+                  className="flex items-center justify-center h-8 w-8 rounded-full bg-muted text-xs"
+                  aria-label={`Plus ${task.participants.length - 3} more participants`}
+                >
                   +{task.participants.length - 3}
                 </div>
               )}

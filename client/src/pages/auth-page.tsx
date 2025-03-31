@@ -51,8 +51,13 @@ function AuthErrorState() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
+          <Alert 
+            variant="destructive" 
+            className="mb-4"
+            role="alert"
+            aria-live="assertive"
+          >
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertTitle>System Error</AlertTitle>
             <AlertDescription>
               There was a problem loading the authentication system. This could be due to a network issue
@@ -64,9 +69,10 @@ function AuthErrorState() {
           <Button 
             onClick={() => window.location.reload()}
             className="w-full flex items-center justify-center gap-2"
+            aria-label="Refresh the page to try again"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh the page
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            <span>Refresh the page</span>
           </Button>
         </CardFooter>
       </Card>
@@ -100,8 +106,13 @@ function AuthPageContent() {
           <CardHeader>
             <CardTitle>Welcome to TaskMaster</CardTitle>
             {(loginError || registerError) && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
+              <Alert 
+                variant="destructive" 
+                className="mt-4"
+                role="alert"
+                aria-live="assertive"
+              >
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertTitle>Authentication Failed</AlertTitle>
                 <AlertDescription>
                   {loginError || registerError}
@@ -204,8 +215,12 @@ function AuthForm({
     <ErrorBoundary 
       fallback={
         <div className="space-y-4 mt-4 p-4 border border-destructive rounded-md bg-destructive/5">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+          <Alert 
+            variant="destructive"
+            role="alert"
+            aria-live="assertive"
+          >
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertTitle>Form Error</AlertTitle>
             <AlertDescription>
               Something went wrong with the authentication form. Please reload the page and try again.
@@ -215,9 +230,10 @@ function AuthForm({
             onClick={() => window.location.reload()}
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
+            aria-label="Reload the page to fix form error"
           >
-            <RefreshCw className="h-4 w-4" />
-            Reload
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            <span>Reload</span>
           </Button>
         </div>
       }
@@ -275,14 +291,20 @@ function AuthForm({
             type="submit" 
             className="w-full" 
             disabled={isPending}
+            aria-busy={isPending}
+            aria-label={
+              isPending 
+                ? (mode === "login" ? "Logging in..." : "Creating account...") 
+                : (mode === "login" ? "Login to your account" : "Create a new account")
+            }
           >
             {isPending ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {mode === "login" ? "Logging in..." : "Creating account..."}
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <span>{mode === "login" ? "Logging in..." : "Creating account..."}</span>
               </span>
             ) : (
-              mode === "login" ? "Login" : "Register"
+              <span>{mode === "login" ? "Login" : "Register"}</span>
             )}
           </Button>
         </form>
