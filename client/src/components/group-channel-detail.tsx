@@ -188,47 +188,62 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Listen for new messages via WebSocket
+  // Listen for new messages via custom events
   useEffect(() => {
-    if (!socket) return;
-
-    const handleNewMessage = (event: MessageEvent) => {
+    const handleGroupMessage = (event: CustomEvent) => {
       try {
-        // Make sure we parse the message data properly
-        const eventData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        
-        console.log('Processing WebSocket message in channel component:', eventData);
+        const message = event.detail;
         
         // Check if this is a group message event for this channel
-        if (eventData.type === 'NEW_GROUP_MESSAGE' && eventData.data && eventData.data.channelId === channelId) {
-          console.log('Received new message for this channel:', eventData.data);
+        if (message.type === 'NEW_GROUP_MESSAGE' && message.data && message.data.channelId === channelId) {
+          console.log('Received new message for this channel:', message.data);
           
           // Update the query cache to fetch the latest messages
           queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'messages'] });
           
-          // If needed, we can also directly update the cache to avoid a network request
+          // Directly update the cache to avoid a network request and instantly show the message
           queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
             // Check if the message is already in the cache to avoid duplicates
-            const messageExists = oldData.some(msg => msg.id === eventData.data.id);
+            const messageExists = oldData.some(msg => msg.id === message.data.id);
             
             if (!messageExists) {
-              return [...oldData, eventData.data];
+              return [...oldData, message.data];
             }
             
             return oldData;
           });
         }
       } catch (error) {
-        console.error('Error handling WebSocket message in channel component:', error);
+        console.error('Error handling group message event:', error);
       }
     };
 
-    socket.addEventListener('message', handleNewMessage);
-
-    return () => {
-      socket.removeEventListener('message', handleNewMessage);
+    const handleMembershipChange = (event: CustomEvent) => {
+      try {
+        const message = event.detail;
+        
+        // Only update if it's for this channel
+        if (message.data && message.data.channelId === channelId) {
+          console.log('Channel membership changed:', message.data);
+          
+          // Update the members list
+          queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
+        }
+      } catch (error) {
+        console.error('Error handling membership change event:', error);
+      }
     };
-  }, [socket, channelId, queryClient]);
+
+    // Add event listeners for the custom events
+    window.addEventListener('groupMessage', handleGroupMessage as EventListener);
+    window.addEventListener('channelMembershipChanged', handleMembershipChange as EventListener);
+
+    // Clean up on unmount
+    return () => {
+      window.removeEventListener('groupMessage', handleGroupMessage as EventListener);
+      window.removeEventListener('channelMembershipChanged', handleMembershipChange as EventListener);
+    };
+  }, [channelId, queryClient]);
 
   // Check if current user is admin
   const isAdmin = members?.some(

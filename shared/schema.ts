@@ -337,6 +337,7 @@ export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick
 
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
   content: true,
+  channelId: true,
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({

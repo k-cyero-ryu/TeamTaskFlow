@@ -45,9 +45,42 @@ export function useWebSocket() {
           if (typeof event.data === 'string') {
             try {
               message = JSON.parse(event.data);
+              
+              // Process standard message types here
+              if (message.type === 'pong') {
+                console.log('Heartbeat acknowledged');
+              }
+              else if (message.type === 'NEW_GROUP_MESSAGE') {
+                // For NEW_GROUP_MESSAGE we want to create a custom event that components can listen for
+                // This allows us to separate concerns and handle different message types in different components
+                console.log('Received group message:', message.data);
+                
+                // Create and dispatch a custom event
+                const customEvent = new CustomEvent('groupMessage', { 
+                  detail: message
+                });
+                window.dispatchEvent(customEvent);
+              }
+              else if (message.type === 'CHANNEL_MEMBER_ADDED' || message.type === 'CHANNEL_MEMBER_REMOVED') {
+                console.log('Channel membership changed:', message.data);
+                
+                // Create and dispatch a custom event
+                const customEvent = new CustomEvent('channelMembershipChanged', { 
+                  detail: message
+                });
+                window.dispatchEvent(customEvent);
+              }
+              else if (message.type === 'connection_status') {
+                console.log('Connection status:', message.status);
+              } 
+              else {
+                // For unhandled message types, just log them
+                console.log('Received WebSocket message of type:', message.type);
+              }
+              
             } catch (parseError) {
               // If it's not valid JSON, treat it as a plain string message
-              console.log('WebSocket message received:', event.data);
+              console.log('WebSocket message received (not JSON):', event.data);
               return;
             }
           } else {
@@ -55,13 +88,9 @@ export function useWebSocket() {
             return;
           }
           
-          console.log('WebSocket message received:', message);
-
-          if (message.type === 'pong') {
-            console.log('Heartbeat acknowledged');
-          }
+          // No need to log the full message object here as we log specific parts above
           
-          // Let the message event propagate naturally
+          // The message event will still propagate naturally
           // This allows components to add their own listeners and handle specific message types
         } catch (error) {
           console.error('Error handling WebSocket message:', error);
