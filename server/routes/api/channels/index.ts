@@ -71,6 +71,9 @@ router.post('/',
         ...channelData,
         creatorId: userId,
       });
+      
+      // Automatically add the creator as an admin member
+      await storage.addChannelMember(newChannel.id, userId, true);
 
       return res.status(201).json(newChannel);
     } catch (error) {
