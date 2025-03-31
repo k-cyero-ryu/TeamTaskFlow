@@ -14,27 +14,50 @@ async function throwIfResNotOk(res: Response) {
     try {
       // Try to parse as JSON first to get structured error data
       const contentType = res.headers.get("content-type");
+      
+      // Safe clone of the response to handle potential parsing issues
+      const resClone = res.clone();
+      
       if (contentType && contentType.includes("application/json")) {
-        const errorData = await res.json() as ApiErrorResponse;
-        // Create an error that mimics AxiosError structure for consistent handling
-        const error = new Error(errorData.message || res.statusText) as any;
-        error.response = {
-          status: res.status,
-          statusText: res.statusText,
-          data: errorData,
-        };
-        throw error;
+        try {
+          const errorData = await res.json() as ApiErrorResponse;
+          // Create an error that mimics AxiosError structure for consistent handling
+          const error = new Error(errorData.message || res.statusText) as any;
+          error.response = {
+            status: res.status,
+            statusText: res.statusText,
+            data: errorData,
+          };
+          throw error;
+        } catch (jsonError) {
+          // If JSON parsing fails, fall back to text parsing
+          const text = await resClone.text();
+          
+          // If text includes HTML content, provide a clearer error
+          if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+            throw new Error(`Server error ${res.status}: Server returned HTML instead of JSON. This usually indicates a server-side error.`);
+          } else {
+            throw new Error(`${res.status}: ${text || res.statusText}`);
+          }
+        }
       } else {
         // Plain text error
-        const text = await res.text();
-        throw new Error(`${res.status}: ${text || res.statusText}`);
+        const text = await resClone.text();
+        
+        // If text includes HTML content, provide a clearer error
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          throw new Error(`Server error ${res.status}: Server returned HTML instead of JSON. This usually indicates a server-side error.`);
+        } else {
+          throw new Error(`${res.status}: ${text || res.statusText}`);
+        }
       }
     } catch (parseError) {
-      // If we can't parse the response, throw the original response text
-      if (parseError instanceof SyntaxError) {
-        throw new Error(`${res.status}: ${res.statusText}`);
+      // If the error is not from our JSON/text parsing, propagate it
+      if (parseError instanceof Error) {
+        throw parseError;
       }
-      throw parseError;
+      // Ultimate fallback if everything else fails
+      throw new Error(`${res.status}: ${res.statusText}`);
     }
   }
 }
@@ -70,7 +93,24 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    
+    try {
+      return await res.json();
+    } catch (error) {
+      console.error("Failed to parse JSON response:", error);
+      
+      // Clone the response to read it again
+      const resClone = res.clone();
+      const text = await resClone.text();
+      
+      // If it's HTML, provide a more helpful error
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        throw new Error(`Server returned HTML instead of JSON. This usually indicates a server-side error.`);
+      } else {
+        // If it's not HTML, just throw the original error
+        throw new Error(`Failed to parse server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+      }
+    }
   };
 
 // We're using globalErrorHandler from error-utils.ts
