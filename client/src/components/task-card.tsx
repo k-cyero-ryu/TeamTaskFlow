@@ -78,6 +78,8 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
     queryKey: [`/api/workflows/${task.workflowId}`],
     enabled: !!task.workflowId && !task.workflow,
     retry: 2, // Limit retries for failed requests
+    staleTime: 60000, // 1 minute stale time to prevent too many fetches in virtualized list
+    gcTime: 300000, // 5 minutes before query is garbage collected
   });
 
   const { 
@@ -88,6 +90,8 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
     enabled: !!task.workflowId && !!task.stageId && !task.stage,
     retry: 2, // Limit retries for failed requests
+    staleTime: 60000, // 1 minute stale time to prevent too many fetches in virtualized list
+    gcTime: 300000, // 5 minutes before query is garbage collected
   });
 
   // Use provided or fetched workflow/stage
@@ -215,24 +219,27 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function to determine if the component should re-render
+  // Optimized for virtualized lists to reduce unnecessary renders
   
   // If the task IDs are different, we definitely need to re-render
   if (prevProps.task.id !== nextProps.task.id) return false;
   
-  // Re-render if task status, title, or description changes
+  // Shallow compare critical task properties that affect visual appearance
   if (
     prevProps.task.status !== nextProps.task.status ||
     prevProps.task.title !== nextProps.task.title ||
-    prevProps.task.description !== nextProps.task.description
+    prevProps.task.description !== nextProps.task.description ||
+    prevProps.task.dueDate !== nextProps.task.dueDate
   ) return false;
   
-  // Re-render if workflow or stage information changes
+  // Check workflow and stage IDs rather than the full objects
   if (
     prevProps.task.workflowId !== nextProps.task.workflowId || 
     prevProps.task.stageId !== nextProps.task.stageId
   ) return false;
   
-  // Re-render if subtasks or steps change (existence, length or completion status)
+  // Only check subtasks and steps count for virtualized rendering optimization
+  // This is a performance vs. accuracy tradeoff specifically for virtualized lists
   const prevSubtasksCount = prevProps.task.subtasks?.length || 0;
   const nextSubtasksCount = nextProps.task.subtasks?.length || 0;
   const prevCompletedSubtasks = prevProps.task.subtasks?.filter(s => s.completed).length || 0;
@@ -248,6 +255,12 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
     prevCompletedSubtasks !== nextCompletedSubtasks ||
     prevStepsCount !== nextStepsCount ||
     prevCompletedSteps !== nextCompletedSteps
+  ) return false;
+  
+  // Check if participants array has changed length 
+  // (we don't do deep comparison for performance reasons)
+  if (
+    (prevProps.task.participants?.length || 0) !== (nextProps.task.participants?.length || 0)
   ) return false;
   
   // Don't re-render if none of the above conditions are met

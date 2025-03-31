@@ -18,6 +18,7 @@ import {
 } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import CreateTaskDialog from "@/components/create-task-dialog";
+import TaskList from "@/components/task-list";
 import { useWorkflow } from "@/hooks/use-workflows";
 import { useTasks } from "@/hooks/use-tasks";
 
@@ -186,21 +187,29 @@ export default function WorkflowDetailPage() {
                   <p className="text-sm text-muted-foreground mt-1">
                     {stage.description}
                   </p>
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-4">
                     {tasksByStage[stage.id]?.length ? (
-                      tasksByStage[stage.id].map((task) => (
-                        <div
-                          key={task.id}
-                          className="bg-background p-3 rounded border"
-                        >
-                          <div>
-                            <h4 className="font-medium">{task.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {task.description}
-                            </p>
-                          </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <h4 className="text-sm font-medium">Tasks</h4>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({tasksByStage[stage.id].length})
+                          </span>
                         </div>
-                      ))
+                        <div className="bg-background rounded">
+                          {/* Transform tasks to add stage and workflow info for optimized rendering */}
+                          <TaskList 
+                            tasks={tasksByStage[stage.id].map(task => ({
+                              ...task,
+                              workflow: workflow,
+                              stage: stage
+                            }))}
+                            isLoading={false}
+                            error={null}
+                            limit={3} // Show only 3 with pagination
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-center text-muted-foreground py-2">
                         No tasks in this stage

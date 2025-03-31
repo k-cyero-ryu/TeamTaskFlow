@@ -11,3 +11,26 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Virtualized list styles */
+.virtualized-list-container {
+  position: relative;
+  overflow: visible !important;
+}
+
+.virtualized-list-container .ReactVirtualized__List {
+  background: transparent;
+  outline: none;
+}
+
+.virtualized-list-container .ReactVirtualized__Grid {
+  outline: none;
+}
+
+/* Grid layout for virtualized items */
+.virtualized-task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  width: 100%;
+}

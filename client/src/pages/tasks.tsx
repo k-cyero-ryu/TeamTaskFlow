@@ -129,31 +129,46 @@ function TasksContent() {
         </div>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         <div className="grid gap-4">
-          <h2 className="text-xl font-semibold">To Do</h2>
+          <h2 className="text-xl font-semibold flex items-center">
+            To Do
+            {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            <span className="ml-2 text-sm text-muted-foreground">({todoTasks.length})</span>
+          </h2>
           <TaskList 
             tasks={todoTasks} 
             isLoading={isLoading}
             error={null}
+            // No limit - will use virtualization for large lists
           />
         </div>
         
         <div className="grid gap-4">
-          <h2 className="text-xl font-semibold">In Progress</h2>
+          <h2 className="text-xl font-semibold flex items-center">
+            In Progress
+            {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            <span className="ml-2 text-sm text-muted-foreground">({inProgressTasks.length})</span>
+          </h2>
           <TaskList 
             tasks={inProgressTasks} 
             isLoading={isLoading}
             error={null}
+            // No limit - will use virtualization for large lists
           />
         </div>
         
         <div className="grid gap-4">
-          <h2 className="text-xl font-semibold">Done</h2>
+          <h2 className="text-xl font-semibold flex items-center">
+            Done
+            {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            <span className="ml-2 text-sm text-muted-foreground">({doneTasks.length})</span>
+          </h2>
           <TaskList 
             tasks={doneTasks} 
             isLoading={isLoading}
             error={null}
+            // No limit - will use virtualization for large lists
           />
         </div>
       </div>

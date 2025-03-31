@@ -1,5 +1,5 @@
 import { Task } from "@shared/schema";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import TaskCard from "./task-card";
 import { ErrorBoundary } from "./error-boundary";
 import { AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
@@ -15,6 +15,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { AutoSizer, List, WindowScroller, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
 
 interface TaskListProps {
   tasks: ExtendedTask[];
@@ -90,6 +91,22 @@ function EmptyTaskList() {
 
 // Main content component with proper error states and pagination
 function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
+  // Create a ref for the List component
+  const listRef = useRef<List | null>(null);
+  
+  // Create cell measurer cache to handle different sized items
+  const cache = useRef(new CellMeasurerCache({
+    defaultHeight: 280, // Default height based on typical TaskCard
+    minHeight: 200,     // Minimum height to prevent initial layout shifts
+    fixedWidth: true,
+    keyMapper: (index) => tasks[index]?.id || index,
+  }));
+  
+  // Determine display mode based on limit prop
+  const usePagination = limit !== undefined && limit < tasks.length;
+  const useVirtualization = !usePagination && tasks.length > 9; // Use virtualization for large non-limited lists
+  
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = limit || 9; // Default to 9 items per page if no limit is provided
   
@@ -103,12 +120,20 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
     return <EmptyTaskList />;
   }
 
-  // Calculate pagination values
+  // Calculate pagination values if using pagination
   const totalItems = tasks.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const displayTasks = tasks.slice(startIndex, endIndex);
+  const totalPages = usePagination ? Math.ceil(totalItems / itemsPerPage) : 1;
+  const startIndex = usePagination ? (currentPage - 1) * itemsPerPage : 0;
+  const endIndex = usePagination ? Math.min(startIndex + itemsPerPage, totalItems) : totalItems;
+  const displayTasks = usePagination ? tasks.slice(startIndex, endIndex) : tasks;
+  
+  // Reset cache when tasks change
+  useEffect(() => {
+    cache.current.clearAll();
+    if (listRef.current) {
+      listRef.current.recomputeRowHeights();
+    }
+  }, [tasks]);
 
   // Handle page change
   const handlePageChange = (pageNumber: number) => {
@@ -169,69 +194,149 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
     return pageNumbers;
   };
 
+  // Render a single task row for the virtualized list
+  const renderRow = ({ index, key, style, parent }: any) => {
+    const task = displayTasks[index];
+    
+    // Make sure task exists to prevent errors with virtualized list
+    if (!task) return null;
+    
+    return (
+      <CellMeasurer
+        cache={cache.current}
+        columnIndex={0}
+        key={key}
+        parent={parent}
+        rowIndex={index}
+      >
+        {({ registerChild }) => (
+          <div 
+            ref={registerChild as any}
+            style={{
+              ...style,
+              padding: '8px',
+              // Remove height constraint to allow TaskCard to define its own height
+              height: 'auto',
+            }}
+          >
+            <TaskCard key={task.id} task={task} />
+          </div>
+        )}
+      </CellMeasurer>
+    );
+  };
+
+  // Render a grid of tasks with regular pagination
+  if (usePagination || !useVirtualization) {
+    return (
+      <div className="space-y-6">
+        {/* Task Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {displayTasks.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+        
+        {/* Pagination Controls - only show if we have more than one page */}
+        {usePagination && totalPages > 1 && (
+          <Pagination className="mt-8">
+            <PaginationContent>
+              {/* Previous Page Button */}
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 h-9 px-4"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Previous</span>
+                </Button>
+              </PaginationItem>
+              
+              {/* Page Numbers */}
+              {getPageNumbers().map((pageNum, index) => (
+                <PaginationItem key={`page-${pageNum}-${index}`}>
+                  {pageNum === 'ellipsis-start' || pageNum === 'ellipsis-end' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink 
+                      isActive={currentPage === pageNum}
+                      onClick={() => handlePageChange(pageNum as number)}
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              
+              {/* Next Page Button */}
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 h-9 px-4"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
+        
+        {/* Task Count Display */}
+        {usePagination && (
+          <div className="text-sm text-muted-foreground text-center">
+            Showing {startIndex + 1}-{endIndex} of {totalItems} tasks
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Render virtualized list for large data sets
   return (
     <div className="space-y-6">
-      {/* Task Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {displayTasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
+      <div className="virtualized-list-container" style={{ width: '100%', minHeight: '300px' }}>
+        <WindowScroller>
+          {({ height, isScrolling, scrollTop, onChildScroll }) => (
+            <AutoSizer disableHeight>
+              {({ width }) => (
+                <List
+                  ref={listRef}
+                  autoHeight
+                  height={height || 800}
+                  isScrolling={isScrolling}
+                  scrollTop={scrollTop}
+                  width={width}
+                  rowCount={displayTasks.length}
+                  rowHeight={cache.current.rowHeight}
+                  rowRenderer={renderRow}
+                  overscanRowCount={5} // Increased to preload more items for smoother scrolling
+                  deferredMeasurementCache={cache.current}
+                  onScroll={onChildScroll}
+                  style={{ outline: 'none' }}
+                  className="virtualized-task-grid"
+                />
+              )}
+            </AutoSizer>
+          )}
+        </WindowScroller>
       </div>
-      
-      {/* Pagination Controls - only show if we have more than one page */}
-      {totalPages > 1 && (
-        <Pagination className="mt-8">
-          <PaginationContent>
-            {/* Previous Page Button */}
-            <PaginationItem>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1 h-9 px-4"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span>Previous</span>
-              </Button>
-            </PaginationItem>
-            
-            {/* Page Numbers */}
-            {getPageNumbers().map((pageNum, index) => (
-              <PaginationItem key={`page-${pageNum}-${index}`}>
-                {pageNum === 'ellipsis-start' || pageNum === 'ellipsis-end' ? (
-                  <PaginationEllipsis />
-                ) : (
-                  <PaginationLink 
-                    isActive={currentPage === pageNum}
-                    onClick={() => handlePageChange(pageNum as number)}
-                  >
-                    {pageNum}
-                  </PaginationLink>
-                )}
-              </PaginationItem>
-            ))}
-            
-            {/* Next Page Button */}
-            <PaginationItem>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1 h-9 px-4"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <span>Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
       
       {/* Task Count Display */}
       <div className="text-sm text-muted-foreground text-center">
-        Showing {startIndex + 1}-{endIndex} of {totalItems} tasks
+        Showing all {totalItems} tasks with virtual scrolling
+        {isLoading && (
+          <span className="ml-2 inline-flex items-center">
+            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+            Loading...
+          </span>
+        )}
       </div>
     </div>
   );

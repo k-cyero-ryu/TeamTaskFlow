@@ -187,34 +187,47 @@ function DashboardContent() {
       {workflowTasks.length > 0 && (
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Workflow Tasks</CardTitle>
+            <CardTitle className="flex items-center">
+              Workflow Tasks
+              <span className="ml-2 text-sm text-muted-foreground">
+                ({workflowTasks.length})
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-8">
               {workflows.map(workflow => {
                 const workflowTasks = tasks.filter(task => task.workflowId === workflow.id);
                 if (workflowTasks.length === 0) return null;
 
                 const workflowStages = getWorkflowStages(workflow.id);
+                
+                // Prepare task data with workflow and stage information
+                const tasksWithStages = workflowTasks.map(task => {
+                  const stage = workflowStages.find(s => s.id === task.stageId);
+                  return {
+                    ...task as ExtendedTask,
+                    workflow,
+                    stage,
+                  };
+                });
 
                 return (
                   <div key={workflow.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold">{workflow.name}</h3>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {workflowTasks.map(task => {
-                        const stage = workflowStages.find(s => s.id === task.stageId);
-                        return (
-                          <TaskCard
-                            key={task.id}
-                            task={{
-                              ...task as ExtendedTask,
-                              workflow,
-                              stage,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
+                    <h3 className="text-lg font-semibold flex items-center">
+                      {workflow.name}
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        ({tasksWithStages.length})
+                      </span>
+                    </h3>
+                    
+                    {/* Use TaskList with a limit for workflows to maintain grid layout */}
+                    <TaskList 
+                      tasks={tasksWithStages} 
+                      limit={6} // Use pagination for workflow tasks
+                      isLoading={false}
+                      error={null}
+                    />
                   </div>
                 );
               })}
@@ -223,12 +236,24 @@ function DashboardContent() {
         </Card>
       )}
 
+      {/* Recent Tasks Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Tasks</CardTitle>
+          <CardTitle className="flex items-center">
+            Recent Tasks
+            {tasksLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            <span className="ml-2 text-sm text-muted-foreground">
+              (Showing {Math.min(tasks.length, 6)} of {tasks.length})
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <TaskList tasks={tasks} limit={5} />
+          <TaskList 
+            tasks={tasks} 
+            limit={6} 
+            isLoading={tasksLoading}
+            error={tasksError ? tasksErrorDetails : null}
+          />
         </CardContent>
       </Card>
     </div>
