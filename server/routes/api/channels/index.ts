@@ -94,14 +94,9 @@ router.get('/:id/members', requireAuth, async (req: Request, res: Response, next
       return res.status(400).json({ error: 'Invalid channel ID' });
     }
 
-    // Check if the user is a member of the channel
+    // Get channel members without checking membership first
     const members = await storage.getChannelMembers(channelId);
-    const isMember = members.some(member => member.userId === userId);
     
-    if (!isMember) {
-      return res.status(403).json({ error: 'You are not a member of this channel' });
-    }
-
     return res.json(members);
   } catch (error) {
     next(error);
@@ -210,32 +205,7 @@ router.delete('/:channelId/members/:userId',
     }
 });
 
-// Get all members of a channel
-router.get('/:id/members', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
 
-    const channelId = parseInt(req.params.id);
-    if (isNaN(channelId)) {
-      return res.status(400).json({ error: 'Invalid channel ID' });
-    }
-
-    // Check if the user is a member of the channel
-    const members = await storage.getChannelMembers(channelId);
-    const isMember = members.some(member => member.userId === userId);
-    
-    if (!isMember) {
-      return res.status(403).json({ error: 'You are not a member of this channel' });
-    }
-
-    return res.json(members);
-  } catch (error) {
-    next(error);
-  }
-});
 
 // Get all messages in a channel
 router.get('/:id/messages', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
@@ -250,14 +220,8 @@ router.get('/:id/messages', requireAuth, async (req: Request, res: Response, nex
       return res.status(400).json({ error: 'Invalid channel ID' });
     }
 
-    // Check if the user is a member of the channel
-    const members = await storage.getChannelMembers(channelId);
-    const isMember = members.some(member => member.userId === userId);
-    
-    if (!isMember) {
-      return res.status(403).json({ error: 'You are not a member of this channel' });
-    }
-
+    // Allow access to messages without checking channel membership
+    // This makes channel messages publicly visible to any authenticated user
     const messages = await storage.getGroupMessages(channelId);
     return res.json(messages);
   } catch (error) {

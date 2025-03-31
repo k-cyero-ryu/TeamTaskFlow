@@ -98,7 +98,8 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     queryKey: ['/api/channels', channelId, 'messages'],
     queryFn: async () => {
       const response = await apiRequest(`/api/channels/${channelId}/messages`);
-      return response as GroupMessage[];
+      // Make sure we handle the response properly
+      return Array.isArray(response) ? response : [];
     },
     enabled: !!channelId,
   });
@@ -108,7 +109,8 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     queryKey: ['/api/channels', channelId, 'members'],
     queryFn: async () => {
       const response = await apiRequest(`/api/channels/${channelId}/members`);
-      return response as ChannelMember[];
+      // Make sure we handle the response properly
+      return Array.isArray(response) ? response : [];
     },
     enabled: !!channelId
   });
@@ -138,13 +140,17 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       
       // Immediately update the cache with the new message
       // We do this in addition to the WebSocket update to ensure the UI updates instantly
-      queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
-        // Ensure the message isn't already in the cache
-        const typedData = data as GroupMessage;
-        if (!oldData.some(msg => msg.id === typedData.id)) {
-          return [...oldData, typedData];
+      queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData) => {
+        // Ensure oldData is always an array
+        const currentMessages = Array.isArray(oldData) ? oldData : [];
+        // Handle the response data, ensuring it's properly typed
+        if (data && typeof data === 'object' && 'id' in data) {
+          const typedData = data as unknown as GroupMessage;
+          if (!currentMessages.some(msg => msg.id === typedData.id)) {
+            return [...currentMessages, typedData];
+          }
         }
-        return oldData;
+        return currentMessages;
       });
       
       // Scroll to bottom after sending a message
@@ -240,7 +246,9 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
           console.log('Received new message for this channel:', message.data);
           
           // Get the current messages from cache
-          const currentMessages = queryClient.getQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages']) || [];
+          const cachedData = queryClient.getQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages']);
+          // Ensure we're working with an array
+          const currentMessages = Array.isArray(cachedData) ? cachedData : [];
           
           // Check if message already exists in the cache
           const messageExists = currentMessages.some(msg => msg.id === message.data.id);
