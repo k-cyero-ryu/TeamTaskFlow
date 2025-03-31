@@ -136,98 +136,161 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task> {
-    const { subtasks: subtaskList, steps, participantIds, ...taskData } = task;
+    try {
+      return await executeWithRetry(async (client) => {
+        const { subtasks: subtaskList, steps, participantIds, ...taskData } = task;
 
-    // Create the task
-    const [newTask] = await db
-      .insert(tasks)
-      .values({
-        ...taskData,
-        status: "todo",
-      })
-      .returning();
+        // Create the task
+        const [newTask] = await db.insert(tasks)
+          .values({
+            ...taskData,
+            status: "todo",
+          })
+          .returning();
 
-    // Add participants if any
-    if (participantIds?.length) {
-      await db.insert(taskParticipants).values(
-        participantIds.map(userId => ({
-          taskId: newTask.id,
-          userId,
-        }))
-      );
+        // Add participants if any
+        if (participantIds?.length) {
+          await db.insert(taskParticipants).values(
+            participantIds.map(userId => ({
+              taskId: newTask.id,
+              userId,
+            }))
+          );
+        }
+
+        // Add subtasks if any
+        if (subtaskList?.length) {
+          await db.insert(subtasks).values(
+            subtaskList.map(subtask => ({
+              ...subtask,
+              taskId: newTask.id,
+            }))
+          );
+        }
+
+        // Add steps if any
+        if (steps?.length) {
+          await db.insert(taskSteps).values(
+            steps.map(step => ({
+              ...step,
+              taskId: newTask.id,
+            }))
+          );
+        }
+
+        return newTask;
+      }, 'Create task with related entities');
+    } catch (error) {
+      logger.error('Failed to create task', { error });
+      throw new DatabaseError(`Failed to create task: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    // Add subtasks if any
-    if (subtaskList?.length) {
-      await db.insert(subtasks).values(
-        subtaskList.map(subtask => ({
-          ...subtask,
-          taskId: newTask.id,
-        }))
-      );
-    }
-
-    // Add steps if any
-    if (steps?.length) {
-      await db.insert(taskSteps).values(
-        steps.map(step => ({
-          ...step,
-          taskId: newTask.id,
-        }))
-      );
-    }
-
-    return newTask;
   }
 
   async updateTaskStatus(id: number, status: string): Promise<Task> {
-    const [updatedTask] = await db
-      .update(tasks)
-      .set({ status })
-      .where(eq(tasks.id, id))
-      .returning();
-
-    if (!updatedTask) {
-      throw new Error("Task not found");
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedTask] = await db
+          .update(tasks)
+          .set({ status })
+          .where(eq(tasks.id, id))
+          .returning();
+    
+        if (!updatedTask) {
+          throw new Error("Task not found");
+        }
+    
+        return updatedTask;
+      }, 'Update task status');
+    } catch (error) {
+      logger.error(`Failed to update task status for task ${id}`, { error });
+      throw new DatabaseError(`Failed to update task status: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    return updatedTask;
   }
 
   async deleteTask(id: number): Promise<void> {
-    await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
-    await db.delete(subtasks).where(eq(subtasks.taskId, id));
-    await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
-    await db.delete(tasks).where(eq(tasks.id, id));
+    try {
+      await executeWithRetry(async () => {
+        // Execute in sequence to maintain referential integrity
+        await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
+        await db.delete(subtasks).where(eq(subtasks.taskId, id));
+        await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
+        // Delete comments related to this task
+        await db.delete(comments).where(eq(comments.taskId, id));
+        // Finally delete the task
+        await db.delete(tasks).where(eq(tasks.id, id));
+      }, 'Delete task with all related entities');
+    } catch (error) {
+      logger.error(`Failed to delete task with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to delete task: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getSubtasks(taskId: number): Promise<Subtask[]> {
-    return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
+      }, 'Get subtasks for task');
+    } catch (error) {
+      logger.error(`Failed to get subtasks for task ${taskId}`, { error });
+      throw new DatabaseError(`Failed to get subtasks: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTaskSteps(taskId: number): Promise<TaskStep[]> {
-    return await db.select().from(taskSteps).where(eq(taskSteps.taskId, taskId));
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(taskSteps).where(eq(taskSteps.taskId, taskId));
+      }, 'Get steps for task');
+    } catch (error) {
+      logger.error(`Failed to get steps for task ${taskId}`, { error });
+      throw new DatabaseError(`Failed to get task steps: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]> {
-    const participants = await db
-      .select({
-        username: users.username,
-        id: users.id,
-      })
-      .from(taskParticipants)
-      .innerJoin(users, eq(taskParticipants.userId, users.id))
-      .where(eq(taskParticipants.taskId, taskId));
-
-    return participants;
+    try {
+      return await executeWithRetry(async () => {
+        const participants = await db
+          .select({
+            username: users.username,
+            id: users.id,
+          })
+          .from(taskParticipants)
+          .innerJoin(users, eq(taskParticipants.userId, users.id))
+          .where(eq(taskParticipants.taskId, taskId));
+    
+        return participants;
+      }, 'Get participants for task');
+    } catch (error) {
+      logger.error(`Failed to get participants for task ${taskId}`, { error });
+      throw new DatabaseError(`Failed to get task participants: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async updateSubtaskStatus(id: number, completed: boolean): Promise<void> {
-    await db.update(subtasks).set({ completed }).where(eq(subtasks.id, id));
+    try {
+      await executeWithRetry(async () => {
+        await db.update(subtasks)
+          .set({ completed })
+          .where(eq(subtasks.id, id));
+      }, 'Update subtask status');
+    } catch (error) {
+      logger.error(`Failed to update subtask status for subtask ${id}`, { error });
+      throw new DatabaseError(`Failed to update subtask status: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async updateTaskStepStatus(id: number, completed: boolean): Promise<void> {
-    await db.update(taskSteps).set({ completed }).where(eq(taskSteps.id, id));
+    try {
+      await executeWithRetry(async () => {
+        await db.update(taskSteps)
+          .set({ completed })
+          .where(eq(taskSteps.id, id));
+      }, 'Update task step status');
+    } catch (error) {
+      logger.error(`Failed to update task step status for step ${id}`, { error });
+      throw new DatabaseError(`Failed to update task step status: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTaskComments(taskId: number): Promise<(Comment & { user: User })[]> {
