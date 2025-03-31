@@ -1,10 +1,20 @@
 import { Task } from "@shared/schema";
+import { useState } from "react";
 import TaskCard from "./task-card";
 import { ErrorBoundary } from "./error-boundary";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExtendedTask } from "@/lib/types";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface TaskListProps {
   tasks: ExtendedTask[];
@@ -78,8 +88,11 @@ function EmptyTaskList() {
   );
 }
 
-// Main content component with proper error states
+// Main content component with proper error states and pagination
 function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = limit || 9; // Default to 9 items per page if no limit is provided
+  
   // Handle explicit error from props
   if (error) {
     return <TaskListError />;
@@ -89,14 +102,137 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
   if (!isLoading && (!tasks || tasks.length === 0)) {
     return <EmptyTaskList />;
   }
-  
-  const displayTasks = limit ? tasks.slice(0, limit) : tasks;
+
+  // Calculate pagination values
+  const totalItems = tasks.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const displayTasks = tasks.slice(startIndex, endIndex);
+
+  // Handle page change
+  const handlePageChange = (pageNumber: number) => {
+    // Ensure page number is within bounds
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+      // Scroll to top of the task list for better UX
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Generate an array of page numbers to display
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5; // Max number of page links to show
+    
+    if (totalPages <= maxVisiblePages) {
+      // If we have fewer pages than max visible, show all pages
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always show first page
+      pageNumbers.push(1);
+      
+      // Calculate start and end of visible page range
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+      
+      // Adjust range if we're near the start or end
+      if (currentPage <= 3) {
+        endPage = Math.min(totalPages - 1, 4);
+      } else if (currentPage >= totalPages - 2) {
+        startPage = Math.max(2, totalPages - 3);
+      }
+      
+      // Add ellipsis after first page if needed
+      if (startPage > 2) {
+        pageNumbers.push('ellipsis-start');
+      }
+      
+      // Add visible page range
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      // Add ellipsis before last page if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push('ellipsis-end');
+      }
+      
+      // Always show last page if we have more than one page
+      if (totalPages > 1) {
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {displayTasks.map((task) => (
-        <TaskCard key={task.id} task={task} />
-      ))}
+    <div className="space-y-6">
+      {/* Task Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {displayTasks.map((task) => (
+          <TaskCard key={task.id} task={task} />
+        ))}
+      </div>
+      
+      {/* Pagination Controls - only show if we have more than one page */}
+      {totalPages > 1 && (
+        <Pagination className="mt-8">
+          <PaginationContent>
+            {/* Previous Page Button */}
+            <PaginationItem>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 h-9 px-4"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>Previous</span>
+              </Button>
+            </PaginationItem>
+            
+            {/* Page Numbers */}
+            {getPageNumbers().map((pageNum, index) => (
+              <PaginationItem key={`page-${pageNum}-${index}`}>
+                {pageNum === 'ellipsis-start' || pageNum === 'ellipsis-end' ? (
+                  <PaginationEllipsis />
+                ) : (
+                  <PaginationLink 
+                    isActive={currentPage === pageNum}
+                    onClick={() => handlePageChange(pageNum as number)}
+                  >
+                    {pageNum}
+                  </PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
+            
+            {/* Next Page Button */}
+            <PaginationItem>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 h-9 px-4"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <span>Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
+      
+      {/* Task Count Display */}
+      <div className="text-sm text-muted-foreground text-center">
+        Showing {startIndex + 1}-{endIndex} of {totalItems} tasks
+      </div>
     </div>
   );
 }

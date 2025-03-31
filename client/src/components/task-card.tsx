@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -63,8 +63,8 @@ function TaskCardSkeleton() {
   );
 }
 
-// Main card content with error-handled data fetching
-function TaskCardContent({ task }: { task: ExtendedTask }) {
+// Main card content with error-handled data fetching, wrapped in memo for performance
+const TaskCardContent = memo(function TaskCardContent({ task }: { task: ExtendedTask }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
@@ -213,4 +213,43 @@ function TaskCardContent({ task }: { task: ExtendedTask }) {
       />
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function to determine if the component should re-render
+  
+  // If the task IDs are different, we definitely need to re-render
+  if (prevProps.task.id !== nextProps.task.id) return false;
+  
+  // Re-render if task status, title, or description changes
+  if (
+    prevProps.task.status !== nextProps.task.status ||
+    prevProps.task.title !== nextProps.task.title ||
+    prevProps.task.description !== nextProps.task.description
+  ) return false;
+  
+  // Re-render if workflow or stage information changes
+  if (
+    prevProps.task.workflowId !== nextProps.task.workflowId || 
+    prevProps.task.stageId !== nextProps.task.stageId
+  ) return false;
+  
+  // Re-render if subtasks or steps change (existence, length or completion status)
+  const prevSubtasksCount = prevProps.task.subtasks?.length || 0;
+  const nextSubtasksCount = nextProps.task.subtasks?.length || 0;
+  const prevCompletedSubtasks = prevProps.task.subtasks?.filter(s => s.completed).length || 0;
+  const nextCompletedSubtasks = nextProps.task.subtasks?.filter(s => s.completed).length || 0;
+  
+  const prevStepsCount = prevProps.task.steps?.length || 0;
+  const nextStepsCount = nextProps.task.steps?.length || 0;
+  const prevCompletedSteps = prevProps.task.steps?.filter(s => s.completed).length || 0;
+  const nextCompletedSteps = nextProps.task.steps?.filter(s => s.completed).length || 0;
+  
+  if (
+    prevSubtasksCount !== nextSubtasksCount ||
+    prevCompletedSubtasks !== nextCompletedSubtasks ||
+    prevStepsCount !== nextStepsCount ||
+    prevCompletedSteps !== nextCompletedSteps
+  ) return false;
+  
+  // Don't re-render if none of the above conditions are met
+  return true;
+});
