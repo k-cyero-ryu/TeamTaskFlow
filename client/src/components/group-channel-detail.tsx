@@ -224,9 +224,9 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       <CardHeader className="border-b py-4 flex-row justify-between items-center">
         <div>
           <CardTitle className="text-xl">
-            {channel.isPrivate ? '🔒 ' : '# '}{channel.name}
+            {channel?.isPrivate ? '🔒 ' : '# '}{channel?.name || 'Channel'}
           </CardTitle>
-          {channel.description && (
+          {channel?.description && (
             <p className="text-sm text-muted-foreground mt-1">{channel.description}</p>
           )}
         </div>
@@ -294,11 +294,11 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback>
-                            {member.user.username.charAt(0).toUpperCase()}
+                            {member.user?.username?.charAt(0).toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium">{member.user.username}</p>
+                          <p className="text-sm font-medium">{member.user?.username || 'Unknown User'}</p>
                           {member.isAdmin && (
                             <span className="text-xs text-muted-foreground">Admin</span>
                           )}
@@ -329,35 +329,35 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
             <div
               key={msg.id}
               className={`flex gap-3 ${
-                msg.sender.id === user?.id ? 'justify-end' : 'justify-start'
+                msg.sender?.id === user?.id ? 'justify-end' : 'justify-start'
               }`}
             >
-              {msg.sender.id !== user?.id && (
+              {msg.sender?.id !== user?.id && (
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
-                    {msg.sender.username.charAt(0).toUpperCase()}
+                    {msg.sender?.username?.charAt(0).toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
               )}
               
               <div className={`max-w-[80%] ${
-                msg.sender.id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                msg.sender?.id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'
               } rounded-lg p-3`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-sm">
-                    {msg.sender.id === user?.id ? 'You' : msg.sender.username}
+                    {msg.sender?.id === user?.id ? 'You' : msg.sender?.username || 'Unknown User'}
                   </span>
                   <span className="text-xs opacity-70">
-                    {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                    {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true }) : 'Just now'}
                   </span>
                 </div>
                 <p className="break-words">{msg.content}</p>
               </div>
               
-              {msg.sender.id === user?.id && (
+              {msg.sender?.id === user?.id && (
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
-                    {user.username.charAt(0).toUpperCase()}
+                    {user?.username?.charAt(0).toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
               )}
