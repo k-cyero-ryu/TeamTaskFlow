@@ -27,6 +27,20 @@ export function TaskStatusBadge({ status, className }: TaskStatusBadgeProps) {
     }
   };
   
+  // Status descriptions for screen readers
+  const getStatusDescription = () => {
+    switch (status) {
+      case "todo":
+        return "Task is in to-do state and hasn't been started yet";
+      case "in-progress":
+        return "Task is currently in progress";
+      case "done":
+        return "Task has been completed";
+      default:
+        return "Task status is unknown";
+    }
+  };
+
   return (
     <Badge
       variant="secondary"
@@ -35,9 +49,12 @@ export function TaskStatusBadge({ status, className }: TaskStatusBadgeProps) {
         config.color,
         className
       )}
+      aria-label={`Status: ${status}`}
+      role="status"
+      title={getStatusDescription()}
     >
-      <StatusIcon />
-      {status}
+      <StatusIcon aria-hidden="true" />
+      <span>{status}</span>
     </Badge>
   );
 }

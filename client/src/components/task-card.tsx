@@ -120,6 +120,16 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
           hasRelatedDataError && "border-destructive/30"
         )}
         onClick={() => setDetailOpen(true)}
+        onKeyDown={(e) => {
+          // Open task details on Enter or Space key press
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setDetailOpen(true);
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label={`View details for task: ${task.title}`}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex gap-2">

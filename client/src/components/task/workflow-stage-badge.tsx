@@ -25,8 +25,13 @@ export function WorkflowStageBadge({
         borderColor: stageColor,
         color: stageColor
       }}
+      aria-label={`Workflow: ${workflowName}, Stage: ${stageName}`}
+      title={`This task belongs to the ${stageName} stage in the ${workflowName} workflow`}
+      role="status"
     >
-      {workflowName} - {stageName}
+      <span>{workflowName}</span>
+      <span aria-hidden="true">-</span>
+      <span>{stageName}</span>
     </Badge>
   );
 }

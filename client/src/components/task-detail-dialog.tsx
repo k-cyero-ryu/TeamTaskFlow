@@ -47,7 +47,11 @@ interface TaskDetailDialogProps {
 export default function TaskDetailDialog(props: TaskDetailDialogProps) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        aria-labelledby="task-detail-title"
+        aria-describedby="task-detail-description"
+      >
         <ErrorBoundary
           fallback={<TaskDetailErrorState task={props.task} onClose={() => props.onOpenChange(false)} />}
           showToast={false} // Contained in dialog, so no need for toast
@@ -249,7 +253,7 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
     <>
       <DialogHeader>
         <div className="flex items-center justify-between">
-          <DialogTitle className="text-2xl">{task.title}</DialogTitle>
+          <DialogTitle id="task-detail-title" className="text-2xl">{task.title}</DialogTitle>
           <div className="flex gap-2">
             <Badge
               variant="secondary"
@@ -294,15 +298,29 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
             </AlertDescription>
           </Alert>
         )}
+        
+        <DialogDescription id="task-detail-description" className="mt-2">
+          View and manage task details, progress tracking, and collaboration features
+        </DialogDescription>
       </DialogHeader>
 
       <Tabs defaultValue="details">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2" aria-label="Task information tabs">
+          <TabsTrigger id="details-tab-trigger" value="details" aria-controls="details-tab">
+            <span className="flex items-center gap-1">
+              <Clipboard className="h-4 w-4" aria-hidden="true" />
+              Details
+            </span>
+          </TabsTrigger>
+          <TabsTrigger id="comments-tab-trigger" value="comments" aria-controls="comments-tab">
+            <span className="flex items-center gap-1">
+              <Users className="h-4 w-4" aria-hidden="true" />
+              Comments
+            </span>
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="details" className="space-y-6">
+        <TabsContent id="details-tab" value="details" className="space-y-6" role="tabpanel" aria-labelledby="details-tab-trigger">
           {task.description && (
             <div>
               <h3 className="text-lg font-semibold mb-2">Description</h3>
@@ -509,7 +527,7 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
           </div>
         </TabsContent>
 
-        <TabsContent value="comments">
+        <TabsContent id="comments-tab" value="comments" role="tabpanel" aria-labelledby="comments-tab-trigger">
           <TaskComments taskId={task.id} />
         </TabsContent>
       </Tabs>

@@ -39,17 +39,21 @@ export default function TaskList(props: TaskListProps) {
 // Error state component
 function TaskListError() {
   return (
-    <div className="space-y-6 p-4 border rounded-lg bg-background">
+    <div 
+      className="space-y-6 p-4 border rounded-lg bg-background"
+      role="alert"
+      aria-labelledby="error-heading"
+    >
       <div className="space-y-2 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-        <h3 className="text-xl font-semibold">Unable to Load Tasks</h3>
+        <AlertCircle className="h-12 w-12 text-destructive mx-auto" aria-hidden="true" />
+        <h3 id="error-heading" className="text-xl font-semibold">Unable to Load Tasks</h3>
         <p className="text-muted-foreground">
           We encountered a problem while trying to load your tasks. This could be due to a network issue or a temporary server problem.
         </p>
       </div>
       
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <AlertCircle className="h-4 w-4" aria-hidden="true" />
         <AlertTitle>Connection Error</AlertTitle>
         <AlertDescription>
           The task list could not be retrieved. Please check your network connection and try again.
@@ -61,8 +65,10 @@ function TaskListError() {
           onClick={() => window.location.reload()}
           variant="default"
           className="flex items-center gap-2"
+          aria-label="Reload page to try again"
         >
-          <RefreshCw className="h-4 w-4" /> Reload Page
+          <RefreshCw className="h-4 w-4" aria-hidden="true" /> 
+          <span>Reload Page</span>
         </Button>
       </div>
     </div>
@@ -72,16 +78,27 @@ function TaskListError() {
 // Empty state component
 function EmptyTaskList() {
   return (
-    <div className="text-center p-8 border border-dashed rounded-lg">
+    <div 
+      className="text-center p-8 border border-dashed rounded-lg"
+      role="region"
+      aria-label="Empty task list"
+    >
       <div className="space-y-3">
         <div className="relative mx-auto h-14 w-14 rounded-full bg-muted flex items-center justify-center">
-          <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          <AlertCircle className="h-7 w-7 text-muted-foreground" aria-hidden="true" />
         </div>
-        <h3 className="text-lg font-medium">No Tasks Found</h3>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+        <h3 className="text-lg font-medium" id="empty-task-heading">No Tasks Found</h3>
+        <p 
+          className="text-sm text-muted-foreground max-w-sm mx-auto"
+          aria-describedby="empty-task-heading"
+        >
           There are currently no tasks in this view. Create a new task to get started with your project.
         </p>
-        <Button variant="outline" onClick={() => document.querySelector<HTMLButtonElement>('button:has(.h-4.w-4.mr-2)')?.click()}>
+        <Button 
+          variant="outline" 
+          onClick={() => document.querySelector<HTMLButtonElement>('button:has(.h-4.w-4.mr-2)')?.click()}
+          aria-label="Create your first task"
+        >
           Create Your First Task
         </Button>
       </div>
@@ -231,7 +248,11 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
     return (
       <div className="space-y-6">
         {/* Task Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div 
+          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          role="region"
+          aria-label="Task list"
+        >
           {displayTasks.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
@@ -239,7 +260,7 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
         
         {/* Pagination Controls - only show if we have more than one page */}
         {usePagination && totalPages > 1 && (
-          <Pagination className="mt-8">
+          <Pagination className="mt-8" aria-label="Task list pagination">
             <PaginationContent>
               {/* Previous Page Button */}
               <PaginationItem>
@@ -249,8 +270,10 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
                   className="flex items-center gap-1 h-9 px-4"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
+                  aria-label="Go to previous page"
+                  title="Previous page"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                   <span>Previous</span>
                 </Button>
               </PaginationItem>
@@ -259,11 +282,13 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
               {getPageNumbers().map((pageNum, index) => (
                 <PaginationItem key={`page-${pageNum}-${index}`}>
                   {pageNum === 'ellipsis-start' || pageNum === 'ellipsis-end' ? (
-                    <PaginationEllipsis />
+                    <PaginationEllipsis aria-hidden="true" />
                   ) : (
                     <PaginationLink 
                       isActive={currentPage === pageNum}
                       onClick={() => handlePageChange(pageNum as number)}
+                      aria-label={`Page ${pageNum}${currentPage === pageNum ? ', current page' : ''}`}
+                      aria-current={currentPage === pageNum ? 'page' : undefined}
                     >
                       {pageNum}
                     </PaginationLink>
@@ -279,9 +304,11 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
                   className="flex items-center gap-1 h-9 px-4"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
+                  aria-label="Go to next page"
+                  title="Next page"
                 >
                   <span>Next</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </PaginationItem>
             </PaginationContent>
@@ -290,7 +317,11 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
         
         {/* Task Count Display */}
         {usePagination && (
-          <div className="text-sm text-muted-foreground text-center">
+          <div 
+            className="text-sm text-muted-foreground text-center"
+            aria-live="polite"
+            role="status"
+          >
             Showing {startIndex + 1}-{endIndex} of {totalItems} tasks
           </div>
         )}
@@ -301,7 +332,12 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
   // Render virtualized list for large data sets
   return (
     <div className="space-y-6">
-      <div className="virtualized-list-container" style={{ width: '100%', minHeight: '300px' }}>
+      <div 
+        className="virtualized-list-container" 
+        style={{ width: '100%', minHeight: '300px' }}
+        role="region" 
+        aria-label="Virtualized task list"
+      >
         <WindowScroller>
           {({ height, isScrolling, scrollTop, onChildScroll }) => (
             <AutoSizer disableHeight>
@@ -321,6 +357,8 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
                   onScroll={onChildScroll}
                   style={{ outline: 'none' }}
                   className="virtualized-task-grid"
+                  aria-label="Scrollable list of tasks"
+                  tabIndex={0}
                 />
               )}
             </AutoSizer>
@@ -329,12 +367,16 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
       </div>
       
       {/* Task Count Display */}
-      <div className="text-sm text-muted-foreground text-center">
+      <div 
+        className="text-sm text-muted-foreground text-center"
+        aria-live="polite"
+        role="status"
+      >
         Showing all {totalItems} tasks with virtual scrolling
         {isLoading && (
           <span className="ml-2 inline-flex items-center">
-            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-            Loading...
+            <RefreshCw className="h-3 w-3 mr-1 animate-spin" aria-hidden="true" />
+            <span aria-live="assertive">Loading tasks...</span>
           </span>
         )}
       </div>
