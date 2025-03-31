@@ -39,14 +39,32 @@ export function useWebSocket() {
 
       socket.onmessage = (event) => {
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
+          let message: WebSocketMessage;
+          
+          // Handle both string-only messages and JSON objects
+          if (typeof event.data === 'string') {
+            try {
+              message = JSON.parse(event.data);
+            } catch (parseError) {
+              // If it's not valid JSON, treat it as a plain string message
+              console.log('WebSocket message received:', event.data);
+              return;
+            }
+          } else {
+            console.error('Non-string message received:', event.data);
+            return;
+          }
+          
           console.log('WebSocket message received:', message);
 
           if (message.type === 'pong') {
             console.log('Heartbeat acknowledged');
           }
+          
+          // Let the message event propagate naturally
+          // This allows components to add their own listeners and handle specific message types
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('Error handling WebSocket message:', error);
         }
       };
 

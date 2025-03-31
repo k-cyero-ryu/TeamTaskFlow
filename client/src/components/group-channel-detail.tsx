@@ -193,9 +193,33 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     if (!socket) return;
 
     const handleNewMessage = (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'NEW_GROUP_MESSAGE' && data.data.channelId === channelId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'messages'] });
+      try {
+        // Make sure we parse the message data properly
+        const eventData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        
+        console.log('Processing WebSocket message in channel component:', eventData);
+        
+        // Check if this is a group message event for this channel
+        if (eventData.type === 'NEW_GROUP_MESSAGE' && eventData.data && eventData.data.channelId === channelId) {
+          console.log('Received new message for this channel:', eventData.data);
+          
+          // Update the query cache to fetch the latest messages
+          queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'messages'] });
+          
+          // If needed, we can also directly update the cache to avoid a network request
+          queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
+            // Check if the message is already in the cache to avoid duplicates
+            const messageExists = oldData.some(msg => msg.id === eventData.data.id);
+            
+            if (!messageExists) {
+              return [...oldData, eventData.data];
+            }
+            
+            return oldData;
+          });
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message in channel component:', error);
       }
     };
 
