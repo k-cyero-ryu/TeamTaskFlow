@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -50,6 +50,16 @@ interface IStorage {
   createWorkflowTransition(transition: InsertWorkflowTransition): Promise<WorkflowTransition>;
   getTasksByWorkflowStage(workflowId: number, stageId: number): Promise<Task[]>;
   updateTaskStage(taskId: number, stageId: number): Promise<Task>;
+  
+  // Group chat methods
+  getGroupChannels(userId: number): Promise<GroupChannel[]>;
+  getGroupChannel(id: number): Promise<GroupChannel | undefined>;
+  createGroupChannel(channel: InsertGroupChannel & { creatorId: number }): Promise<GroupChannel>;
+  getChannelMembers(channelId: number): Promise<(ChannelMember & { user: Pick<User, 'id' | 'username'> })[]>;
+  addChannelMember(channelId: number, userId: number, isAdmin?: boolean): Promise<ChannelMember>;
+  removeChannelMember(channelId: number, userId: number): Promise<void>;
+  getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]>;
+  createGroupMessage(message: InsertGroupMessage & { senderId: number }): Promise<GroupMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -737,6 +747,206 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update stage for task ${taskId}`, { error, stageId });
       throw new DatabaseError(`Failed to update task stage: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  // Group chat methods
+  async getGroupChannels(userId: number): Promise<GroupChannel[]> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get all channels where the user is a member
+        const userChannels = await db
+          .select({
+            channelId: channelMembers.channelId,
+          })
+          .from(channelMembers)
+          .where(eq(channelMembers.userId, userId));
+
+        const channelIds = userChannels.map(channel => channel.channelId);
+
+        if (channelIds.length === 0) {
+          return [];
+        }
+
+        // Get all channel details
+        return await db
+          .select()
+          .from(groupChannels)
+          .where(inArray(groupChannels.id, channelIds))
+          .orderBy(groupChannels.createdAt);
+      }, 'Get group channels for user');
+    } catch (error) {
+      logger.error(`Failed to get group channels for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get group channels: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getGroupChannel(id: number): Promise<GroupChannel | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [channel] = await db.select().from(groupChannels).where(eq(groupChannels.id, id));
+        return channel;
+      }, 'Get group channel by ID');
+    } catch (error) {
+      logger.error(`Failed to get group channel with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get group channel: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createGroupChannel(channel: InsertGroupChannel & { creatorId: number }): Promise<GroupChannel> {
+    try {
+      return await executeWithRetry(async (client) => {
+        // Create the channel
+        const [newChannel] = await db.insert(groupChannels)
+          .values({
+            name: channel.name,
+            description: channel.description,
+            creatorId: channel.creatorId,
+            isPrivate: channel.isPrivate ?? false,
+            createdAt: new Date(),
+          })
+          .returning();
+
+        // Add the creator as an admin member
+        await db.insert(channelMembers)
+          .values({
+            channelId: newChannel.id,
+            userId: channel.creatorId,
+            isAdmin: true,
+            joinedAt: new Date(),
+          });
+
+        return newChannel;
+      }, 'Create group channel with creator as admin');
+    } catch (error) {
+      logger.error('Failed to create group channel', { error, creatorId: channel.creatorId });
+      throw new DatabaseError(`Failed to create group channel: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getChannelMembers(channelId: number): Promise<(ChannelMember & { user: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select({
+            id: channelMembers.id,
+            channelId: channelMembers.channelId,
+            userId: channelMembers.userId,
+            isAdmin: channelMembers.isAdmin,
+            joinedAt: channelMembers.joinedAt,
+            user: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(channelMembers)
+          .innerJoin(users, eq(channelMembers.userId, users.id))
+          .where(eq(channelMembers.channelId, channelId))
+          .orderBy(channelMembers.joinedAt);
+      }, 'Get channel members');
+    } catch (error) {
+      logger.error(`Failed to get members for channel ${channelId}`, { error });
+      throw new DatabaseError(`Failed to get channel members: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async addChannelMember(channelId: number, userId: number, isAdmin: boolean = false): Promise<ChannelMember> {
+    try {
+      return await executeWithRetry(async () => {
+        // Check if the user is already a member
+        const existingMember = await db
+          .select()
+          .from(channelMembers)
+          .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, userId)));
+
+        if (existingMember.length > 0) {
+          // If user is already a member, update admin status if needed
+          if (existingMember[0].isAdmin !== isAdmin) {
+            const [updatedMember] = await db
+              .update(channelMembers)
+              .set({ isAdmin })
+              .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, userId)))
+              .returning();
+            return updatedMember;
+          }
+          return existingMember[0];
+        }
+
+        // Add the user as a member
+        const [newMember] = await db
+          .insert(channelMembers)
+          .values({
+            channelId,
+            userId,
+            isAdmin,
+            joinedAt: new Date(),
+          })
+          .returning();
+        return newMember;
+      }, 'Add member to channel');
+    } catch (error) {
+      logger.error(`Failed to add user ${userId} to channel ${channelId}`, { error });
+      throw new DatabaseError(`Failed to add channel member: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async removeChannelMember(channelId: number, userId: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .delete(channelMembers)
+          .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, userId)));
+      }, 'Remove member from channel');
+    } catch (error) {
+      logger.error(`Failed to remove user ${userId} from channel ${channelId}`, { error });
+      throw new DatabaseError(`Failed to remove channel member: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select({
+            id: groupMessages.id,
+            content: groupMessages.content,
+            channelId: groupMessages.channelId,
+            senderId: groupMessages.senderId,
+            createdAt: groupMessages.createdAt,
+            updatedAt: groupMessages.updatedAt,
+            sender: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(groupMessages)
+          .innerJoin(users, eq(groupMessages.senderId, users.id))
+          .where(eq(groupMessages.channelId, channelId))
+          .orderBy(groupMessages.createdAt);
+      }, 'Get group messages for channel');
+    } catch (error) {
+      logger.error(`Failed to get messages for channel ${channelId}`, { error });
+      throw new DatabaseError(`Failed to get group messages: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createGroupMessage(message: InsertGroupMessage & { senderId: number }): Promise<GroupMessage> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newMessage] = await db
+          .insert(groupMessages)
+          .values({
+            content: message.content,
+            channelId: message.channelId,
+            senderId: message.senderId,
+            createdAt: new Date(),
+          })
+          .returning();
+        return newMessage;
+      }, 'Create group message');
+    } catch (error) {
+      logger.error('Failed to create group message', { error, channelId: message.channelId });
+      throw new DatabaseError(`Failed to create group message: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

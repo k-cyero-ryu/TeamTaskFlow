@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork } from "lucide-react";
+import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users } from "lucide-react";
 import { Badge } from "./ui/badge";
 
 export function MainNav() {
@@ -77,6 +77,18 @@ export function MainNav() {
                       {unreadCount}
                     </Badge>
                   )}
+                </div>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location.startsWith("/channels")}
+                onClick={() => setLocation("/channels")}
+              >
+                <div className="flex items-center">
+                  <Users className="mr-2 h-4 w-4" />
+                  Channels
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>

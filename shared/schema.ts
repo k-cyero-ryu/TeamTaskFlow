@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, json, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -8,6 +8,40 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+});
+
+// Create group channels table
+export const groupChannels = pgTable("group_channels", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  creatorId: integer("creator_id").references(() => users.id).notNull(),
+  isPrivate: boolean("is_private").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Create channel members table
+export const channelMembers = pgTable("channel_members", {
+  id: serial("id").primaryKey(),
+  channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  isAdmin: boolean("is_admin").default(false),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    userChannelUnique: unique().on(table.channelId, table.userId)
+  };
+});
+
+// Create group messages table
+export const groupMessages = pgTable("group_messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Add workflows table
@@ -169,6 +203,37 @@ export const privateMessagesRelations = relations(privateMessages, ({ one }) => 
   }),
 }));
 
+export const groupChannelsRelations = relations(groupChannels, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [groupChannels.creatorId],
+    references: [users.id],
+  }),
+  members: many(channelMembers),
+  messages: many(groupMessages),
+}));
+
+export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
+  channel: one(groupChannels, {
+    fields: [channelMembers.channelId],
+    references: [groupChannels.id],
+  }),
+  user: one(users, {
+    fields: [channelMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
+  channel: one(groupChannels, {
+    fields: [groupMessages.channelId],
+    references: [groupChannels.id],
+  }),
+  sender: one(users, {
+    fields: [groupMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   createdTasks: many(tasks, { relationName: "creator" }),
   responsibleTasks: many(tasks, { relationName: "responsible" }),
@@ -176,6 +241,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   sentMessages: many(privateMessages, { relationName: "sender" }),
   receivedMessages: many(privateMessages, { relationName: "recipient" }),
+  createdChannels: many(groupChannels, { relationName: "creator" }),
+  channelMemberships: many(channelMembers),
+  groupMessages: many(groupMessages, { relationName: "sender" }),
 }));
 
 export const workflowsRelations = relations(workflows, ({ one, many }) => ({
@@ -255,6 +323,22 @@ export const insertWorkflowTransitionSchema = createInsertSchema(workflowTransit
   conditions: true,
 });
 
+export const insertGroupChannelSchema = createInsertSchema(groupChannels).pick({
+  name: true,
+  description: true,
+  isPrivate: true,
+});
+
+export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick({
+  channelId: true,
+  userId: true,
+  isAdmin: true,
+});
+
+export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
+  content: true,
+  channelId: true,
+});
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({
   title: true,
@@ -290,3 +374,9 @@ export type WorkflowTransition = typeof workflowTransitions.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 export type InsertWorkflowStage = z.infer<typeof insertWorkflowStageSchema>;
 export type InsertWorkflowTransition = z.infer<typeof insertWorkflowTransitionSchema>;
+export type GroupChannel = typeof groupChannels.$inferSelect;
+export type ChannelMember = typeof channelMembers.$inferSelect;
+export type GroupMessage = typeof groupMessages.$inferSelect;
+export type InsertGroupChannel = z.infer<typeof insertGroupChannelSchema>;
+export type InsertChannelMember = z.infer<typeof insertChannelMemberSchema>;
+export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;

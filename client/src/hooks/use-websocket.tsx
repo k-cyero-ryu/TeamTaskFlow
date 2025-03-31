@@ -92,5 +92,5 @@ export function useWebSocket() {
     }
   }, []);
 
-  return { sendMessage };
+  return { sendMessage, socket: socketRef.current };
 }

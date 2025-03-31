@@ -57,7 +57,11 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task status mutation
   const updateTaskStatus = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${id}/status`, { status });
+      const res = await apiRequest(`/api/tasks/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+        headers: { "Content-Type": "application/json" },
+      });
       return res.json();
     },
     onSuccess: (_, { status }) => {
@@ -79,7 +83,7 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Delete task mutation
   const deleteTask = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/tasks/${id}`);
+      await apiRequest(`/api/tasks/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -100,7 +104,11 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task stage mutation
   const updateTaskStage = useMutation({
     mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
+      const res = await apiRequest(`/api/tasks/${taskId}/stage`, {
+        method: "PATCH",
+        body: JSON.stringify({ stageId }),
+        headers: { "Content-Type": "application/json" },
+      });
       return res.json();
     },
     onSuccess: () => {

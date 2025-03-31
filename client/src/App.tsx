@@ -8,6 +8,8 @@ import ChatConversation from "@/pages/chat-conversation";
 import Users from "@/pages/users";
 import Workflows from "@/pages/workflows";
 import WorkflowDetail from "@/pages/workflow-detail";
+import Channels from "@/pages/channels";
+import ChannelDetail from "@/pages/channel-detail";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -149,6 +151,24 @@ export default function App() {
               <Users />
             </Layout>
           </ProtectedRoute>
+        </Route>
+
+        <Route path="/channels">
+          <ProtectedRoute>
+            <Layout>
+              <Channels />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/channels/:id">
+          {(params) => (
+            <ProtectedRoute>
+              <Layout>
+                <ChannelDetail />
+              </Layout>
+            </ProtectedRoute>
+          )}
         </Route>
 
         <Route component={NotFound} />
