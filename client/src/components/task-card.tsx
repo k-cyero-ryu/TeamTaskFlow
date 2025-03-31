@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronRight } from "lucide-react";
+import { AlertCircle, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import TaskDetailDialog from "./task-detail-dialog";
@@ -12,21 +12,82 @@ import { ExtendedTask, TaskStatus } from "@/lib/types";
 import { TaskStatusBadge } from "./task/task-status-badge";
 import { WorkflowStageBadge } from "./task/workflow-stage-badge";
 import { TaskActions } from "./task/task-actions";
+import { ErrorBoundary } from "./error-boundary";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
+// Using higher-order component for error boundaries
 export default function TaskCard({ task }: { task: ExtendedTask }) {
+  return (
+    <ErrorBoundary 
+      fallback={<TaskCardError task={task} />}
+      showToast={false} // We'll handle errors gracefully in the UI without a toast
+    >
+      <TaskCardContent task={task} />
+    </ErrorBoundary>
+  );
+}
+
+// Error fallback component for TaskCard
+function TaskCardError({ task }: { task: ExtendedTask }) {
+  return (
+    <Card className="border-destructive/30 bg-destructive/5">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <h3 className="font-semibold text-sm">Error Loading Task</h3>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm">
+          {task?.title || "Task"}
+        </p>
+        <Alert className="mt-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            Unable to load some task data. Try refreshing the page.
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Loading skeleton for workflow and stage data
+function TaskCardSkeleton() {
+  return (
+    <div className="flex gap-2 items-center">
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-5 w-36" />
+    </div>
+  );
+}
+
+// Main card content with error-handled data fetching
+function TaskCardContent({ task }: { task: ExtendedTask }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
 
   // Fetch workflow and stage information if they exist but not provided
-  const { data: workflow } = useQuery<Workflow>({
+  const { 
+    data: workflow, 
+    isLoading: isWorkflowLoading,
+    error: workflowError
+  } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
     enabled: !!task.workflowId && !task.workflow,
+    retry: 2, // Limit retries for failed requests
   });
 
-  const { data: stage } = useQuery<WorkflowStage>({
+  const { 
+    data: stage, 
+    isLoading: isStageLoading,
+    error: stageError 
+  } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
     enabled: !!task.workflowId && !!task.stageId && !task.stage,
+    retry: 2, // Limit retries for failed requests
   });
 
   // Use provided or fetched workflow/stage
@@ -39,12 +100,20 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
   const totalSteps = task.steps?.length || 0;
   const completedSteps = task.steps?.filter((s) => s.completed).length || 0;
 
+  // Show skeletons while loading related data
+  const isLoading = (task.workflowId && !task.workflow && isWorkflowLoading) || 
+                    (task.stageId && !task.stage && isStageLoading);
+  
+  // Show error states for related data
+  const hasRelatedDataError = workflowError || stageError;
+
   return (
     <>
       <Card 
         className={cn(
           "hover:bg-secondary/50 cursor-pointer transition-all duration-300",
-          isTransitioning && "scale-[0.98] opacity-80"
+          isTransitioning && "scale-[0.98] opacity-80",
+          hasRelatedDataError && "border-destructive/30"
         )}
         onClick={() => setDetailOpen(true)}
       >
@@ -52,13 +121,20 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
           <div className="flex gap-2">
             <TaskStatusBadge status={task.status as TaskStatus} />
             
-            {displayWorkflow && displayStage && (
+            {isLoading ? (
+              <TaskCardSkeleton />
+            ) : displayWorkflow && displayStage ? (
               <WorkflowStageBadge 
                 workflowName={displayWorkflow.name}
                 stageName={displayStage.name}
                 stageColor={displayStage.color || undefined}
               />
-            )}
+            ) : hasRelatedDataError ? (
+              <span className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Data Error
+              </span>
+            ) : null}
           </div>
           
           <TaskActions 

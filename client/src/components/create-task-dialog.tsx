@@ -30,12 +30,77 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, CalendarIcon, X } from "lucide-react";
+import { Plus, CalendarIcon, X, AlertCircle, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ErrorBoundary } from "./error-boundary";
+import { handleQueryError } from "@/lib/error-utils";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function CreateTaskDialog() {
+  return (
+    <ErrorBoundary fallback={<CreateTaskErrorState />}>
+      <CreateTaskDialogContent />
+    </ErrorBoundary>
+  );
+}
+
+function CreateTaskErrorState() {
+  const [showDetails, setShowDetails] = useState(false);
+  
+  return (
+    <div>
+      <Button 
+        variant="destructive" 
+        className="flex items-center gap-2" 
+        onClick={() => setShowDetails(!showDetails)}
+      >
+        <AlertCircle className="h-4 w-4" />
+        Task Creation Unavailable
+      </Button>
+      
+      {showDetails && (
+        <Dialog open={true} onOpenChange={() => setShowDetails(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                System Error
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Task Creation Unavailable</AlertTitle>
+                <AlertDescription>
+                  We encountered a problem with the task creation system. This could be due to a connection issue 
+                  or a temporary server problem.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowDetails(false)}>
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="gap-2"
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Reload Page
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function CreateTaskDialogContent() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
@@ -91,11 +156,15 @@ export default function CreateTaskDialog() {
       setOpen(false);
     },
     onError: (error: Error) => {
+      const errorMessage = handleQueryError(error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error Creating Task",
+        description: errorMessage || "An unexpected error occurred while creating the task.",
         variant: "destructive",
       });
+      
+      // Log error for debugging
+      console.error("Task creation error:", error);
     },
   });
 
@@ -475,12 +544,29 @@ export default function CreateTaskDialog() {
               />
             )}
 
+            {createTaskMutation.error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error Creating Task</AlertTitle>
+                <AlertDescription>
+                  {handleQueryError(createTaskMutation.error)}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Button
               type="submit"
               className="w-full"
               disabled={createTaskMutation.isPending}
             >
-              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+              {createTaskMutation.isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating Task...
+                </span>
+              ) : (
+                "Create Task"
+              )}
             </Button>
           </form>
         </Form>

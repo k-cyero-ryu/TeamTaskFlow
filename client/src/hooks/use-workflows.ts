@@ -14,6 +14,7 @@ export function useWorkflows() {
     data: workflows = [], 
     isLoading: workflowsLoading,
     isError: workflowsError,
+    error: workflowsErrorDetails,
   } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
@@ -23,6 +24,7 @@ export function useWorkflows() {
     data: allStages = [], 
     isLoading: stagesLoading,
     isError: stagesError,
+    error: stagesErrorDetails,
   } = useQuery<WorkflowStage[]>({
     queryKey: ["/api/stages"],
     enabled: workflows.length > 0,
@@ -73,6 +75,7 @@ export function useWorkflows() {
     allStages,
     isLoading: workflowsLoading || stagesLoading,
     isError: workflowsError || stagesError,
+    error: workflowsErrorDetails || stagesErrorDetails,
     getWorkflowStages,
     createWorkflowStage,
     getWorkflowById,
@@ -90,7 +93,8 @@ export function useWorkflow(workflowId: number) {
   const { 
     data: workflow, 
     isLoading: workflowLoading,
-    isError: workflowError
+    isError: workflowError,
+    error: workflowErrorDetails
   } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${workflowId}`],
   });
@@ -99,7 +103,8 @@ export function useWorkflow(workflowId: number) {
   const { 
     data: stages = [], 
     isLoading: stagesLoading,
-    isError: stagesError
+    isError: stagesError,
+    error: stagesErrorDetails
   } = useQuery<WorkflowStage[]>({
     queryKey: [`/api/workflows/${workflowId}/stages`],
   });
@@ -132,6 +137,7 @@ export function useWorkflow(workflowId: number) {
     stages,
     isLoading: workflowLoading || stagesLoading,
     isError: workflowError || stagesError,
+    error: workflowErrorDetails || stagesErrorDetails,
     createStage
   };
 }

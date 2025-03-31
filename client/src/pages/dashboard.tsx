@@ -3,16 +3,67 @@ import { Progress } from "@/components/ui/progress";
 import TaskList from "@/components/task-list";
 import TaskCard from "@/components/task-card";
 import CreateTaskDialog from "@/components/create-task-dialog";
-import { Loader2, CheckCircle2, Circle, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, Circle, Clock, AlertCircle, RefreshCw } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { ExtendedTask } from "@/lib/types";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
+  return (
+    <ErrorBoundary fallback={<DashboardErrorState />}>
+      <DashboardContent />
+    </ErrorBoundary>
+  );
+}
+
+// Error fallback component
+function DashboardErrorState() {
+  return (
+    <div className="container mx-auto py-8 space-y-8">
+      <h1 className="text-3xl font-bold">Dashboard</h1>
+      
+      <div className="p-8 border rounded-lg bg-background space-y-6">
+        <div className="text-center space-y-2">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+          <h2 className="text-2xl font-semibold">Unable to Load Dashboard</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            We encountered a problem while trying to load your dashboard. This could be due to connection issues or a temporary server problem.
+          </p>
+        </div>
+        
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Connection Error</AlertTitle>
+          <AlertDescription>
+            Could not retrieve dashboard data. Please check your network connection and try again.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex justify-center">
+          <Button 
+            onClick={() => window.location.reload()}
+            variant="default"
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> Reload Dashboard
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main content component
+function DashboardContent() {
   // Use custom hooks for data fetching
   const { 
     tasks = [], 
     isLoading: tasksLoading, 
+    isError: tasksError,
+    error: tasksErrorDetails,
     getTaskStats 
   } = useTasks();
   
@@ -20,13 +71,59 @@ export default function Dashboard() {
     workflows = [], 
     allStages = [], 
     isLoading: workflowsLoading,
+    isError: workflowsError,
+    error: workflowsErrorDetails,
     getWorkflowStages
   } = useWorkflows();
 
+  // Display loading state
   if (tasksLoading || workflowsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Display error state
+  if (tasksError || workflowsError) {
+    const errorMessage = tasksErrorDetails?.message || workflowsErrorDetails?.message || "Unknown error occurred";
+    
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+        
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex mb-8">
+          <Button 
+            onClick={() => window.location.reload()}
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> Try Again
+          </Button>
+        </div>
+        
+        {/* Render partial content if available */}
+        {tasks.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Available Tasks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TaskList tasks={tasks} />
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,9 +21,65 @@ import { useFormError } from "@/hooks/use-form-error";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { handleQueryError } from "@/lib/error-utils";
 import { z } from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
+// Main page component with error boundary
 export default function AuthPage() {
+  return (
+    <ErrorBoundary 
+      fallback={<AuthErrorState />}
+      showToast={false} // We'll show UI errors instead
+    >
+      <AuthPageContent />
+    </ErrorBoundary>
+  );
+}
+
+// Error fallback for the auth page
+function AuthErrorState() {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-[400px] border-destructive/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Authentication Error
+          </CardTitle>
+          <CardDescription>
+            We encountered a problem with the authentication system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>System Error</AlertTitle>
+            <AlertDescription>
+              There was a problem loading the authentication system. This could be due to a network issue
+              or a temporary server problem.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={() => window.location.reload()}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh the page
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+// Main content component
+function AuthPageContent() {
   const { user, loginMutation, registerMutation } = useAuth();
+
+  const loginError = loginMutation.error ? handleQueryError(loginMutation.error) : null;
+  const registerError = registerMutation.error ? handleQueryError(registerMutation.error) : null;
 
   useEffect(() => {
     // If authenticated and no pending mutations, force navigation to dashboard
@@ -43,6 +99,15 @@ export default function AuthPage() {
         <Card className="w-[400px]">
           <CardHeader>
             <CardTitle>Welcome to TaskMaster</CardTitle>
+            {(loginError || registerError) && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Authentication Failed</AlertTitle>
+                <AlertDescription>
+                  {loginError || registerError}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
@@ -57,6 +122,7 @@ export default function AuthPage() {
                     loginMutation.mutate(data);
                   }}
                   isPending={loginMutation.isPending}
+                  error={loginError}
                 />
               </TabsContent>
               <TabsContent value="register">
@@ -66,6 +132,7 @@ export default function AuthPage() {
                     registerMutation.mutate(data);
                   }}
                   isPending={registerMutation.isPending}
+                  error={registerError}
                 />
               </TabsContent>
             </Tabs>
@@ -88,10 +155,12 @@ function AuthForm({
   mode,
   onSubmit,
   isPending,
+  error,
 }: {
   mode: "login" | "register";
   onSubmit: (data: InsertUser) => void;
   isPending: boolean;
+  error: string | null;
 }) {
   // Use our enhanced validation schema
   const authSchema = z.object({
@@ -100,6 +169,13 @@ function AuthForm({
   });
   
   const [generalError, setGeneralError] = useState<string | null>(null);
+  
+  // Update general error when error prop changes
+  useEffect(() => {
+    if (error) {
+      setGeneralError(error);
+    }
+  }, [error]);
   
   const form = useForm<InsertUser>({
     resolver: zodResolver(authSchema),
@@ -125,7 +201,28 @@ function AuthForm({
   };
 
   return (
-    <ErrorBoundary fallback={<p>Something went wrong with the authentication form.</p>}>
+    <ErrorBoundary 
+      fallback={
+        <div className="space-y-4 mt-4 p-4 border border-destructive rounded-md bg-destructive/5">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Form Error</AlertTitle>
+            <AlertDescription>
+              Something went wrong with the authentication form. Please reload the page and try again.
+            </AlertDescription>
+          </Alert>
+          <Button 
+            onClick={() => window.location.reload()}
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reload
+          </Button>
+        </div>
+      }
+      showToast={false}
+    >
       <Form {...form}>
         <form 
           onSubmit={form.handleSubmit(handleSubmit)} 
@@ -174,8 +271,19 @@ function AuthForm({
             )}
           />
           
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? "Loading..." : mode === "login" ? "Login" : "Register"}
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isPending}
+          >
+            {isPending ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {mode === "login" ? "Logging in..." : "Creating account..."}
+              </span>
+            ) : (
+              mode === "login" ? "Login" : "Register"
+            )}
           </Button>
         </form>
       </Form>
