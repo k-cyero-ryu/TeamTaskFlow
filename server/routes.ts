@@ -496,20 +496,29 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/stages", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
+      // Wrap the request with additional error handling
       const stages = await storage.getAllStages();
-      res.json(stages);
+      res.json(stages || []);
     } catch (error) {
-      res.status(500).json({ message: "Error fetching all stages" });
+      console.error("Error in /api/stages endpoint:", error);
+      res.status(500).json({ 
+        message: "Error fetching all stages", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
   
   app.get("/api/workflows/:workflowId/stages/:stageId", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const stage = await storage.getWorkflowStage(
-        parseInt(req.params.workflowId),
-        parseInt(req.params.stageId)
-      );
+      const workflowId = parseInt(req.params.workflowId);
+      const stageId = parseInt(req.params.stageId);
+      
+      if (isNaN(workflowId) || isNaN(stageId)) {
+        return res.status(400).json({ message: "Invalid workflow or stage ID" });
+      }
+      
+      const stage = await storage.getWorkflowStage(workflowId, stageId);
       
       if (!stage) {
         return res.status(404).json({ message: "Stage not found" });
@@ -517,7 +526,11 @@ export function registerRoutes(app: Express): Server {
       
       res.json(stage);
     } catch (error) {
-      res.status(500).json({ message: "Error fetching workflow stage" });
+      console.error("Error in /api/workflows/:workflowId/stages/:stageId endpoint:", error);
+      res.status(500).json({ 
+        message: "Error fetching workflow stage",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

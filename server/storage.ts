@@ -426,23 +426,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllStages(): Promise<WorkflowStage[]> {
-    return await db
-      .select()
-      .from(workflowStages)
-      .orderBy(workflowStages.workflowId, workflowStages.order);
+    return await withErrorHandling(async () => {
+      return await db
+        .select()
+        .from(workflowStages)
+        .orderBy(workflowStages.workflowId, workflowStages.order);
+    });
   }
 
   async getWorkflowStage(workflowId: number, stageId: number): Promise<WorkflowStage | undefined> {
-    const [stage] = await db
-      .select()
-      .from(workflowStages)
-      .where(
-        and(
-          eq(workflowStages.workflowId, workflowId),
-          eq(workflowStages.id, stageId)
-        )
-      );
-    return stage;
+    return await withErrorHandling(async () => {
+      const [stage] = await db
+        .select()
+        .from(workflowStages)
+        .where(
+          and(
+            eq(workflowStages.workflowId, workflowId),
+            eq(workflowStages.id, stageId)
+          )
+        );
+      return stage;
+    });
   }
 
   async createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage> {

@@ -11,14 +11,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Configure pool with retry settings and better defaults
+// Configure pool with connection settings for Neon serverless
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  maxRetries: 5,
-  retryInterval: 1000, // 1 second between retries
-  connectionTimeoutMillis: 10000, // 10 second connection timeout
-  idleTimeoutMillis: 60000, // Close idle connections after 1 minute
-  max: 20, // Maximum number of clients in the pool
+  connectionTimeoutMillis: 15000, // 15 second connection timeout
+  idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+  max: 10, // Maximum number of clients in the pool
 });
 
 // Add error handling for the pool
