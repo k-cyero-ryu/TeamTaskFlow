@@ -55,24 +55,32 @@ function CreateTaskErrorState() {
         variant="destructive" 
         className="flex items-center gap-2" 
         onClick={() => setShowDetails(!showDetails)}
+        aria-expanded={showDetails}
+        aria-label="Show error details about task creation"
       >
-        <AlertCircle className="h-4 w-4" />
-        Task Creation Unavailable
+        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        <span>Task Creation Unavailable</span>
       </Button>
       
       {showDetails && (
         <Dialog open={true} onOpenChange={() => setShowDetails(false)}>
-          <DialogContent>
+          <DialogContent
+            aria-labelledby="error-dialog-title"
+            aria-describedby="error-dialog-description"
+          >
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-5 w-5" />
+              <DialogTitle id="error-dialog-title" className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" aria-hidden="true" />
                 System Error
               </DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4">
+              <p id="error-dialog-description" className="text-sm text-muted-foreground mb-2">
+                There was a problem initializing the task creation functionality. This is likely a temporary issue.
+              </p>
               <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertTitle>Task Creation Unavailable</AlertTitle>
                 <AlertDescription>
                   We encountered a problem with the task creation system. This could be due to a connection issue 
@@ -81,15 +89,20 @@ function CreateTaskErrorState() {
               </Alert>
               
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowDetails(false)}>
-                  Close
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDetails(false)}
+                  aria-label="Close error dialog"
+                >
+                  <span>Close</span>
                 </Button>
                 <Button 
                   onClick={() => window.location.reload()}
                   className="gap-2"
+                  aria-label="Reload page to retry"
                 >
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Reload Page
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Reload Page</span>
                 </Button>
               </div>
             </div>
@@ -206,13 +219,21 @@ function CreateTaskDialogContent() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" /> New Task
+        <Button aria-label="Create a new task">
+          <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+          <span>New Task</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        aria-labelledby="create-task-title"
+        aria-describedby="create-task-description"
+      >
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle id="create-task-title">Create New Task</DialogTitle>
+          <p id="create-task-description" className="text-sm text-muted-foreground">
+            Fill out the form below to create a new task with details, subtasks, steps and workflow assignment.
+          </p>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -354,8 +375,9 @@ function CreateTaskDialogContent() {
                             onClick={() =>
                               field.onChange(field.value?.filter((v) => v !== id))
                             }
+                            aria-label={`Remove participant ${user?.username || ''}`}
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-3 w-3" aria-hidden="true" />
                           </Button>
                         </div>
                       );
@@ -369,8 +391,15 @@ function CreateTaskDialogContent() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Subtasks</FormLabel>
-                <Button type="button" variant="outline" size="sm" onClick={addSubtask}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Subtask
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addSubtask}
+                  aria-label="Add a new subtask"
+                >
+                  <Plus className="h-4 w-4 mr-2" aria-hidden="true" /> 
+                  <span>Add Subtask</span>
                 </Button>
               </div>
               {form.watch("subtasks")?.map((subtask, index) => (
@@ -392,8 +421,9 @@ function CreateTaskDialogContent() {
                     variant="ghost"
                     size="icon"
                     onClick={() => removeSubtask(index)}
+                    aria-label={`Remove subtask ${index + 1}`}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               ))}
@@ -402,8 +432,15 @@ function CreateTaskDialogContent() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Steps</FormLabel>
-                <Button type="button" variant="outline" size="sm" onClick={addStep}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Step
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addStep}
+                  aria-label="Add a new step"
+                >
+                  <Plus className="h-4 w-4 mr-2" aria-hidden="true" /> 
+                  <span>Add Step</span>
                 </Button>
               </div>
               {form.watch("steps")?.map((step, index) => (
@@ -426,8 +463,9 @@ function CreateTaskDialogContent() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeStep(index)}
+                      aria-label={`Remove step ${index + 1}`}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
                   <FormField
@@ -545,8 +583,13 @@ function CreateTaskDialogContent() {
             )}
 
             {createTaskMutation.error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
+              <Alert 
+                variant="destructive" 
+                className="mb-4"
+                role="alert"
+                aria-live="assertive"
+              >
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertTitle>Error Creating Task</AlertTitle>
                 <AlertDescription>
                   {handleQueryError(createTaskMutation.error)}
@@ -558,11 +601,13 @@ function CreateTaskDialogContent() {
               type="submit"
               className="w-full"
               disabled={createTaskMutation.isPending}
+              aria-busy={createTaskMutation.isPending}
+              aria-label={createTaskMutation.isPending ? "Creating task, please wait..." : "Create task"}
             >
               {createTaskMutation.isPending ? (
                 <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating Task...
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Creating Task...</span>
                 </span>
               ) : (
                 "Create Task"
