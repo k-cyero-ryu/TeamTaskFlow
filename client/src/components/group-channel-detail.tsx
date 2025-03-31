@@ -102,8 +102,15 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   // Fetch channel members
   const { data: members = [], isLoading: membersLoading } = useQuery<ChannelMember[]>({
     queryKey: ['/api/channels', channelId, 'members'],
-    enabled: !!channelId,
+    enabled: !!channelId
   });
+  
+  // Log members data when it changes
+  useEffect(() => {
+    if (members && members.length > 0) {
+      console.log('Channel members loaded:', members);
+    }
+  }, [members]);
 
   // Send message mutation
   const sendMessage = useMutation({
@@ -191,20 +198,25 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Listen for new messages via custom events
+  // Listen for new messages directly from WebSocket
   useEffect(() => {
-    const handleGroupMessage = (event: CustomEvent) => {
+    if (!socket) return;
+
+    const handleSocketMessage = (event: MessageEvent) => {
       try {
-        const message = event.detail;
+        if (typeof event.data !== 'string') {
+          console.error('Non-string message received:', event.data);
+          return;
+        }
+
+        const message = JSON.parse(event.data);
+        console.log('Raw WebSocket message in channel component:', message);
         
-        // Check if this is a group message event for this channel
+        // Handle new group messages
         if (message.type === 'NEW_GROUP_MESSAGE' && message.data && message.data.channelId === channelId) {
           console.log('Received new message for this channel:', message.data);
           
-          // Update the query cache to fetch the latest messages
-          queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'messages'] });
-          
-          // Directly update the cache to avoid a network request and instantly show the message
+          // Update the query cache with the new message immediately
           queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
             // Check if the message is already in the cache to avoid duplicates
             const messageExists = oldData.some(msg => msg.id === message.data.id);
@@ -216,40 +228,31 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
             return oldData;
           });
         }
-      } catch (error) {
-        console.error('Error handling group message event:', error);
-      }
-    };
-
-    const handleMembershipChange = (event: CustomEvent) => {
-      try {
-        const message = event.detail;
         
-        // Only update if it's for this channel
-        if (message.data && message.data.channelId === channelId) {
+        // Handle membership changes
+        else if ((message.type === 'CHANNEL_MEMBER_ADDED' || message.type === 'CHANNEL_MEMBER_REMOVED') 
+                && message.data && message.data.channelId === channelId) {
           console.log('Channel membership changed:', message.data);
           
-          // Update the members list
+          // Refresh the members list
           queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
         }
       } catch (error) {
-        console.error('Error handling membership change event:', error);
+        console.error('Error handling WebSocket message in channel component:', error);
       }
     };
 
-    // Add event listeners for the custom events
-    window.addEventListener('groupMessage', handleGroupMessage as EventListener);
-    window.addEventListener('channelMembershipChanged', handleMembershipChange as EventListener);
+    // Add direct WebSocket event listener
+    socket.addEventListener('message', handleSocketMessage);
 
     // Clean up on unmount
     return () => {
-      window.removeEventListener('groupMessage', handleGroupMessage as EventListener);
-      window.removeEventListener('channelMembershipChanged', handleMembershipChange as EventListener);
+      socket.removeEventListener('message', handleSocketMessage);
     };
-  }, [channelId, queryClient]);
+  }, [socket, channelId, queryClient]);
 
   // Check if current user is admin
-  const isAdmin = members?.some(
+  const isAdmin = Array.isArray(members) && members.some(
     (member: ChannelMember) => member.userId === user?.id && member.isAdmin
   );
 
@@ -277,7 +280,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
                 <Users className="h-4 w-4 mr-2" />
-                Members ({members?.length || 0})
+                Members ({Array.isArray(members) ? members.length : 0})
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
@@ -331,16 +334,18 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto space-y-2">
-                  {members?.map((member: ChannelMember) => (
+                  {Array.isArray(members) && members.map((member: ChannelMember) => (
                     <div key={member.id} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback>
-                            {member.user?.username?.charAt(0).toUpperCase() || '?'}
+                            {member.user && member.user.username ? member.user.username.charAt(0).toUpperCase() : '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium">{member.user?.username || 'Unknown User'}</p>
+                          <p className="text-sm font-medium">
+                            {member.user && member.user.username ? member.user.username : 'Unknown User'}
+                          </p>
                           {member.isAdmin && (
                             <span className="text-xs text-muted-foreground">Admin</span>
                           )}
@@ -366,7 +371,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       </CardHeader>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages?.length > 0 ? (
+        {Array.isArray(messages) && messages.length > 0 ? (
           messages.map((msg: GroupMessage) => (
             <div
               key={msg.id}
@@ -377,7 +382,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
               {msg.sender?.id !== user?.id && (
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
-                    {msg.sender?.username?.charAt(0).toUpperCase() || '?'}
+                    {msg.sender && msg.sender.username ? msg.sender.username.charAt(0).toUpperCase() : '?'}
                   </AvatarFallback>
                 </Avatar>
               )}
@@ -387,7 +392,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
               } rounded-lg p-3`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-sm">
-                    {msg.sender?.id === user?.id ? 'You' : msg.sender?.username || 'Unknown User'}
+                    {msg.sender?.id === user?.id ? 'You' : (msg.sender && msg.sender.username ? msg.sender.username : 'Unknown User')}
                   </span>
                   <span className="text-xs opacity-70">
                     {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true }) : 'Just now'}
