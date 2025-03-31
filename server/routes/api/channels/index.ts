@@ -210,6 +210,33 @@ router.delete('/:channelId/members/:userId',
     }
 });
 
+// Get all members of a channel
+router.get('/:id/members', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const channelId = parseInt(req.params.id);
+    if (isNaN(channelId)) {
+      return res.status(400).json({ error: 'Invalid channel ID' });
+    }
+
+    // Check if the user is a member of the channel
+    const members = await storage.getChannelMembers(channelId);
+    const isMember = members.some(member => member.userId === userId);
+    
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this channel' });
+    }
+
+    return res.json(members);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get all messages in a channel
 router.get('/:id/messages', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {

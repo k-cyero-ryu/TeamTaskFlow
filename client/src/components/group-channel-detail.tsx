@@ -124,9 +124,24 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
         headers: { 'Content-Type': 'application/json' },
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Clear the message input
       setMessage('');
-      queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'messages'] });
+      
+      // Immediately update the cache with the new message
+      // We do this in addition to the WebSocket update to ensure the UI updates instantly
+      queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
+        // Ensure the message isn't already in the cache
+        if (!oldData.some(msg => msg.id === data.id)) {
+          return [...oldData, data];
+        }
+        return oldData;
+      });
+      
+      // Scroll to bottom after sending a message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     },
     onError: (error) => {
       toast({
@@ -210,23 +225,30 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
         }
 
         const message = JSON.parse(event.data);
-        console.log('Raw WebSocket message in channel component:', message);
         
         // Handle new group messages
         if (message.type === 'NEW_GROUP_MESSAGE' && message.data && message.data.channelId === channelId) {
           console.log('Received new message for this channel:', message.data);
           
-          // Update the query cache with the new message immediately
-          queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
-            // Check if the message is already in the cache to avoid duplicates
-            const messageExists = oldData.some(msg => msg.id === message.data.id);
+          // Get the current messages from cache
+          const currentMessages = queryClient.getQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages']) || [];
+          
+          // Check if message already exists in the cache
+          const messageExists = currentMessages.some(msg => msg.id === message.data.id);
+          
+          // Only add if it doesn't exist already
+          if (!messageExists) {
+            // Create a proper copy of the messages array with the new message added
+            const updatedMessages = [...currentMessages, message.data];
             
-            if (!messageExists) {
-              return [...oldData, message.data];
-            }
+            // Update the cache with the new array
+            queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], updatedMessages);
             
-            return oldData;
-          });
+            // Force a scroll to bottom on new message
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }
         }
         
         // Handle membership changes
@@ -249,7 +271,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     return () => {
       socket.removeEventListener('message', handleSocketMessage);
     };
-  }, [socket, channelId, queryClient]);
+  }, [socket, channelId, queryClient, messagesEndRef]);
 
   // Check if current user is admin
   const isAdmin = Array.isArray(members) && members.some(
