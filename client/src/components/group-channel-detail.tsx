@@ -96,12 +96,20 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   // Fetch channel messages
   const { data: messages = [], isLoading: messagesLoading } = useQuery<GroupMessage[]>({
     queryKey: ['/api/channels', channelId, 'messages'],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/channels/${channelId}/messages`);
+      return response as GroupMessage[];
+    },
     enabled: !!channelId,
   });
 
   // Fetch channel members
   const { data: members = [], isLoading: membersLoading } = useQuery<ChannelMember[]>({
     queryKey: ['/api/channels', channelId, 'members'],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/channels/${channelId}/members`);
+      return response as ChannelMember[];
+    },
     enabled: !!channelId
   });
   
@@ -132,8 +140,9 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       // We do this in addition to the WebSocket update to ensure the UI updates instantly
       queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData = []) => {
         // Ensure the message isn't already in the cache
-        if (!oldData.some(msg => msg.id === data.id)) {
-          return [...oldData, data];
+        const typedData = data as GroupMessage;
+        if (!oldData.some(msg => msg.id === typedData.id)) {
+          return [...oldData, typedData];
         }
         return oldData;
       });
