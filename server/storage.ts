@@ -30,10 +30,15 @@ interface IStorage {
   getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]>;
   updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
   updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
-  getTaskComments(taskId: number): Promise<(Comment & { user: User })[]>;
+  getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'> })[]>;
   createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
   updateComment(id: number, content: string): Promise<Comment>;
   deleteComment(id: number): Promise<void>;
+  getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: Pick<User, 'id' | 'username'> })[]>;
+  getUnreadMessageCount(userId: number): Promise<number>;
+  getUserConversations(userId: number): Promise<{ user: Pick<User, 'id' | 'username'>; lastMessage: PrivateMessage & { sender: Pick<User, 'id' | 'username'> } }[]>;
+  createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage>;
+  markMessagesAsRead(userId: number, otherUserId: number): Promise<void>;  
   getWorkflows(): Promise<Workflow[]>;
   getWorkflow(id: number): Promise<Workflow | undefined>;
   createWorkflow(workflow: InsertWorkflow & { creatorId: number }): Promise<Workflow>;
@@ -293,129 +298,91 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getTaskComments(taskId: number): Promise<(Comment & { user: User })[]> {
-    return await db
-      .select({
-        id: comments.id,
-        content: comments.content,
-        taskId: comments.taskId,
-        userId: comments.userId,
-        createdAt: comments.createdAt,
-        updatedAt: comments.updatedAt,
-        user: {
-          id: users.id,
-          username: users.username,
-        },
-      })
-      .from(comments)
-      .innerJoin(users, eq(comments.userId, users.id))
-      .where(eq(comments.taskId, taskId))
-      .orderBy(comments.createdAt);
+  async getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select({
+            id: comments.id,
+            content: comments.content,
+            taskId: comments.taskId,
+            userId: comments.userId,
+            createdAt: comments.createdAt,
+            updatedAt: comments.updatedAt,
+            user: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(comments)
+          .innerJoin(users, eq(comments.userId, users.id))
+          .where(eq(comments.taskId, taskId))
+          .orderBy(comments.createdAt);
+      }, 'Get comments for task');
+    } catch (error) {
+      logger.error(`Failed to get comments for task ${taskId}`, { error });
+      throw new DatabaseError(`Failed to get task comments: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createComment(comment: InsertComment & { userId: number }): Promise<Comment> {
-    const [newComment] = await db
-      .insert(comments)
-      .values({
-        content: comment.content,
-        taskId: comment.taskId,
-        userId: comment.userId,
-      })
-      .returning();
-    return newComment;
+    try {
+      return await executeWithRetry(async () => {
+        const [newComment] = await db
+          .insert(comments)
+          .values({
+            content: comment.content,
+            taskId: comment.taskId,
+            userId: comment.userId,
+          })
+          .returning();
+        return newComment;
+      }, 'Create comment');
+    } catch (error) {
+      logger.error('Failed to create comment', { error, taskId: comment.taskId });
+      throw new DatabaseError(`Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async updateComment(id: number, content: string): Promise<Comment> {
-    const [updatedComment] = await db
-      .update(comments)
-      .set({
-        content,
-        updatedAt: new Date()
-      })
-      .where(eq(comments.id, id))
-      .returning();
-    return updatedComment;
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedComment] = await db
+          .update(comments)
+          .set({
+            content,
+            updatedAt: new Date()
+          })
+          .where(eq(comments.id, id))
+          .returning();
+        
+        if (!updatedComment) {
+          throw new Error("Comment not found");
+        }
+        
+        return updatedComment;
+      }, 'Update comment');
+    } catch (error) {
+      logger.error(`Failed to update comment with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async deleteComment(id: number): Promise<void> {
-    await db.delete(comments).where(eq(comments.id, id));
+    try {
+      await executeWithRetry(async () => {
+        await db.delete(comments).where(eq(comments.id, id));
+      }, 'Delete comment');
+    } catch (error) {
+      logger.error(`Failed to delete comment with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to delete comment: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
-  async getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: User })[]> {
-    return await db
-      .select({
-        id: privateMessages.id,
-        content: privateMessages.content,
-        senderId: privateMessages.senderId,
-        recipientId: privateMessages.recipientId,
-        createdAt: privateMessages.createdAt,
-        readAt: privateMessages.readAt,
-        sender: {
-          id: users.id,
-          username: users.username,
-        },
-      })
-      .from(privateMessages)
-      .innerJoin(users, eq(privateMessages.senderId, users.id))
-      .where(
-        and(
-          or(
-            and(
-              eq(privateMessages.senderId, userId1),
-              eq(privateMessages.recipientId, userId2)
-            ),
-            and(
-              eq(privateMessages.senderId, userId2),
-              eq(privateMessages.recipientId, userId1)
-            )
-          )
-        )
-      )
-      .orderBy(privateMessages.createdAt);
-  }
-
-  async getUnreadMessageCount(userId: number): Promise<number> {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(privateMessages)
-      .where(
-        and(
-          eq(privateMessages.recipientId, userId),
-          sql`${privateMessages.readAt} IS NULL`
-        )
-      );
-    return Number(result[0]?.count) || 0;
-  }
-
-  async getUserConversations(userId: number): Promise<{ user: User; lastMessage: PrivateMessage & { sender: User } }[]> {
-    // Get all users who have exchanged messages with the current user
-    const conversations = await db
-      .select({
-        otherUser: {
-          id: users.id,
-          username: users.username,
-        },
-      })
-      .from(privateMessages)
-      .innerJoin(
-        users,
-        or(
-          and(
-            eq(privateMessages.recipientId, userId),
-            eq(users.id, privateMessages.senderId)
-          ),
-          and(
-            eq(privateMessages.senderId, userId),
-            eq(users.id, privateMessages.recipientId)
-          )
-        )
-      )
-      .groupBy(users.id);
-
-    // For each conversation, get the last message
-    const results = await Promise.all(
-      conversations.map(async ({ otherUser }) => {
-        const [lastMessage] = await db
+  async getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
           .select({
             id: privateMessages.id,
             content: privateMessages.content,
@@ -431,78 +398,216 @@ export class DatabaseStorage implements IStorage {
           .from(privateMessages)
           .innerJoin(users, eq(privateMessages.senderId, users.id))
           .where(
-            or(
-              and(
-                eq(privateMessages.senderId, userId),
-                eq(privateMessages.recipientId, otherUser.id)
-              ),
-              and(
-                eq(privateMessages.senderId, otherUser.id),
-                eq(privateMessages.recipientId, userId)
+            and(
+              or(
+                and(
+                  eq(privateMessages.senderId, userId1),
+                  eq(privateMessages.recipientId, userId2)
+                ),
+                and(
+                  eq(privateMessages.senderId, userId2),
+                  eq(privateMessages.recipientId, userId1)
+                )
               )
             )
           )
-          .orderBy(desc(privateMessages.createdAt))
-          .limit(1);
+          .orderBy(privateMessages.createdAt);
+      }, 'Get private messages between users');
+    } catch (error) {
+      logger.error(`Failed to get private messages between users ${userId1} and ${userId2}`, { error });
+      throw new DatabaseError(`Failed to get private messages: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
-        return {
-          user: otherUser,
-          lastMessage,
-        };
-      })
-    );
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    try {
+      return await executeWithRetry(async () => {
+        const result = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(privateMessages)
+          .where(
+            and(
+              eq(privateMessages.recipientId, userId),
+              sql`${privateMessages.readAt} IS NULL`
+            )
+          );
+        return Number(result[0]?.count) || 0;
+      }, 'Get unread message count');
+    } catch (error) {
+      logger.error(`Failed to get unread message count for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get unread message count: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
-    return results;
+  async getUserConversations(userId: number): Promise<{ user: Pick<User, 'id' | 'username'>; lastMessage: PrivateMessage & { sender: Pick<User, 'id' | 'username'> } }[]> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get all users who have exchanged messages with the current user
+        const conversations = await db
+          .select({
+            otherUser: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(privateMessages)
+          .innerJoin(
+            users,
+            or(
+              and(
+                eq(privateMessages.recipientId, userId),
+                eq(users.id, privateMessages.senderId)
+              ),
+              and(
+                eq(privateMessages.senderId, userId),
+                eq(users.id, privateMessages.recipientId)
+              )
+            )
+          )
+          .groupBy(users.id);
+
+        // For each conversation, get the last message
+        const results = await Promise.all(
+          conversations.map(async ({ otherUser }) => {
+            const [lastMessage] = await db
+              .select({
+                id: privateMessages.id,
+                content: privateMessages.content,
+                senderId: privateMessages.senderId,
+                recipientId: privateMessages.recipientId,
+                createdAt: privateMessages.createdAt,
+                readAt: privateMessages.readAt,
+                sender: {
+                  id: users.id,
+                  username: users.username,
+                },
+              })
+              .from(privateMessages)
+              .innerJoin(users, eq(privateMessages.senderId, users.id))
+              .where(
+                or(
+                  and(
+                    eq(privateMessages.senderId, userId),
+                    eq(privateMessages.recipientId, otherUser.id)
+                  ),
+                  and(
+                    eq(privateMessages.senderId, otherUser.id),
+                    eq(privateMessages.recipientId, userId)
+                  )
+                )
+              )
+              .orderBy(desc(privateMessages.createdAt))
+              .limit(1);
+
+            return {
+              user: otherUser,
+              lastMessage,
+            };
+          })
+        );
+
+        return results;
+      }, 'Get user conversations');
+    } catch (error) {
+      logger.error(`Failed to get conversations for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get user conversations: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage> {
-    const [newMessage] = await db
-      .insert(privateMessages)
-      .values({
-        content: message.content,
-        senderId: message.senderId,
-        recipientId: message.recipientId,
-      })
-      .returning();
-    return newMessage;
+    try {
+      return await executeWithRetry(async () => {
+        const [newMessage] = await db
+          .insert(privateMessages)
+          .values({
+            content: message.content,
+            senderId: message.senderId,
+            recipientId: message.recipientId,
+          })
+          .returning();
+        return newMessage;
+      }, 'Create private message');
+    } catch (error) {
+      logger.error('Failed to create private message', { 
+        error, 
+        senderId: message.senderId, 
+        recipientId: message.recipientId 
+      });
+      throw new DatabaseError(`Failed to create private message: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async markMessagesAsRead(userId: number, otherUserId: number): Promise<void> {
-    await db
-      .update(privateMessages)
-      .set({ readAt: new Date() })
-      .where(
-        and(
-          eq(privateMessages.recipientId, userId),
-          eq(privateMessages.senderId, otherUserId),
-          sql`${privateMessages.readAt} IS NULL`
-        )
-      );
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .update(privateMessages)
+          .set({ readAt: new Date() })
+          .where(
+            and(
+              eq(privateMessages.recipientId, userId),
+              eq(privateMessages.senderId, otherUserId),
+              sql`${privateMessages.readAt} IS NULL`
+            )
+          );
+      }, 'Mark messages as read');
+    } catch (error) {
+      logger.error(`Failed to mark messages as read for user ${userId} from user ${otherUserId}`, { error });
+      throw new DatabaseError(`Failed to mark messages as read: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getWorkflows(): Promise<Workflow[]> {
-    return await db.select().from(workflows);
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(workflows);
+      }, 'Get all workflows');
+    } catch (error) {
+      logger.error('Failed to get workflows', { error });
+      throw new DatabaseError(`Failed to get workflows: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getWorkflow(id: number): Promise<Workflow | undefined> {
-    const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
-    return workflow;
+    try {
+      return await executeWithRetry(async () => {
+        const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
+        return workflow;
+      }, 'Get workflow by ID');
+    } catch (error) {
+      logger.error(`Failed to get workflow with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get workflow: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createWorkflow(workflow: InsertWorkflow & { creatorId: number }): Promise<Workflow> {
-    const [newWorkflow] = await db
-      .insert(workflows)
-      .values(workflow)
-      .returning();
-    return newWorkflow;
+    try {
+      return await executeWithRetry(async () => {
+        const [newWorkflow] = await db
+          .insert(workflows)
+          .values(workflow)
+          .returning();
+        return newWorkflow;
+      }, 'Create workflow');
+    } catch (error) {
+      logger.error('Failed to create workflow', { error, name: workflow.name });
+      throw new DatabaseError(`Failed to create workflow: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getWorkflowStages(workflowId: number): Promise<WorkflowStage[]> {
-    return await db
-      .select()
-      .from(workflowStages)
-      .where(eq(workflowStages.workflowId, workflowId))
-      .orderBy(workflowStages.order);
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select()
+          .from(workflowStages)
+          .where(eq(workflowStages.workflowId, workflowId))
+          .orderBy(workflowStages.order);
+      }, 'Get workflow stages');
+    } catch (error) {
+      logger.error(`Failed to get stages for workflow ${workflowId}`, { error });
+      throw new DatabaseError(`Failed to get workflow stages: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getAllStages(): Promise<WorkflowStage[]> {
@@ -540,60 +645,99 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage> {
-    const [newStage] = await db
-      .insert(workflowStages)
-      .values(stage)
-      .returning();
-    return newStage;
+    try {
+      return await executeWithRetry(async () => {
+        const [newStage] = await db
+          .insert(workflowStages)
+          .values(stage)
+          .returning();
+        return newStage;
+      }, 'Create workflow stage');
+    } catch (error) {
+      logger.error('Failed to create workflow stage', { error, workflowId: stage.workflowId });
+      throw new DatabaseError(`Failed to create workflow stage: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getWorkflowTransitions(workflowId: number): Promise<WorkflowTransition[]> {
-    const stages = await this.getWorkflowStages(workflowId);
-    const stageIds = stages.map(s => s.id);
+    try {
+      return await executeWithRetry(async () => {
+        const stages = await this.getWorkflowStages(workflowId);
+        const stageIds = stages.map(s => s.id);
 
-    return await db
-      .select()
-      .from(workflowTransitions)
-      .where(
-        or(
-          inArray(workflowTransitions.fromStageId, stageIds),
-          inArray(workflowTransitions.toStageId, stageIds)
-        )
-      );
+        return await db
+          .select()
+          .from(workflowTransitions)
+          .where(
+            or(
+              inArray(workflowTransitions.fromStageId, stageIds),
+              inArray(workflowTransitions.toStageId, stageIds)
+            )
+          );
+      }, 'Get workflow transitions');
+    } catch (error) {
+      logger.error(`Failed to get transitions for workflow ${workflowId}`, { error });
+      throw new DatabaseError(`Failed to get workflow transitions: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createWorkflowTransition(transition: InsertWorkflowTransition): Promise<WorkflowTransition> {
-    const [newTransition] = await db
-      .insert(workflowTransitions)
-      .values(transition)
-      .returning();
-    return newTransition;
+    try {
+      return await executeWithRetry(async () => {
+        const [newTransition] = await db
+          .insert(workflowTransitions)
+          .values(transition)
+          .returning();
+        return newTransition;
+      }, 'Create workflow transition');
+    } catch (error) {
+      logger.error('Failed to create workflow transition', { 
+        error, 
+        fromStageId: transition.fromStageId,
+        toStageId: transition.toStageId
+      });
+      throw new DatabaseError(`Failed to create workflow transition: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async getTasksByWorkflowStage(workflowId: number, stageId: number): Promise<Task[]> {
-    return await db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.workflowId, workflowId),
-          eq(tasks.stageId, stageId)
-        )
-      );
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.workflowId, workflowId),
+              eq(tasks.stageId, stageId)
+            )
+          );
+      }, 'Get tasks by workflow stage');
+    } catch (error) {
+      logger.error(`Failed to get tasks for workflow ${workflowId} and stage ${stageId}`, { error });
+      throw new DatabaseError(`Failed to get tasks by workflow stage: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async updateTaskStage(taskId: number, stageId: number): Promise<Task> {
-    const [updatedTask] = await db
-      .update(tasks)
-      .set({ stageId })
-      .where(eq(tasks.id, taskId))
-      .returning();
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedTask] = await db
+          .update(tasks)
+          .set({ stageId })
+          .where(eq(tasks.id, taskId))
+          .returning();
 
-    if (!updatedTask) {
-      throw new Error("Task not found");
+        if (!updatedTask) {
+          throw new Error("Task not found");
+        }
+
+        return updatedTask;
+      }, 'Update task stage');
+    } catch (error) {
+      logger.error(`Failed to update stage for task ${taskId}`, { error, stageId });
+      throw new DatabaseError(`Failed to update task stage: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    return updatedTask;
   }
 }
 
