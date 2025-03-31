@@ -29,6 +29,40 @@ async function withErrorHandling<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
+// Define storage interface
+interface IStorage {
+  sessionStore: session.Store;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(insertUser: InsertUser): Promise<User>;
+  getUsers(): Promise<User[]>;
+  getTasks(): Promise<Task[]>;
+  getTask(id: number): Promise<Task | undefined>;
+  createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
+  updateTaskStatus(id: number, status: string): Promise<Task>;
+  deleteTask(id: number): Promise<void>;
+  getSubtasks(taskId: number): Promise<Subtask[]>;
+  getTaskSteps(taskId: number): Promise<TaskStep[]>;
+  getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]>;
+  updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
+  updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
+  getTaskComments(taskId: number): Promise<(Comment & { user: User })[]>;
+  createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
+  updateComment(id: number, content: string): Promise<Comment>;
+  deleteComment(id: number): Promise<void>;
+  getWorkflows(): Promise<Workflow[]>;
+  getWorkflow(id: number): Promise<Workflow | undefined>;
+  createWorkflow(workflow: InsertWorkflow & { creatorId: number }): Promise<Workflow>;
+  getWorkflowStages(workflowId: number): Promise<WorkflowStage[]>;
+  getAllStages(): Promise<WorkflowStage[]>;
+  getWorkflowStage(workflowId: number, stageId: number): Promise<WorkflowStage | undefined>;
+  createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage>;
+  getWorkflowTransitions(workflowId: number): Promise<WorkflowTransition[]>;
+  createWorkflowTransition(transition: InsertWorkflowTransition): Promise<WorkflowTransition>;
+  getTasksByWorkflowStage(workflowId: number, stageId: number): Promise<Task[]>;
+  updateTaskStage(taskId: number, stageId: number): Promise<Task>;
+}
+
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
 
@@ -389,6 +423,26 @@ export class DatabaseStorage implements IStorage {
       .from(workflowStages)
       .where(eq(workflowStages.workflowId, workflowId))
       .orderBy(workflowStages.order);
+  }
+
+  async getAllStages(): Promise<WorkflowStage[]> {
+    return await db
+      .select()
+      .from(workflowStages)
+      .orderBy(workflowStages.workflowId, workflowStages.order);
+  }
+
+  async getWorkflowStage(workflowId: number, stageId: number): Promise<WorkflowStage | undefined> {
+    const [stage] = await db
+      .select()
+      .from(workflowStages)
+      .where(
+        and(
+          eq(workflowStages.workflowId, workflowId),
+          eq(workflowStages.id, stageId)
+        )
+      );
+    return stage;
   }
 
   async createWorkflowStage(stage: InsertWorkflowStage & { workflowId: number }): Promise<WorkflowStage> {

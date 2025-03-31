@@ -493,6 +493,34 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get("/api/stages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const stages = await storage.getAllStages();
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching all stages" });
+    }
+  });
+  
+  app.get("/api/workflows/:workflowId/stages/:stageId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const stage = await storage.getWorkflowStage(
+        parseInt(req.params.workflowId),
+        parseInt(req.params.stageId)
+      );
+      
+      if (!stage) {
+        return res.status(404).json({ message: "Stage not found" });
+      }
+      
+      res.json(stage);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching workflow stage" });
+    }
+  });
+
   // Add this to the POST /api/workflows/:id/stages endpoint
   app.post("/api/workflows/:id/stages", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
