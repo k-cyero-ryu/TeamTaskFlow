@@ -110,7 +110,10 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     mutationFn: (content: string) => {
       return apiRequest(`/api/channels/${channelId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ 
+          content,
+          channelId    // Include the channelId in the request body as required by schema
+        }),
         headers: { 'Content-Type': 'application/json' },
       });
     },
