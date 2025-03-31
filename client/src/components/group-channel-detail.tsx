@@ -90,29 +90,93 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   // Fetch channel details
   const { data: channel, isLoading: channelLoading } = useQuery<GroupChannel>({
     queryKey: ['/api/channels', channelId],
+    queryFn: async () => {
+      console.log('Fetching channel details for', channelId);
+      try {
+        const response = await fetch(`/api/channels/${channelId}`, {
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch channel: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Channel details loaded:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching channel details:', error);
+        throw error;
+      }
+    },
     enabled: !!channelId,
+    refetchOnMount: true
   });
 
   // Fetch channel messages
   const { data: messages = [], isLoading: messagesLoading } = useQuery<GroupMessage[]>({
     queryKey: ['/api/channels', channelId, 'messages'],
     queryFn: async () => {
-      const response = await apiRequest(`/api/channels/${channelId}/messages`);
-      // Make sure we handle the response properly
-      return Array.isArray(response) ? response : [];
+      console.log('Fetching messages for channel', channelId);
+      try {
+        const response = await fetch(`/api/channels/${channelId}/messages`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Channel messages loaded:', data);
+        
+        // Make sure we handle the response properly
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching channel messages:', error);
+        return [];
+      }
     },
     enabled: !!channelId,
+    // Make sure to refetch whenever the component is mounted, to get latest messages
+    refetchOnMount: true, 
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always treat data as stale to ensure we get fresh data
   });
 
   // Fetch channel members
   const { data: members = [], isLoading: membersLoading } = useQuery<ChannelMember[]>({
     queryKey: ['/api/channels', channelId, 'members'],
     queryFn: async () => {
-      const response = await apiRequest(`/api/channels/${channelId}/members`);
-      // Make sure we handle the response properly
-      return Array.isArray(response) ? response : [];
+      console.log('Fetching members for channel', channelId);
+      try {
+        const response = await fetch(`/api/channels/${channelId}/members`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch members: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Channel members loaded:', data);
+        
+        // Make sure we handle the response properly
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching channel members:', error);
+        return [];
+      }
     },
-    enabled: !!channelId
+    enabled: !!channelId,
+    refetchOnMount: true
   });
   
   // Log members data when it changes
@@ -124,15 +188,23 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
 
   // Send message mutation
   const sendMessage = useMutation({
-    mutationFn: (content: string) => {
-      return apiRequest(`/api/channels/${channelId}/messages`, {
+    mutationFn: async (content: string) => {
+      console.log('Sending message to channel', channelId, content);
+      const response = await fetch(`/api/channels/${channelId}/messages`, {
         method: 'POST',
         body: JSON.stringify({ 
           content,
           channelId    // Include the channelId in the request body as required by schema
         }),
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: (data) => {
       // Clear the message input
@@ -169,14 +241,23 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
 
   // Add member mutation
   const addMember = useMutation({
-    mutationFn: (data: { userId: number, isAdmin?: boolean }) => {
-      return apiRequest(`/api/channels/${channelId}/members`, {
+    mutationFn: async (data: { userId: number, isAdmin?: boolean }) => {
+      console.log('Adding member to channel', channelId, data);
+      const response = await fetch(`/api/channels/${channelId}/members`, {
         method: 'POST',
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to add member: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
+      // Force refresh
       queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
       toast({
         title: 'Member added',
@@ -194,12 +275,22 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
 
   // Remove member mutation
   const removeMember = useMutation({
-    mutationFn: (userId: number) => {
-      return apiRequest(`/api/channels/${channelId}/members/${userId}`, {
+    mutationFn: async (userId: number) => {
+      console.log('Removing member from channel', channelId, userId);
+      const response = await fetch(`/api/channels/${channelId}/members/${userId}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to remove member: ${response.status} ${response.statusText}`);
+      }
+      
+      return true;
     },
     onSuccess: () => {
+      // Force refresh
       queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
       toast({
         title: 'Member removed',
