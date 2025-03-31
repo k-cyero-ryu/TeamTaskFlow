@@ -17,22 +17,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import TaskComments from "./task-comments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useSubtasks, useTaskSteps } from "@/hooks/use-task-items";
+import { ExtendedTask } from "@/lib/types";
 
-interface ExtendedTask extends Task {
-  subtasks?: Subtask[];
-  steps?: TaskStep[];
-  participants?: { username: string; id: number }[];
-  responsible?: { username: string; id: number };
-  workflow?: Workflow;
-  stage?: WorkflowStage;
-}
+// Extended Task is now imported from lib/types
 
 interface TaskDetailDialogProps {
   task: ExtendedTask;
@@ -45,8 +38,6 @@ export default function TaskDetailDialog({
   open,
   onOpenChange,
 }: TaskDetailDialogProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [updatingSubtaskId, setUpdatingSubtaskId] = useState<number | null>(null);
   const [updatingStepId, setUpdatingStepId] = useState<number | null>(null);
   
@@ -65,116 +56,10 @@ export default function TaskDetailDialog({
   // Use provided or fetched workflow/stage
   const displayWorkflow = task.workflow || workflow;
   const displayStage = task.stage || stage;
-
-  const updateSubtaskMutation = useMutation({
-    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
-        completed,
-      });
-      const data = await res.json();
-      return { id, completed, data };
-    },
-    onMutate: async ({ id, completed }) => {
-      setUpdatingSubtaskId(id);
-
-      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
-
-      const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
-
-      const updatedTasks = previousTasks?.map((t) => {
-        if (t.id === task.id) {
-          return {
-            ...t,
-            subtasks: t.subtasks?.map((s) =>
-              s.id === id ? { ...s, completed } : s
-            ),
-          };
-        }
-        return t;
-      });
-
-      if (updatedTasks) {
-        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
-      }
-
-      return { previousTasks };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousTasks) {
-        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
-      }
-      toast({
-        title: "Error updating subtask",
-        description: err.message,
-        variant: "destructive",
-      });
-    },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Subtask updated",
-        description: `Subtask marked as ${completed ? "completed" : "incomplete"}`,
-      });
-    },
-    onSettled: () => {
-      setUpdatingSubtaskId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-    },
-  });
-
-  const updateStepMutation = useMutation({
-    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
-        completed,
-      });
-      const data = await res.json();
-      return { id, completed, data };
-    },
-    onMutate: async ({ id, completed }) => {
-      setUpdatingStepId(id);
-
-      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
-
-      const previousTasks = queryClient.getQueryData<ExtendedTask[]>(["/api/tasks"]);
-
-      const updatedTasks = previousTasks?.map((t) => {
-        if (t.id === task.id) {
-          return {
-            ...t,
-            steps: t.steps?.map((s) =>
-              s.id === id ? { ...s, completed } : s
-            ),
-          };
-        }
-        return t;
-      });
-
-      if (updatedTasks) {
-        queryClient.setQueryData<ExtendedTask[]>(["/api/tasks"], updatedTasks);
-      }
-
-      return { previousTasks };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousTasks) {
-        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
-      }
-      toast({
-        title: "Error updating step",
-        description: err.message,
-        variant: "destructive",
-      });
-    },
-    onSuccess: (_, { completed }) => {
-      toast({
-        title: "Step updated",
-        description: `Step marked as ${completed ? "completed" : "incomplete"}`,
-      });
-    },
-    onSettled: () => {
-      setUpdatingStepId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-    },
-  });
+  
+  // Use custom hooks for subtasks and steps
+  const { updateSubtaskStatus } = useSubtasks(task.id);
+  const { updateStepStatus } = useTaskSteps(task.id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -320,9 +205,12 @@ export default function TaskDetailDialog({
                             checked={subtask.completed}
                             disabled={updatingSubtaskId === subtask.id}
                             onCheckedChange={(checked) => {
-                              updateSubtaskMutation.mutate({
+                              setUpdatingSubtaskId(subtask.id);
+                              updateSubtaskStatus.mutate({
                                 id: subtask.id,
                                 completed: checked as boolean,
+                              }, {
+                                onSettled: () => setUpdatingSubtaskId(null)
                               });
                             }}
                             className="transition-opacity duration-200"
@@ -367,9 +255,12 @@ export default function TaskDetailDialog({
                                 checked={step.completed}
                                 disabled={updatingStepId === step.id}
                                 onCheckedChange={(checked) => {
-                                  updateStepMutation.mutate({
+                                  setUpdatingStepId(step.id);
+                                  updateStepStatus.mutate({
                                     id: step.id,
                                     completed: checked as boolean,
+                                  }, {
+                                    onSettled: () => setUpdatingStepId(null)
                                   });
                                 }}
                                 className="transition-opacity duration-200"

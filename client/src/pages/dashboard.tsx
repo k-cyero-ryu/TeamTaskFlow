@@ -1,28 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import TaskList from "@/components/task-list";
 import TaskCard from "@/components/task-card";
 import CreateTaskDialog from "@/components/create-task-dialog";
-import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Loader2, CheckCircle2, Circle, Clock } from "lucide-react";
+import { useTasks } from "@/hooks/use-tasks";
+import { useWorkflows } from "@/hooks/use-workflows";
+import { ExtendedTask } from "@/lib/types";
 
 export default function Dashboard() {
-  const { data: tasks, isLoading: tasksLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks"],
-  });
+  // Use custom hooks for data fetching
+  const { 
+    tasks = [], 
+    isLoading: tasksLoading, 
+    getTaskStats 
+  } = useTasks();
+  
+  const { 
+    workflows = [], 
+    allStages = [], 
+    isLoading: workflowsLoading,
+    getWorkflowStages
+  } = useWorkflows();
 
-  const { data: workflows = [], isLoading: workflowsLoading } = useQuery<Workflow[]>({
-    queryKey: ["/api/workflows"],
-  });
-
-  // Query all stages in a single request
-  const { data: allStages = [], isLoading: stagesLoading } = useQuery<WorkflowStage[]>({
-    queryKey: ["/api/stages"],
-    enabled: workflows.length > 0,
-  });
-
-  if (tasksLoading || workflowsLoading || stagesLoading) {
+  if (tasksLoading || workflowsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -30,13 +31,11 @@ export default function Dashboard() {
     );
   }
 
-  const totalTasks = tasks?.length || 0;
-  const completedTasks = tasks?.filter((task) => task.status === "done").length || 0;
-  const inProgressTasks = tasks?.filter((task) => task.status === "in-progress").length || 0;
-  const progressPercentage = totalTasks ? (completedTasks / totalTasks) * 100 : 0;
+  // Get task statistics
+  const { total: totalTasks, completed: completedTasks, inProgress: inProgressTasks, progressPercentage } = getTaskStats();
 
   // Group tasks by workflow
-  const workflowTasks = tasks?.filter(task => task.workflowId !== null) || [];
+  const workflowTasks = tasks.filter(task => task.workflowId !== null);
 
   return (
     <div className="container mx-auto py-8">
@@ -96,10 +95,10 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-6">
               {workflows.map(workflow => {
-                const workflowTasks = tasks?.filter(task => task.workflowId === workflow.id) || [];
+                const workflowTasks = tasks.filter(task => task.workflowId === workflow.id);
                 if (workflowTasks.length === 0) return null;
 
-                const workflowStages = allStages.filter(stage => stage.workflowId === workflow.id);
+                const workflowStages = getWorkflowStages(workflow.id);
 
                 return (
                   <div key={workflow.id} className="space-y-4">
@@ -111,7 +110,7 @@ export default function Dashboard() {
                           <TaskCard
                             key={task.id}
                             task={{
-                              ...task,
+                              ...task as ExtendedTask,
                               workflow,
                               stage,
                             }}
@@ -132,7 +131,7 @@ export default function Dashboard() {
           <CardTitle>Recent Tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          <TaskList tasks={tasks || []} limit={5} />
+          <TaskList tasks={tasks} limit={5} />
         </CardContent>
       </Card>
     </div>

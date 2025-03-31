@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useParams } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,57 +15,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   insertWorkflowStageSchema,
   type InsertWorkflowStage,
-  type WorkflowStage,
-  type Workflow,
-  type Task,
 } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CreateTaskDialog from "@/components/create-task-dialog";
+import { useWorkflow } from "@/hooks/use-workflows";
+import { useTasks } from "@/hooks/use-tasks";
 
 export default function WorkflowDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const workflowId = parseInt(params.id!);
 
-  const { data: workflow, isLoading: isWorkflowLoading } = useQuery<Workflow>({
-    queryKey: [`/api/workflows/${workflowId}`],
-  });
-
-  const { data: stages = [], isLoading: isStagesLoading } = useQuery<WorkflowStage[]>({
-    queryKey: [`/api/workflows/${workflowId}/stages`],
-  });
-
-  const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
-    queryKey: [`/api/tasks`],
-    select: (data) => {
-      const filteredTasks = data.filter(task => task.workflowId === workflowId);
-      console.log('Filtered tasks for workflow:', filteredTasks);
-      return filteredTasks;
-    },
-    enabled: !!stages?.length,
-  });
-
-  const moveTaskMutation = useMutation({
-    mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/tasks`] });
-      toast({
-        title: "Success",
-        description: "Task moved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Task movement error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to move task",
-        variant: "destructive",
-      });
-    },
+  // Use custom hooks for data fetching
+  const { workflow, stages = [], isLoading: workflowLoading, createStage } = useWorkflow(workflowId);
+  
+  const { tasks = [], isLoading: tasksLoading, updateTaskStage } = useTasks({ 
+    workflowId 
   });
 
   const form = useForm<InsertWorkflowStage>({
@@ -81,30 +44,7 @@ export default function WorkflowDetailPage() {
     },
   });
 
-  const createStageMutation = useMutation({
-    mutationFn: async (data: InsertWorkflowStage) => {
-      const response = await apiRequest("POST", `/api/workflows/${workflowId}/stages`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/workflows/${workflowId}/stages`] });
-      toast({
-        title: "Success",
-        description: "Stage created successfully",
-      });
-      form.reset();
-    },
-    onError: (error: Error) => {
-      console.error("Stage creation error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create stage",
-        variant: "destructive",
-      });
-    },
-  });
-
-  if (isWorkflowLoading || isStagesLoading || isTasksLoading) {
+  if (workflowLoading || tasksLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
@@ -112,7 +52,7 @@ export default function WorkflowDetailPage() {
     return <div className="flex items-center justify-center min-h-screen">Workflow not found</div>;
   }
 
-  const tasksByStage = tasks.reduce<Record<number, Task[]>>((acc, task) => {
+  const tasksByStage = tasks.reduce<Record<number, typeof tasks[0][]>>((acc, task) => {
     if (task.stageId) {
       if (!acc[task.stageId]) {
         acc[task.stageId] = [];
@@ -132,9 +72,10 @@ export default function WorkflowDetailPage() {
         <CardContent>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit((data) =>
-                createStageMutation.mutate({ ...data, order: stages.length })
-              )}
+              onSubmit={form.handleSubmit((data) => {
+                createStage.mutate({ ...data, order: stages.length });
+                form.reset();
+              })}
               className="space-y-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -181,9 +122,8 @@ export default function WorkflowDetailPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createStageMutation.isPending}
               >
-                {createStageMutation.isPending ? "Creating..." : "Add Stage"}
+                Add Stage
               </Button>
             </form>
           </Form>
@@ -221,13 +161,12 @@ export default function WorkflowDetailPage() {
                         onClick={() => {
                           const tasksInCurrentStage = tasksByStage[stage.id] || [];
                           tasksInCurrentStage.forEach(task => {
-                            moveTaskMutation.mutate({
+                            updateTaskStage.mutate({
                               taskId: task.id,
                               stageId: targetStage.id,
                             });
                           });
                         }}
-                        disabled={moveTaskMutation.isPending}
                       >
                         Move all to {targetStage.name}
                       </Button>

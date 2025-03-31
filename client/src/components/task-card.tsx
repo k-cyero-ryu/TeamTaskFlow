@@ -1,99 +1,37 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Task, Subtask, TaskStep, Workflow, WorkflowStage } from "@shared/schema";
+import { Task, Workflow, WorkflowStage } from "@shared/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreVertical, Trash2, ChevronRight, CheckCircle, Clock, Circle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import TaskDetailDialog from "./task-detail-dialog";
 import { cn } from "@/lib/utils";
-
-interface ExtendedTask extends Task {
-  subtasks?: Subtask[];
-  steps?: TaskStep[];
-  participants?: { username: string; id: number }[];
-  responsible?: { username: string; id: number };
-  workflow?: Workflow;
-  stage?: WorkflowStage;
-}
+import { ExtendedTask, TaskStatus } from "@/lib/types";
+import { TaskStatusBadge } from "./task/task-status-badge";
+import { WorkflowStageBadge } from "./task/workflow-stage-badge";
+import { TaskActions } from "./task/task-actions";
 
 export default function TaskCard({ task }: { task: ExtendedTask }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
 
-  // Fetch workflow and stage information if they exist
+  // Fetch workflow and stage information if they exist but not provided
   const { data: workflow } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${task.workflowId}`],
-    enabled: !!task.workflowId,
+    enabled: !!task.workflowId && !task.workflow,
   });
 
   const { data: stage } = useQuery<WorkflowStage>({
     queryKey: [`/api/workflows/${task.workflowId}/stages/${task.stageId}`],
-    enabled: !!task.workflowId && !!task.stageId,
+    enabled: !!task.workflowId && !!task.stageId && !task.stage,
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async (status: string) => {
-      setIsTransitioning(true);
-      const res = await apiRequest("PATCH", `/api/tasks/${task.id}/status`, {
-        status,
-      });
-      return res.json();
-    },
-    onSuccess: (_, status) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: "Task updated",
-        description: `Task status changed to ${status}`,
-      });
-    },
-    onSettled: () => {
-      setIsTransitioning(false);
-    },
-  });
-
-  const deleteTaskMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("DELETE", `/api/tasks/${task.id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: "Task deleted",
-        description: "The task has been deleted successfully.",
-      });
-    },
-  });
-
-  const statusConfig = {
-    todo: {
-      color: "bg-slate-500",
-      icon: Circle,
-    },
-    "in-progress": {
-      color: "bg-blue-500",
-      icon: Clock,
-    },
-    done: {
-      color: "bg-green-500",
-      icon: CheckCircle,
-    },
-  };
-
-  const StatusIcon = statusConfig[task.status as keyof typeof statusConfig].icon;
+  // Use provided or fetched workflow/stage
+  const displayWorkflow = task.workflow || workflow;
+  const displayStage = task.stage || stage;
 
   // Calculate completion metrics
   const totalSubtasks = task.subtasks?.length || 0;
@@ -112,78 +50,22 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex gap-2">
-            <Badge
-              variant="secondary"
-              className={cn(
-                "transition-colors duration-300 flex items-center gap-1",
-                statusConfig[task.status as keyof typeof statusConfig].color
-              )}
-            >
-              <StatusIcon className="h-3 w-3" />
-              {task.status}
-            </Badge>
-            {workflow && stage && (
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1"
-                style={{
-                  borderColor: stage.color || '#4444FF',
-                  color: stage.color || '#4444FF'
-                }}
-              >
-                {workflow.name} - {stage.name}
-              </Badge>
+            <TaskStatusBadge status={task.status as TaskStatus} />
+            
+            {displayWorkflow && displayStage && (
+              <WorkflowStageBadge 
+                workflowName={displayWorkflow.name}
+                stageName={displayStage.name}
+                stageColor={displayStage.color || undefined}
+              />
             )}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateStatusMutation.mutate("todo");
-                }}
-                disabled={task.status === "todo" || isTransitioning}
-                className="gap-2"
-              >
-                <Circle className="h-4 w-4" /> Mark as Todo
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateStatusMutation.mutate("in-progress");
-                }}
-                disabled={task.status === "in-progress" || isTransitioning}
-                className="gap-2"
-              >
-                <Clock className="h-4 w-4" /> Mark as In Progress
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateStatusMutation.mutate("done");
-                }}
-                disabled={task.status === "done" || isTransitioning}
-                className="gap-2"
-              >
-                <CheckCircle className="h-4 w-4" /> Mark as Done
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive gap-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteTaskMutation.mutate();
-                }}
-                disabled={isTransitioning}
-              >
-                <Trash2 className="h-4 w-4" /> Delete Task
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          
+          <TaskActions 
+            taskId={task.id} 
+            currentStatus={task.status as TaskStatus}
+            onOpenTaskDetail={() => setDetailOpen(true)}
+          />
         </CardHeader>
 
         <CardContent>
@@ -247,8 +129,8 @@ export default function TaskCard({ task }: { task: ExtendedTask }) {
       <TaskDetailDialog
         task={{
           ...task,
-          workflow,
-          stage,
+          workflow: displayWorkflow,
+          stage: displayStage,
         }}
         open={detailOpen}
         onOpenChange={setDetailOpen}

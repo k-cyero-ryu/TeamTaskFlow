@@ -1,16 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { Task } from "@shared/schema";
 import TaskList from "@/components/task-list";
 import CreateTaskDialog from "@/components/create-task-dialog";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useTasks } from "@/hooks/use-tasks";
 
 export default function Tasks() {
   const [search, setSearch] = useState("");
-  const { data: tasks, isLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks"],
-  });
+  const { tasks, isLoading } = useTasks();
 
   if (isLoading) {
     return (
@@ -20,7 +17,7 @@ export default function Tasks() {
     );
   }
 
-  const filteredTasks = tasks?.filter((task) =>
+  const filteredTasks = tasks.filter((task) =>
     task.title.toLowerCase().includes(search.toLowerCase())
   );
 
