@@ -1,74 +1,67 @@
 /**
- * A standardized logger implementation for consistent logging throughout the application
+ * Simple logger class for consistent logging format
  */
 export class Logger {
   private context: string;
-
+  
+  /**
+   * Create a new logger with a specific context
+   * @param context The context of the logger (usually the class or module name)
+   */
   constructor(context: string) {
     this.context = context;
   }
-
+  
   /**
-   * Log debug level information
+   * Log a debug message
+   * @param message The message to log
+   * @param meta Optional metadata to include
    */
-  debug(message: string, meta?: Record<string, any>): void {
+  debug(message: string, meta?: any): void {
     this.log('DEBUG', message, meta);
   }
-
+  
   /**
-   * Log informational messages
+   * Log an info message
+   * @param message The message to log
+   * @param meta Optional metadata to include
    */
-  info(message: string, meta?: Record<string, any>): void {
+  info(message: string, meta?: any): void {
     this.log('INFO', message, meta);
   }
-
+  
   /**
-   * Log warning messages
+   * Log a warning message
+   * @param message The message to log
+   * @param meta Optional metadata to include
    */
-  warn(message: string, meta?: Record<string, any>): void {
+  warn(message: string, meta?: any): void {
     this.log('WARN', message, meta);
   }
-
+  
   /**
-   * Log error messages
+   * Log an error message
+   * @param message The message to log
+   * @param meta Optional metadata to include
    */
-  error(message: string, meta?: Record<string, any>): void {
+  error(message: string, meta?: any): void {
     this.log('ERROR', message, meta);
   }
-
+  
   /**
-   * Format and output log messages
+   * Log a message with a specific level
+   * @param level The log level
+   * @param message The message to log
+   * @param meta Optional metadata to include
    */
-  private log(level: string, message: string, meta?: Record<string, any>): void {
+  private log(level: string, message: string, meta?: any): void {
     const timestamp = new Date().toISOString();
-    const context = this.context ? `[${this.context}]` : '';
-    
-    // Format the log message
-    const formattedMeta = meta ? JSON.stringify(meta, null, 2) : '';
-    const logEntry = {
+    console.log(JSON.stringify({
       timestamp,
       level,
-      context,
+      context: `[${this.context}]`,
       message,
-      ...(meta && { meta }),
-    };
-    
-    // Output to console with appropriate method
-    switch (level) {
-      case 'ERROR':
-        console.error(JSON.stringify(logEntry));
-        break;
-      case 'WARN':
-        console.warn(JSON.stringify(logEntry));
-        break;
-      case 'DEBUG':
-        console.debug(JSON.stringify(logEntry));
-        break;
-      case 'INFO':
-      default:
-        console.log(JSON.stringify(logEntry));
-    }
+      meta: meta || null
+    }));
   }
 }
-
-export const appLogger = new Logger('App');

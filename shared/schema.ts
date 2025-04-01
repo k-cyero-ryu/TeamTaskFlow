@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, json, unique, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, json, unique, varchar, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -8,6 +8,16 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").unique(),
+  notificationPreferences: jsonb("notification_preferences").default({
+    taskAssigned: true,
+    taskUpdated: true,
+    taskCommented: true,
+    mentionedInComment: true,
+    privateMessage: true,
+    groupMessage: false,
+    taskDueReminder: true
+  }),
 });
 
 // Create group channels table
@@ -92,6 +102,8 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+
+
 export const subtasks = pgTable("subtasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -157,6 +169,41 @@ export const groupMessageAttachments = pgTable("group_message_attachments", {
   id: serial("id").primaryKey(),
   messageId: integer("message_id").references(() => groupMessages.id).notNull(),
   fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+});
+
+// Email notifications table
+export const emailNotifications = pgTable("email_notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  type: text("type").notNull(), // task_assigned, task_updated, task_commented, mentioned, etc.
+  status: text("status").notNull().default("pending"), // pending, sent, failed
+  sentAt: timestamp("sent_at"),
+  error: text("error"),
+  relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.
+  relatedEntityType: text("related_entity_type"), // task, comment, etc.
+  metadata: jsonb("metadata"),
+  sendAt: timestamp("send_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Calendar events table
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  allDay: boolean("all_day").default(false),
+  type: text("type").notNull(), // task_due, meeting, etc.
+  relatedEntityId: integer("related_entity_id"), // ID of the related task
+  relatedEntityType: text("related_entity_type"), // task, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -273,6 +320,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   channelMemberships: many(channelMembers),
   groupMessages: many(groupMessages, { relationName: "sender" }),
   uploadedFiles: many(fileAttachments, { relationName: "uploader" }),
+  emailNotifications: many(emailNotifications),
+  calendarEvents: many(calendarEvents),
 }));
 
 export const workflowsRelations = relations(workflows, ({ one, many }) => ({
@@ -339,9 +388,28 @@ export const groupMessageAttachmentsRelations = relations(groupMessageAttachment
   }),
 }));
 
+// Email notifications relations
+export const emailNotificationsRelations = relations(emailNotifications, ({ one }) => ({
+  user: one(users, {
+    fields: [emailNotifications.userId],
+    references: [users.id],
+  }),
+}));
+
+// Calendar events relations
+export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [calendarEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true,
+  notificationPreferences: true,
 });
 
 export const insertSubtaskSchema = createInsertSchema(subtasks).pick({
@@ -472,3 +540,34 @@ export type GroupMessageAttachment = typeof groupMessageAttachments.$inferSelect
 export type InsertFileAttachment = z.infer<typeof insertFileAttachmentSchema>;
 export type InsertPrivateMessageAttachment = z.infer<typeof insertPrivateMessageAttachmentSchema>;
 export type InsertGroupMessageAttachment = z.infer<typeof insertGroupMessageAttachmentSchema>;
+
+// Email notification and calendar event schemas and types
+export const insertEmailNotificationSchema = createInsertSchema(emailNotifications).pick({
+  userId: true,
+  subject: true,
+  content: true,
+  recipientEmail: true,
+  type: true,
+  status: true,
+  relatedEntityId: true,
+  relatedEntityType: true,
+  metadata: true,
+  sendAt: true,
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).pick({
+  userId: true,
+  title: true,
+  description: true,
+  startTime: true,
+  endTime: true,
+  allDay: true,
+  type: true,
+  relatedEntityId: true,
+  relatedEntityType: true,
+});
+
+export type EmailNotification = typeof emailNotifications.$inferSelect;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertEmailNotification = z.infer<typeof insertEmailNotificationSchema>;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;

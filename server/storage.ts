@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, emailNotifications, calendarEvents } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -79,6 +79,25 @@ interface IStorage {
   ): Promise<GroupMessage>;
   getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
   getGroupMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
+
+  // Email notification methods
+  createEmailNotification(notification: InsertEmailNotification): Promise<EmailNotification>;
+  getEmailNotification(id: number): Promise<EmailNotification | undefined>;
+  getUserEmailNotifications(userId: number): Promise<EmailNotification[]>;
+  updateEmailNotification(id: number, data: Partial<EmailNotification>): Promise<EmailNotification>;
+  deleteEmailNotification(id: number): Promise<void>;
+  
+  // Calendar event methods
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  getCalendarEvent(id: number): Promise<CalendarEvent | undefined>;
+  getUserCalendarEvents(userId: number): Promise<CalendarEvent[]>;
+  getCalendarEventByRelatedEntity(entityType: string, entityId: number): Promise<CalendarEvent | undefined>;
+  updateCalendarEvent(id: number, data: Partial<CalendarEvent>): Promise<CalendarEvent>;
+  deleteCalendarEvent(id: number): Promise<void>;
+  
+  // User methods with email and notification preferences
+  updateUserEmail(userId: number, email: string): Promise<User>;
+  updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1214,6 +1233,229 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to get attachments for group message ${messageId}`, { error });
       throw new DatabaseError(`Failed to get group message attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Email notification methods
+  async createEmailNotification(notification: InsertEmailNotification): Promise<EmailNotification> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newNotification] = await db
+          .insert(emailNotifications)
+          .values(notification)
+          .returning();
+        return newNotification;
+      }, 'Create email notification');
+    } catch (error) {
+      logger.error('Failed to create email notification', { error });
+      throw new DatabaseError(`Failed to create email notification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getEmailNotification(id: number): Promise<EmailNotification | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [notification] = await db
+          .select()
+          .from(emailNotifications)
+          .where(eq(emailNotifications.id, id));
+        return notification;
+      }, 'Get email notification by ID');
+    } catch (error) {
+      logger.error(`Failed to get email notification with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get email notification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUserEmailNotifications(userId: number): Promise<EmailNotification[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select()
+          .from(emailNotifications)
+          .where(eq(emailNotifications.userId, userId))
+          .orderBy(desc(emailNotifications.createdAt));
+      }, 'Get user email notifications');
+    } catch (error) {
+      logger.error(`Failed to get email notifications for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get user email notifications: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateEmailNotification(id: number, data: Partial<EmailNotification>): Promise<EmailNotification> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedNotification] = await db
+          .update(emailNotifications)
+          .set(data)
+          .where(eq(emailNotifications.id, id))
+          .returning();
+        
+        if (!updatedNotification) {
+          throw new Error('Email notification not found');
+        }
+        
+        return updatedNotification;
+      }, 'Update email notification');
+    } catch (error) {
+      logger.error(`Failed to update email notification with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to update email notification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteEmailNotification(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .delete(emailNotifications)
+          .where(eq(emailNotifications.id, id));
+      }, 'Delete email notification');
+    } catch (error) {
+      logger.error(`Failed to delete email notification with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to delete email notification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Calendar event methods
+  async createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newEvent] = await db
+          .insert(calendarEvents)
+          .values(event)
+          .returning();
+        return newEvent;
+      }, 'Create calendar event');
+    } catch (error) {
+      logger.error('Failed to create calendar event', { error });
+      throw new DatabaseError(`Failed to create calendar event: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getCalendarEvent(id: number): Promise<CalendarEvent | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [event] = await db
+          .select()
+          .from(calendarEvents)
+          .where(eq(calendarEvents.id, id));
+        return event;
+      }, 'Get calendar event by ID');
+    } catch (error) {
+      logger.error(`Failed to get calendar event with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get calendar event: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUserCalendarEvents(userId: number): Promise<CalendarEvent[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db
+          .select()
+          .from(calendarEvents)
+          .where(eq(calendarEvents.userId, userId))
+          .orderBy(calendarEvents.startTime);
+      }, 'Get user calendar events');
+    } catch (error) {
+      logger.error(`Failed to get calendar events for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get user calendar events: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getCalendarEventByRelatedEntity(entityType: string, entityId: number): Promise<CalendarEvent | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [event] = await db
+          .select()
+          .from(calendarEvents)
+          .where(
+            and(
+              eq(calendarEvents.relatedEntityType, entityType),
+              eq(calendarEvents.relatedEntityId, entityId)
+            )
+          );
+        return event;
+      }, 'Get calendar event by related entity');
+    } catch (error) {
+      logger.error(`Failed to get calendar event for entity ${entityType} with ID ${entityId}`, { error });
+      throw new DatabaseError(`Failed to get calendar event by related entity: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateCalendarEvent(id: number, data: Partial<CalendarEvent>): Promise<CalendarEvent> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedEvent] = await db
+          .update(calendarEvents)
+          .set(data)
+          .where(eq(calendarEvents.id, id))
+          .returning();
+        
+        if (!updatedEvent) {
+          throw new Error('Calendar event not found');
+        }
+        
+        return updatedEvent;
+      }, 'Update calendar event');
+    } catch (error) {
+      logger.error(`Failed to update calendar event with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to update calendar event: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteCalendarEvent(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .delete(calendarEvents)
+          .where(eq(calendarEvents.id, id));
+      }, 'Delete calendar event');
+    } catch (error) {
+      logger.error(`Failed to delete calendar event with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to delete calendar event: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // User methods with email and notification preferences
+  async updateUserEmail(userId: number, email: string): Promise<User> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedUser] = await db
+          .update(users)
+          .set({ email })
+          .where(eq(users.id, userId))
+          .returning();
+        
+        if (!updatedUser) {
+          throw new Error('User not found');
+        }
+        
+        return updatedUser;
+      }, 'Update user email');
+    } catch (error) {
+      logger.error(`Failed to update email for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to update user email: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedUser] = await db
+          .update(users)
+          .set({ notificationPreferences: preferences })
+          .where(eq(users.id, userId))
+          .returning();
+        
+        if (!updatedUser) {
+          throw new Error('User not found');
+        }
+        
+        return updatedUser;
+      }, 'Update user notification preferences');
+    } catch (error) {
+      logger.error(`Failed to update notification preferences for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to update user notification preferences: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
