@@ -41,12 +41,14 @@ router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
       return res.status(404).json({ error: 'Channel not found' });
     }
 
-    // Check if the user is a member of the channel
-    const members = await storage.getChannelMembers(channelId);
-    const isMember = members.some(member => member.userId === userId);
-    
-    if (!isMember) {
-      return res.status(403).json({ error: 'You are not a member of this channel' });
+    // For private channels, check if the user is a member
+    if (channel.isPrivate) {
+      const members = await storage.getChannelMembers(channelId);
+      const isMember = members.some(member => member.userId === userId);
+      
+      if (!isMember) {
+        return res.status(403).json({ error: 'You do not have access to this private channel' });
+      }
     }
 
     return res.json(channel);
@@ -245,12 +247,29 @@ router.post('/:id/messages',
         return res.status(400).json({ error: 'Invalid channel ID' });
       }
 
+      // Get the channel to check if it's public or private
+      const channel = await storage.getGroupChannel(channelId);
+      if (!channel) {
+        return res.status(404).json({ error: 'Channel not found' });
+      }
+
       // Check if the user is a member of the channel
       const members = await storage.getChannelMembers(channelId);
-      const isMember = members.some(member => member.userId === userId);
+      let isMember = members.some(member => member.userId === userId);
       
-      if (!isMember) {
-        return res.status(403).json({ error: 'You are not a member of this channel' });
+      // For private channels, require membership
+      if (channel.isPrivate && !isMember) {
+        return res.status(403).json({ error: 'You are not a member of this private channel' });
+      }
+      
+      // For public channels, automatically add the user as a member if they're not already
+      if (!channel.isPrivate && !isMember) {
+        await storage.addChannelMember(channelId, userId, false);
+        // Update member status
+        isMember = true;
+        // Get updated members list
+        const updatedMembers = await storage.getChannelMembers(channelId);
+        members.push(...updatedMembers.filter(m => m.userId === userId));
       }
 
       const messageData = req.body;
@@ -270,7 +289,7 @@ router.post('/:id/messages',
         }
       };
 
-      // Broadcast message to all channel members
+      // Broadcast message to all channel members 
       const memberIds = members.map(member => member.userId);
       broadcastWebSocketMessage({
         type: 'NEW_GROUP_MESSAGE',

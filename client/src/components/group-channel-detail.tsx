@@ -4,6 +4,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { UserSelector } from './user-selector';
 import { 
   Card,
   CardContent,
@@ -429,7 +430,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                         <DialogHeader>
                           <DialogTitle>Add Member to Channel</DialogTitle>
                           <DialogDescription>
-                            Enter the user ID to add to this channel.
+                            Select a user to add to this channel.
                           </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={(e) => {
@@ -445,8 +446,8 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                         }}>
                           <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                              <label htmlFor="userId">User ID</label>
-                              <Input id="userId" name="userId" type="number" required />
+                              <label htmlFor="userId">Select User</label>
+                              <UserSelector id="userId" name="userId" />
                             </div>
                             <div className="flex items-center space-x-2">
                               <input type="checkbox" id="isAdmin" name="isAdmin" />

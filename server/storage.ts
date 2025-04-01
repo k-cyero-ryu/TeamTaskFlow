@@ -762,18 +762,21 @@ export class DatabaseStorage implements IStorage {
           .from(channelMembers)
           .where(eq(channelMembers.userId, userId));
 
-        const channelIds = userChannels.map(channel => channel.channelId);
-
-        if (channelIds.length === 0) {
-          return [];
-        }
-
-        // Get all channel details
-        return await db
+        const userChannelIds = userChannels.map(channel => channel.channelId);
+        
+        // Get all public channels
+        const allChannels = await db
           .select()
           .from(groupChannels)
-          .where(inArray(groupChannels.id, channelIds))
           .orderBy(groupChannels.createdAt);
+        
+        // Filter to get:
+        // 1. All public channels
+        // 2. Private channels where the user is a member
+        return allChannels.filter(channel => 
+          !channel.isPrivate || // Public channels
+          userChannelIds.includes(channel.id) // Private channels where user is a member
+        );
       }, 'Get group channels for user');
     } catch (error) {
       logger.error(`Failed to get group channels for user ${userId}`, { error });
