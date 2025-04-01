@@ -10,6 +10,7 @@ import Workflows from "@/pages/workflows";
 import WorkflowDetail from "@/pages/workflow-detail";
 import Channels from "@/pages/channels";
 import ChannelDetail from "@/pages/channel-detail";
+import Settings from "@/pages/settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -169,6 +170,14 @@ export default function App() {
               </Layout>
             </ProtectedRoute>
           )}
+        </Route>
+        
+        <Route path="/settings">
+          <ProtectedRoute>
+            <Layout>
+              <Settings />
+            </Layout>
+          </ProtectedRoute>
         </Route>
 
         <Route component={NotFound} />

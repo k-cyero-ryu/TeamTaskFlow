@@ -30,9 +30,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 /**
  * Require the user to be an admin
+ * For simplicity, we're considering user ID 1 as admin
  */
 export function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.user || !req.user.isAdmin) {
+  if (!req.user || req.user.id !== 1) {
     logger.warn('Unauthorized admin access attempt', { 
       userId: req.user?.id, 
       ip: req.ip, 

@@ -29,12 +29,25 @@ interface EmailProcessingResults {
   }>;
 }
 
+// SMTP configuration options
+interface SmtpConfig {
+  host: string;
+  port: number;
+  auth: {
+    user: string;
+    pass: string;
+  };
+  secure: boolean;
+  from?: string;
+}
+
 /**
  * Email service for sending notifications
  */
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private defaultFrom: string;
+  private smtpConfig: SmtpConfig | null = null;
   
   /**
    * Initialize the email service
@@ -52,9 +65,54 @@ export class EmailService {
   }
   
   /**
-   * Create the email transporter based on environment
+   * Update SMTP settings and recreate the transporter
+   * @param config New SMTP configuration
    */
-  private createTransporter(): nodemailer.Transporter {
+  updateSmtpSettings(config: SmtpConfig): void {
+    this.smtpConfig = config;
+    if (config.from) {
+      this.defaultFrom = config.from;
+    }
+    
+    // Recreate the transporter with new settings
+    this.transporter = this.createTransporter(config);
+    logger.info('SMTP settings updated');
+  }
+  
+  /**
+   * Create the email transporter based on environment or supplied config
+   * @param config Optional SMTP configuration to use
+   * @returns Email transporter
+   */
+  private createTransporter(config?: SmtpConfig): nodemailer.Transporter {
+    // If config is supplied, use it directly
+    if (config) {
+      logger.info('Using supplied SMTP configuration');
+      return nodemailer.createTransport({
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        auth: {
+          user: config.auth.user,
+          pass: config.auth.pass
+        }
+      });
+    }
+    
+    // If we have stored SMTP config, use that
+    if (this.smtpConfig) {
+      logger.info('Using stored SMTP configuration');
+      return nodemailer.createTransport({
+        host: this.smtpConfig.host,
+        port: this.smtpConfig.port,
+        secure: this.smtpConfig.secure,
+        auth: {
+          user: this.smtpConfig.auth.user,
+          pass: this.smtpConfig.auth.pass
+        }
+      });
+    }
+    
     // In development or if no SMTP credentials, use nodemailer's "ethereal" test account
     if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
       logger.info('Using development email transport');
@@ -69,8 +127,8 @@ export class EmailService {
       });
     }
     
-    // In production, use real SMTP credentials
-    logger.info('Using production email transport');
+    // In production, use real SMTP credentials from environment variables
+    logger.info('Using production email transport from environment variables');
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -82,6 +140,75 @@ export class EmailService {
     });
   }
   
+  /**
+   * Send a test email to verify SMTP settings
+   * @param recipientEmail Email address to send the test to
+   * @param tempSettings Temporary SMTP settings to use
+   * @returns Information about the sent message
+   */
+  async sendTestEmail(recipientEmail: string, tempSettings?: SmtpConfig): Promise<nodemailer.SentMessageInfo> {
+    // Create a temporary transporter with the supplied settings
+    const tempTransporter = tempSettings 
+      ? nodemailer.createTransport({
+          host: tempSettings.host,
+          port: tempSettings.port,
+          secure: tempSettings.secure,
+          auth: {
+            user: tempSettings.auth.user,
+            pass: tempSettings.auth.pass
+          }
+        })
+      : this.transporter;
+    
+    const fromAddress = tempSettings?.from || this.defaultFrom;
+    
+    // Send a test email
+    try {
+      const mailOptions = {
+        from: fromAddress,
+        to: recipientEmail,
+        subject: 'Test Email from Team Collaborator',
+        text: 'This is a test email to verify your SMTP settings are working correctly.',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>SMTP Test Successful</h2>
+            <p>Congratulations! If you're reading this email, your SMTP settings are configured correctly.</p>
+            <p>You can now use email notifications in Team Collaborator.</p>
+            <p>This is a test message sent at: ${new Date().toLocaleString()}</p>
+            <p>Best regards,<br>Team Collaborator</p>
+          </div>
+        `
+      };
+      
+      logger.debug('Sending test email', { to: recipientEmail });
+      
+      const info = await tempTransporter.sendMail(mailOptions);
+      
+      logger.info('Test email sent successfully', { 
+        messageId: info.messageId,
+        to: recipientEmail
+      });
+      
+      // If we're using Ethereal email, include the preview URL
+      if (
+        (tempSettings?.host === 'smtp.ethereal.email' || 
+        (!tempSettings && process.env.NODE_ENV === 'development'))
+        && info.messageId
+      ) {
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        if (previewUrl) {
+          logger.info('Test email preview URL', { previewUrl });
+          info.previewUrl = previewUrl;
+        }
+      }
+      
+      return info;
+    } catch (error) {
+      logger.error('Failed to send test email', { error, to: recipientEmail });
+      throw error;
+    }
+  }
+
   /**
    * Send an email
    * @param options Email send options
