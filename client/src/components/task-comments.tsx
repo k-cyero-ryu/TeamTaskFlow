@@ -41,6 +41,7 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
         headers: {
           'Content-Type': 'application/json',
         },
+        // Only send content in the body, taskId is already in the URL
         body: JSON.stringify({ content }),
         credentials: 'include',
       });

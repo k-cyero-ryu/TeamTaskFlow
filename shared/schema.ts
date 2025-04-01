@@ -424,7 +424,6 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
-  taskId: true,
 });
 
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
