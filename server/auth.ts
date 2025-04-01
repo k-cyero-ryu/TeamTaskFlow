@@ -141,7 +141,7 @@ export function setupAuth(app: Express) {
       return res.status(400).json({ message: "Username and password are required" });
     }
 
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         console.error("Login error:", err);
         return next(err);
@@ -162,25 +162,44 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
+    console.log("Logout endpoint called, user authenticated:", req.isAuthenticated());
+    console.log("Session before logout:", req.session);
+
     if (!req.isAuthenticated()) {
       console.log("Logout attempted while not authenticated");
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    console.log("Logging out user:", req.user?.id);
+    const userId = req.user?.id;
+    console.log("Logging out user:", userId);
+    
     req.logout((err) => {
       if (err) {
         console.error("Logout error:", err);
         return next(err);
       }
+      
       req.session.destroy((err) => {
         if (err) {
           console.error("Session destruction error:", err);
           return next(err);
         }
-        res.clearCookie('connect.sid', { path: '/' });
-        console.log("Logout successful, session destroyed");
-        res.status(200).json({ message: "Logged out successfully" });
+        
+        // Get cookie settings from the session configuration
+        const cookieOptions = {
+          path: '/',
+          httpOnly: true,
+          secure: app.get("env") === "production",
+          sameSite: 'lax' as const
+        };
+        
+        console.log("Session destroyed, clearing cookies with options:", cookieOptions);
+        
+        // Clear connect.sid cookie
+        res.clearCookie('connect.sid', cookieOptions);
+        
+        console.log("Logout successful, session destroyed and cookies cleared");
+        res.status(200).json({ message: "Logged out successfully", success: true });
       });
     });
   });

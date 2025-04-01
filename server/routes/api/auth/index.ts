@@ -13,7 +13,7 @@ const logger = new Logger('AuthRoutes');
  */
 router.post('/login', (req, res, next) => {
   try {
-    passport.authenticate('local', (err, user, info) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
         logger.error('Authentication error', { error: err });
         return handleApiError(res, new InternalServerError('Authentication error'));
@@ -47,42 +47,12 @@ router.post('/login', (req, res, next) => {
 
 /**
  * @route POST /api/auth/logout
- * @desc Logout a user
+ * @desc Logout a user (Note: This endpoint is for compatibility but is not used - the logout is handled directly at /api/logout)
  * @access Private
  */
 router.post('/logout', (req, res) => {
-  try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({
-        error: {
-          type: 'UNAUTHORIZED',
-          message: 'Not authenticated'
-        }
-      });
-    }
-    
-    const userId = req.user?.id;
-    
-    req.logout((err) => {
-      if (err) {
-        logger.error('Logout error', { error: err });
-        return handleApiError(res, new InternalServerError('Logout failed'));
-      }
-      
-      req.session.destroy((sessionErr) => {
-        if (sessionErr) {
-          logger.error('Session destruction error', { error: sessionErr });
-          return handleApiError(res, new InternalServerError('Logout failed'));
-        }
-        
-        logger.info('User logged out successfully', { userId });
-        res.status(200).json({ message: 'Logged out successfully' });
-      });
-    });
-  } catch (error) {
-    logger.error('Unexpected logout error', { error });
-    handleApiError(res, error);
-  }
+  logger.info('Logout request to deprecated endpoint /api/auth/logout, redirecting');
+  res.redirect(307, '/api/logout');
 });
 
 export default router;
