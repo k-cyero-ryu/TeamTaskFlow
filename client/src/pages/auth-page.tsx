@@ -173,11 +173,22 @@ function AuthForm({
   isPending: boolean;
   error: string | null;
 }) {
-  // Use our enhanced validation schema
-  const authSchema = z.object({
+  // Use different validation schemas based on the mode
+  // For registration, we enforce minimum requirements
+  // For login, we only check that the fields are not empty
+  const registerSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
   });
+  
+  // Login schema with minimal validation (just not empty)
+  const loginSchema = z.object({
+    username: z.string().min(1, "Username is required"),
+    password: z.string().min(1, "Password is required"),
+  });
+  
+  // Select the appropriate schema based on mode
+  const authSchema = mode === "register" ? registerSchema : loginSchema;
   
   const [generalError, setGeneralError] = useState<string | null>(null);
   

@@ -22,10 +22,29 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    // If there's no dot, this is likely a legacy password format or plaintext
+    if (!stored.includes('.')) {
+      console.log('Legacy password format detected, attempting direct comparison');
+      // For legacy users, just compare directly as a fallback
+      return supplied === stored;
+    }
+    
+    // Regular password comparison using salt
+    const [hashed, salt] = stored.split(".");
+    if (!hashed || !salt) {
+      console.log('Invalid password format, attempting direct comparison');
+      return supplied === stored;
+    }
+    
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    // As a last resort fallback, try direct comparison
+    return supplied === stored;
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -65,11 +84,19 @@ export function setupAuth(app: Express) {
     new LocalStrategy(async (username, password, done) => {
       try {
         console.log(`Attempting authentication for user: ${username}`);
+        
+        // Basic validation - just checking username and password exist
+        if (!username || !password) {
+          console.log(`Authentication failed: Missing credentials`);
+          return done(null, false, { message: 'Username and password are required' });
+        }
+        
         const user = await storage.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           console.log(`Authentication failed for user: ${username}`);
-          return done(null, false);
+          return done(null, false, { message: 'Invalid username or password' });
         }
+        
         console.log(`Authentication successful for user: ${username}`);
         return done(null, user);
       } catch (error) {
@@ -103,9 +130,21 @@ export function setupAuth(app: Express) {
     try {
       console.log("Registration attempt for:", req.body.username);
 
+      // Strict validation for registration
       if (!req.body.username || !req.body.password) {
         console.log("Registration failed: Missing credentials");
         return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Enforce minimum requirements for registration
+      if (req.body.username.length < 3) {
+        console.log("Registration failed: Username too short");
+        return res.status(400).json({ message: "Username must be at least 3 characters" });
+      }
+      
+      if (req.body.password.length < 6) {
+        console.log("Registration failed: Password too short");
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
 
       const existingUser = await storage.getUserByUsername(req.body.username);
