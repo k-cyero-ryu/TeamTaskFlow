@@ -61,7 +61,10 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const updateCommentMutation = useMutation({
     mutationFn: async ({ id, content }: { id: number; content: string }) => {
-      const res = await apiRequest("PATCH", `/api/comments/${id}`, { content });
+      const res = await apiRequest("PUT", `/api/comments/${id}`, { 
+        content,
+        taskId 
+      });
       return res.json();
     },
     onSuccess: () => {
@@ -83,7 +86,7 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const deleteCommentMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/comments/${id}`);
+      await apiRequest("DELETE", `/api/comments/${id}?taskId=${taskId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/comments`] });
