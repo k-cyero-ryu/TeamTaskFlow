@@ -486,6 +486,7 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   subtasks: z.array(insertSubtaskSchema).optional(),
   steps: z.array(insertTaskStepSchema).optional(),
   dueDate: z.preprocess((arg) => {
+    if (arg === null || arg === undefined || arg === '') return null;
     if (typeof arg === 'string' || arg instanceof Date) return new Date(arg);
     return null;
   }, z.date().nullable()),

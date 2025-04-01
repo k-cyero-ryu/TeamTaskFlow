@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -97,38 +97,43 @@ export default function SettingsPage() {
   // Query to get SMTP settings
   const { data: smtpSettings, isLoading: isLoadingSmtpSettings } = useQuery({
     queryKey: ['/api/email/smtp-settings'],
-    onSuccess: (data) => {
-      if (data) {
-        smtpForm.reset(data);
-      }
-    },
-    onError: (error) => {
-      // It's okay if this fails initially as the settings might not exist yet
-      console.error("Failed to load SMTP settings:", error);
-    },
+    enabled: true,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
+
+  // Update form when data is available
+  useEffect(() => {
+    if (smtpSettings) {
+      smtpForm.reset(smtpSettings as any);
+    }
+  }, [smtpSettings, smtpForm]);
 
   // Query to get user notification preferences
   const { data: userPreferences, isLoading: isLoadingUserPreferences } = useQuery({
     queryKey: ['/api/email/settings', user?.id],
     enabled: !!user?.id,
-    onSuccess: (data) => {
-      if (data) {
-        notificationForm.reset({
-          email: data.email || "",
-          notificationPreferences: data.notificationPreferences || {
-            taskAssigned: true,
-            taskUpdated: true,
-            taskCommented: true,
-            mentionedInComment: true,
-            privateMessage: true,
-            groupMessage: false,
-            taskDueReminder: true,
-          },
-        });
-      }
-    },
+    refetchOnWindowFocus: false,
   });
+  
+  // Update notification preferences form when data is available
+  useEffect(() => {
+    if (userPreferences) {
+      const preferences = userPreferences as any;
+      notificationForm.reset({
+        email: preferences?.email || "",
+        notificationPreferences: preferences?.notificationPreferences || {
+          taskAssigned: true,
+          taskUpdated: true,
+          taskCommented: true,
+          mentionedInComment: true,
+          privateMessage: true,
+          groupMessage: false,
+          taskDueReminder: true,
+        },
+      });
+    }
+  }, [userPreferences, notificationForm]);
 
   // Mutation to update SMTP settings
   const updateSmtpSettings = useMutation({
@@ -155,7 +160,20 @@ export default function SettingsPage() {
   // Mutation to update user notification preferences
   const updateNotificationPreferences = useMutation({
     mutationFn: async (data: z.infer<typeof notificationPreferencesSchema>) => {
-      const response = await apiRequest("PUT", "/api/email/settings", data);
+      const response = await fetch("/api/email/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        credentials: "include"
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "An unknown error occurred" }));
+        throw new Error(errorData.message || "Failed to update settings");
+      }
+      
       return response.json();
     },
     onSuccess: () => {
