@@ -6,6 +6,7 @@ import workflowRoutes from './workflows';
 import userRoutes from './users';
 import stagesRoutes from './stages';
 import channelRoutes from './channels';
+import uploadsRoutes from './uploads';
 import { errorHandler, requestLogger } from '../../middleware';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.use('/workflows', workflowRoutes);
 router.use('/users', userRoutes);
 router.use('/stages', stagesRoutes);
 router.use('/channels', channelRoutes);
+router.use('/uploads', uploadsRoutes);
 
 // Apply error handling middleware last
 router.use(errorHandler);

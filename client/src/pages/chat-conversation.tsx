@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Send, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { FileUpload, FileAttachment as FileAttachmentComponent } from "@/components/file-upload";
+import { cn } from "@/lib/utils";
+
+type FileAttachment = {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploaderId: number;
+  createdAt: string;
+};
 
 type Message = {
   id: number;
@@ -22,6 +35,7 @@ type Message = {
     id: number;
     username: string;
   };
+  attachments?: FileAttachment[];
 };
 
 export default function ChatConversation({ params }: { params: { id: string } }) {
@@ -31,6 +45,8 @@ export default function ChatConversation({ params }: { params: { id: string } })
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
@@ -169,9 +185,14 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageContent: string) => {
-      const res = await apiRequest("POST", `/api/messages/${otherUserId}`, {
-        content: messageContent,
-        recipientId: otherUserId
+      const res = await fetch(`/api/messages/${otherUserId}`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: messageContent,
+          recipientId: otherUserId
+        }),
+        credentials: 'include'
       });
 
       if (!res.ok) {
@@ -213,9 +234,62 @@ export default function ChatConversation({ params }: { params: { id: string } })
     );
   }
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
-    sendMessageMutation.mutate(message);
+  const handleSendMessage = async () => {
+    // If no message content and no files, don't send anything
+    if (!message.trim() && selectedFiles.length === 0) return;
+    
+    // If there are file attachments, use the upload endpoint
+    if (selectedFiles.length > 0) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('content', message);
+        selectedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        const response = await fetch(`/api/uploads/private-message/${otherUserId}`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to upload: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Update the UI and clear the form
+        setMessage('');
+        setSelectedFiles([]);
+        
+        // Update the query cache with the new message
+        queryClient.setQueryData<Message[]>([`/api/messages/${otherUserId}`], (oldData) => {
+          const currentMessages = Array.isArray(oldData) ? oldData : [];
+          if (!currentMessages.some(m => m.id === data.id)) {
+            return [...currentMessages, data];
+          }
+          return currentMessages;
+        });
+        
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } catch (error) {
+        toast({
+          title: 'Failed to send message with attachments',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // Regular message without attachments
+      sendMessageMutation.mutate(message);
+    }
   };
 
   return (
@@ -282,7 +356,27 @@ export default function ChatConversation({ params }: { params: { id: string } })
                         : "bg-muted"
                     }`}
                   >
-                    <p className="break-words">{message.content}</p>
+                    {message.content && <p className="break-words">{message.content}</p>}
+                    
+                    {/* Display file attachments if any */}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {message.attachments.map((attachment) => (
+                          <FileAttachmentComponent
+                            key={attachment.id}
+                            filename={attachment.originalFilename}
+                            size={attachment.size}
+                            url={`/api/uploads/file/${attachment.filename}`}
+                            className={cn(
+                              isOwn 
+                                ? "bg-primary-foreground border-primary/30" 
+                                : "bg-background border-muted-foreground/20"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
                     <span className={`text-xs opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 ${isOwn ? 'left-0 translate-x-[-100%] pl-1' : 'right-0 translate-x-[100%] pr-1'}`}>
                       {format(new Date(message.createdAt), "p")}
                     </span>
@@ -297,26 +391,73 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
       <div className="border-t p-4">
         <div className="container mx-auto">
+          {selectedFiles.length > 0 && (
+            <div className="mb-3">
+              <FileUpload
+                onFilesSelected={setSelectedFiles}
+                onClearFiles={() => setSelectedFiles([])}
+                selectedFiles={selectedFiles}
+                maxFiles={5}
+              />
+            </div>
+          )}
           <div className="flex gap-2">
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="resize-none"
-              rows={1}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-            />
+            <div className="relative flex-1">
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="resize-none pr-10"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !isUploading) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => {
+                  // Open file selection dialog if no files selected yet
+                  if (selectedFiles.length === 0) {
+                    document.getElementById('private-file-upload-input')?.click();
+                  }
+                }}
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+              {/* Hidden file input for attachment button */}
+              <input
+                id="private-file-upload-input"
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const filesArray = Array.from(e.target.files);
+                    if (filesArray.length > 5) {
+                      toast({
+                        title: "Too many files",
+                        description: "You can only upload a maximum of 5 files.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setSelectedFiles(filesArray);
+                  }
+                }}
+              />
+            </div>
             <Button
               onClick={handleSendMessage}
-              disabled={!message.trim() || sendMessageMutation.isPending}
+              disabled={(isUploading || sendMessageMutation.isPending) || (!message.trim() && selectedFiles.length === 0)}
             >
-              {sendMessageMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {isUploading || sendMessageMutation.isPending ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </span>
               ) : (
                 <Send className="h-4 w-4" />
               )}

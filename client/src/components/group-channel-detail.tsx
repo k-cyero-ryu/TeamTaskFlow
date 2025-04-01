@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserSelector } from './user-selector';
+import { FileUpload, FileAttachment as FileAttachmentComponent } from './file-upload';
 import { 
   Card,
   CardContent,
@@ -16,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { SendHorizontal, UserPlus, Users } from 'lucide-react';
+import { SendHorizontal, UserPlus, Users, Paperclip, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 type GroupChannel = {
   id: number;
@@ -48,6 +50,17 @@ type GroupChannel = {
   isPrivate: boolean;
   createdAt: string;
   updatedAt: string | null;
+};
+
+type FileAttachment = {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploaderId: number;
+  createdAt: string;
 };
 
 type GroupMessage = {
@@ -61,6 +74,7 @@ type GroupMessage = {
     id: number;
     username: string;
   };
+  attachments?: FileAttachment[];
 };
 
 type ChannelMember = {
@@ -308,9 +322,63 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   });
 
   // Handle message submission
-  const handleSubmit = (e: React.FormEvent) => {
+  // State for file attachments
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
+    if (!message.trim() && selectedFiles.length === 0) {
+      return;
+    }
+    
+    // If there are file attachments, use the upload endpoint
+    if (selectedFiles.length > 0) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('content', message);
+        selectedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        const response = await fetch(`/api/uploads/group-message/${channelId}`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to upload: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Update the UI and clear the form
+        setMessage('');
+        setSelectedFiles([]);
+        
+        // Update the query cache with the new message
+        queryClient.setQueryData<GroupMessage[]>(['/api/channels', channelId, 'messages'], (oldData) => {
+          const currentMessages = Array.isArray(oldData) ? oldData : [];
+          return [...currentMessages, data];
+        });
+        
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } catch (error) {
+        toast({
+          title: 'Failed to send message with attachments',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // Regular message without attachments
       sendMessage.mutate(message);
     }
   };
@@ -529,7 +597,26 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                     {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true }) : 'Just now'}
                   </span>
                 </div>
-                <p className="break-words">{msg.content}</p>
+                {msg.content && <p className="break-words">{msg.content}</p>}
+                
+                {/* Display file attachments if any */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {msg.attachments.map((attachment) => (
+                      <FileAttachmentComponent
+                        key={attachment.id}
+                        filename={attachment.originalFilename}
+                        size={attachment.size}
+                        url={`/api/uploads/file/${attachment.filename}`}
+                        className={cn(
+                          msg.sender?.id === user?.id 
+                            ? "bg-primary-foreground border-primary/30" 
+                            : "bg-background border-muted-foreground/20"
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
               
               {msg.sender?.id === user?.id && (
@@ -549,17 +636,73 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <CardFooter className="border-t p-4">
+      <CardFooter className="border-t p-4 flex-col">
+        {selectedFiles.length > 0 && (
+          <div className="mb-3 w-full">
+            <FileUpload
+              onFilesSelected={setSelectedFiles}
+              onClearFiles={() => setSelectedFiles([])}
+              selectedFiles={selectedFiles}
+              maxFiles={5}
+            />
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex w-full gap-2">
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1"
-          />
-          <Button type="submit" disabled={sendMessage.isPending || !message.trim()}>
-            <SendHorizontal className="h-4 w-4 mr-2" />
-            Send
+          <div className="relative flex-1">
+            <Input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 pr-10"
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => {
+                // Open file selection dialog if no files selected yet
+                if (selectedFiles.length === 0) {
+                  document.getElementById('file-upload-input')?.click();
+                }
+              }}
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            {/* Hidden file input for attachment button */}
+            <input
+              id="file-upload-input"
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) {
+                  const filesArray = Array.from(e.target.files);
+                  if (filesArray.length > 5) {
+                    toast({
+                      title: "Too many files",
+                      description: "You can only upload a maximum of 5 files.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setSelectedFiles(filesArray);
+                }
+              }}
+            />
+          </div>
+          <Button 
+            type="submit" 
+            disabled={(isUploading || sendMessage.isPending) || (!message.trim() && selectedFiles.length === 0)}
+          >
+            {isUploading ? (
+              <span className="flex items-center gap-1">
+                <span className="animate-spin">⏳</span> Uploading...
+              </span>
+            ) : (
+              <>
+                <SendHorizontal className="h-4 w-4 mr-2" />
+                Send
+              </>
+            )}
           </Button>
         </form>
       </CardFooter>
