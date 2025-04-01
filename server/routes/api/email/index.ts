@@ -157,7 +157,7 @@ router.get('/notifications', requireAuth, async (req, res) => {
 
 /**
  * @route POST /api/email/notifications/send-welcome
- * @desc Send a welcome email to the user
+ * @desc Send a test welcome email for the current user
  * @access Private
  */
 router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
@@ -171,14 +171,23 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
       });
     }
     
-    // Check if user has an email
-    if (!req.user.email) {
-      return res.status(400).json({ 
-        error: {
-          type: 'VALIDATION_ERROR',
-          message: 'User does not have an email address set'
-        }
-      });
+    // Get or set user email
+    let userEmail = req.user.email;
+    
+    if (!userEmail) {
+      // If user doesn't have an email, check if there's one in settings
+      const userSettings = await storage.getUserByUsername(req.user.username);
+      userEmail = userSettings?.email;
+      
+      // If still no email, use a default or return an error
+      if (!userEmail) {
+        return res.status(400).json({
+          error: {
+            type: 'VALIDATION_ERROR',
+            message: 'User email not set. Please update your email in settings.'
+          }
+        });
+      }
     }
     
     // Generate welcome email content
@@ -190,7 +199,7 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
     // Create notification record
     const notification = await storage.createEmailNotification({
       userId: req.user.id,
-      recipientEmail: req.user.email,
+      recipientEmail: userEmail,
       subject: "Welcome to Team Collaborator!",
       content: html,
       type: "welcome",
@@ -199,7 +208,7 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
     
     // Send email
     await emailService.sendEmail({
-      to: req.user.email,
+      to: userEmail,
       subject: "Welcome to Team Collaborator!",
       html,
       metadata: { userId: req.user.id, notificationType: "welcome" }

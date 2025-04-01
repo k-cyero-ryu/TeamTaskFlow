@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { NotificationsDropdown } from "./notifications-dropdown";
 
 export function MainNav() {
   const [location, setLocation] = useLocation();
@@ -96,6 +97,7 @@ export function MainNav() {
         </NavigationMenu>
 
         <div className="ml-auto flex items-center space-x-4">
+          <NotificationsDropdown />
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
