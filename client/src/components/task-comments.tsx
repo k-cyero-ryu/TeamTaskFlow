@@ -36,10 +36,18 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const createCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", `/api/tasks/${taskId}/comments`, {
-        content,
-        taskId,
+      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+        credentials: 'include',
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error?.message || 'Failed to add comment');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -61,10 +69,18 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const updateCommentMutation = useMutation({
     mutationFn: async ({ id, content }: { id: number; content: string }) => {
-      const res = await apiRequest("PUT", `/api/comments/${id}`, { 
-        content,
-        taskId 
+      const res = await fetch(`/api/tasks/comments/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+        credentials: 'include',
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error?.message || 'Failed to update comment');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -86,7 +102,15 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const deleteCommentMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/comments/${id}?taskId=${taskId}`);
+      const res = await fetch(`/api/tasks/comments/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error?.message || 'Failed to delete comment');
+      }
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/comments`] });

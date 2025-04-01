@@ -15,9 +15,6 @@ async function throwIfResNotOk(res: Response) {
       // Try to parse as JSON first to get structured error data
       const contentType = res.headers.get("content-type");
       
-      // Safe clone of the response to handle potential parsing issues
-      const resClone = res.clone();
-      
       if (contentType && contentType.includes("application/json")) {
         try {
           const errorData = await res.json() as ApiErrorResponse;
@@ -31,7 +28,27 @@ async function throwIfResNotOk(res: Response) {
           throw error;
         } catch (jsonError) {
           // If JSON parsing fails, fall back to text parsing
-          const text = await resClone.text();
+          // Create a new clone since we already consumed the response body with json()
+          const resForText = res.clone();
+          try {
+            const text = await resForText.text();
+            
+            // If text includes HTML content, provide a clearer error
+            if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+              throw new Error(`Server error ${res.status}: Server returned HTML instead of JSON. This usually indicates a server-side error.`);
+            } else {
+              throw new Error(`${res.status}: ${text || res.statusText}`);
+            }
+          } catch (textError) {
+            // If both JSON and text parsing fail, use a generic error
+            throw new Error(`${res.status}: ${res.statusText} (Error parsing response)`);
+          }
+        }
+      } else {
+        // Plain text error - make sure to use a fresh clone
+        const resForText = res.clone();
+        try {
+          const text = await resForText.text();
           
           // If text includes HTML content, provide a clearer error
           if (text.includes('<!DOCTYPE') || text.includes('<html')) {
@@ -39,16 +56,9 @@ async function throwIfResNotOk(res: Response) {
           } else {
             throw new Error(`${res.status}: ${text || res.statusText}`);
           }
-        }
-      } else {
-        // Plain text error
-        const text = await resClone.text();
-        
-        // If text includes HTML content, provide a clearer error
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          throw new Error(`Server error ${res.status}: Server returned HTML instead of JSON. This usually indicates a server-side error.`);
-        } else {
-          throw new Error(`${res.status}: ${text || res.statusText}`);
+        } catch (textError) {
+          // If text parsing fails, use a generic error
+          throw new Error(`${res.status}: ${res.statusText} (Error parsing response)`);
         }
       }
     } catch (parseError) {
@@ -79,8 +89,19 @@ export async function apiRequest(
   };
 
   const res = await fetch(url, config);
-
-  await throwIfResNotOk(res);
+  
+  // Clone the response before checking if it's ok
+  // This ensures we can still return a usable response object
+  const resForError = res.clone();
+  
+  try {
+    await throwIfResNotOk(resForError);
+  } catch (error) {
+    // If error checking fails, we still want to propagate the error
+    // but we also want to return a usable response object
+    throw error;
+  }
+  
   return res;
 }
 
@@ -98,23 +119,36 @@ export const getQueryFn: <T>(options: {
       return null;
     }
 
-    await throwIfResNotOk(res);
+    // Clone the response before error checking
+    const resForError = res.clone();
+    
+    try {
+      await throwIfResNotOk(resForError);
+    } catch (error) {
+      throw error;
+    }
     
     try {
       return await res.json();
     } catch (error) {
       console.error("Failed to parse JSON response:", error);
       
-      // Clone the response to read it again
-      const resClone = res.clone();
-      const text = await resClone.text();
+      // Clone the response to read it again - we already used the original for json()
+      const resForText = res.clone();
       
-      // If it's HTML, provide a more helpful error
-      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-        throw new Error(`Server returned HTML instead of JSON. This usually indicates a server-side error.`);
-      } else {
-        // If it's not HTML, just throw the original error
-        throw new Error(`Failed to parse server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+      try {
+        const text = await resForText.text();
+        
+        // If it's HTML, provide a more helpful error
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          throw new Error(`Server returned HTML instead of JSON. This usually indicates a server-side error.`);
+        } else {
+          // If it's not HTML, just throw a more descriptive error
+          throw new Error(`Failed to parse server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+        }
+      } catch (textError) {
+        // If reading as text also fails, throw the original error
+        throw new Error(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   };

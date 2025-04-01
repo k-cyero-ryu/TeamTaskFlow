@@ -57,12 +57,19 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task status mutation
   const updateTaskStatus = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
-      const res = await apiRequest(`/api/tasks/${id}/status`, {
+      const res = await fetch(`/api/tasks/${id}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
       });
-      return res.json();
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(errorData.error || `Failed to update task status: ${res.statusText}`);
+      }
+      
+      return await res.json();
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -83,7 +90,17 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Delete task mutation
   const deleteTask = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest(`/api/tasks/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(errorData.error || `Failed to delete task: ${res.statusText}`);
+      }
+      
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -104,12 +121,19 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task stage mutation
   const updateTaskStage = useMutation({
     mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const res = await apiRequest(`/api/tasks/${taskId}/stage`, {
+      const res = await fetch(`/api/tasks/${taskId}/stage`, {
         method: "PATCH",
-        body: JSON.stringify({ stageId }),
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stageId }),
+        credentials: "include",
       });
-      return res.json();
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(errorData.error || `Failed to update task stage: ${res.statusText}`);
+      }
+      
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
