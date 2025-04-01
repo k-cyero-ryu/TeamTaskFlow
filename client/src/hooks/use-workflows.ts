@@ -28,6 +28,11 @@ export function useWorkflows() {
   } = useQuery<WorkflowStage[]>({
     queryKey: ["/api/stages"],
     enabled: workflows.length > 0,
+    retry: 1,
+    retryDelay: 1000,
+    onError: (error) => {
+      console.error("Error loading stages:", error);
+    },
   });
 
   // Get stages for a specific workflow

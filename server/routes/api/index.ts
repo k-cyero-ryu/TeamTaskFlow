@@ -8,6 +8,7 @@ import channelsRouter from './channels';
 import uploadsRouter from './uploads';
 import emailRouter from './email';
 import calendarRouter from './calendar';
+import stagesRouter from './stages';
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use('/channels', channelsRouter);
 router.use('/uploads', uploadsRouter);
 router.use('/email', emailRouter);
 router.use('/calendar', calendarRouter);
+router.use('/stages', stagesRouter);
 
 export default router;
