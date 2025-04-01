@@ -192,6 +192,7 @@ router.post('/:taskId/comments', requireAuth, validateParams({
       throw new ValidationError('Comment content is required');
     }
 
+    // Create the comment with the validated content
     const comment = await storage.createComment({
       content,
       taskId,

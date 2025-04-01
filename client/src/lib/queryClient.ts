@@ -139,17 +139,46 @@ export const getQueryFn: <T>(options: {
       
       // Check if response is ok using the original response
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(errorData.message || errorData.error?.message || res.statusText);
+        // Try to parse error as JSON
+        try {
+          const errorData = await res.json();
+          throw new Error(errorData.message || errorData.error?.message || res.statusText);
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get text content
+          const textResponse = await res.clone().text();
+          
+          // Check if it's an HTML response
+          if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
+            throw new Error(`Server error ${res.status}: Server returned HTML instead of JSON`);
+          } else {
+            throw new Error(`Error ${res.status}: ${textResponse || res.statusText}`);
+          }
+        }
       }
       
       // Use the clone for the actual data
       try {
-        return await resForProcessing.json();
-      } catch (error) {
-        console.error("Failed to parse JSON response:", error);
+        // Check if the response is HTML before trying to parse as JSON
+        const contentType = res.headers.get('content-type');
         
-        throw new Error(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`);
+        // Get a text version first to check
+        const textResponse = await resForProcessing.clone().text();
+        
+        // Check if it's an HTML response
+        if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
+          throw new Error(`Failed to parse response: Received HTML instead of JSON`);
+        }
+        
+        // If we got here, try to parse as JSON
+        try {
+          return JSON.parse(textResponse);
+        } catch (jsonError) {
+          console.error("Failed to parse JSON response:", jsonError);
+          throw new Error(`Failed to parse response: ${textResponse.substring(0, 50)}...`);
+        }
+      } catch (error) {
+        console.error("Failed to parse response:", error);
+        throw error;
       }
     } catch (error) {
       console.error("Query error:", error);

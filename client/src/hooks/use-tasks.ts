@@ -57,19 +57,15 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task status mutation
   const updateTaskStatus = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
-      const res = await fetch(`/api/tasks/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-        credentials: "include",
-      });
+      const res = await apiRequest("PATCH", `/api/tasks/${id}/status`, { status });
+      const resClone = res.clone();
       
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(errorData.error || `Failed to update task status: ${res.statusText}`);
+      try {
+        return await resClone.json();
+      } catch (error) {
+        console.error("Error parsing task status response:", error);
+        throw new Error("Failed to update task: Invalid response format");
       }
-      
-      return await res.json();
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -90,17 +86,7 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Delete task mutation
   const deleteTask = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(errorData.error || `Failed to delete task: ${res.statusText}`);
-      }
-      
-      return res;
+      return await apiRequest("DELETE", `/api/tasks/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -121,19 +107,15 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task stage mutation
   const updateTaskStage = useMutation({
     mutationFn: async ({ taskId, stageId }: { taskId: number; stageId: number }) => {
-      const res = await fetch(`/api/tasks/${taskId}/stage`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stageId }),
-        credentials: "include",
-      });
+      const res = await apiRequest("PATCH", `/api/tasks/${taskId}/stage`, { stageId });
+      const resClone = res.clone();
       
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(errorData.error || `Failed to update task stage: ${res.statusText}`);
+      try {
+        return await resClone.json();
+      } catch (error) {
+        console.error("Error parsing task stage update response:", error);
+        throw new Error("Failed to update task stage: Invalid response format");
       }
-      
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
