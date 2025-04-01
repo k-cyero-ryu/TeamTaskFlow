@@ -1,11 +1,15 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
 import { Logger } from "./utils/logger";
 import { DatabaseError } from "./utils/errors";
+import express from "express";
+import multer from "multer";
+// Include Express namespace for Multer.File type
+import 'express';
 
 // Initialize logger for storage operations
 const logger = new Logger('Storage');
@@ -60,6 +64,21 @@ interface IStorage {
   removeChannelMember(channelId: number, userId: number): Promise<void>;
   getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]>;
   createGroupMessage(message: InsertGroupMessage & { senderId: number }): Promise<GroupMessage>;
+  
+  // File attachment methods
+  createFileAttachment(file: InsertFileAttachment & { uploaderId: number }): Promise<FileAttachment>;
+  getFileAttachment(id: number): Promise<FileAttachment | undefined>;
+  getFileAttachments(fileIds: number[]): Promise<FileAttachment[]>;
+  createPrivateMessageWithAttachments(
+    message: InsertPrivateMessage & { senderId: number },
+    files?: Express.Multer.File[]
+  ): Promise<PrivateMessage>;
+  createGroupMessageWithAttachments(
+    message: InsertGroupMessage & { senderId: number },
+    files?: Express.Multer.File[]
+  ): Promise<GroupMessage>;
+  getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
+  getGroupMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -950,6 +969,215 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to create group message', { error, channelId: message.channelId });
       throw new DatabaseError(`Failed to create group message: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // File attachment methods
+  async createFileAttachment(file: InsertFileAttachment & { uploaderId: number }): Promise<FileAttachment> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newFile] = await db
+          .insert(fileAttachments)
+          .values({
+            filename: file.filename,
+            originalFilename: file.originalFilename,
+            mimeType: file.mimeType,
+            size: file.size,
+            path: file.path,
+            uploaderId: file.uploaderId,
+          })
+          .returning();
+        return newFile;
+      }, 'Create file attachment');
+    } catch (error) {
+      logger.error('Failed to create file attachment', { error, filename: file.originalFilename });
+      throw new DatabaseError(`Failed to create file attachment: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getFileAttachment(id: number): Promise<FileAttachment | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [file] = await db.select().from(fileAttachments).where(eq(fileAttachments.id, id));
+        return file;
+      }, 'Get file attachment by ID');
+    } catch (error) {
+      logger.error(`Failed to get file attachment with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get file attachment: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getFileAttachments(fileIds: number[]): Promise<FileAttachment[]> {
+    try {
+      return await executeWithRetry(async () => {
+        if (fileIds.length === 0) return [];
+        return await db.select().from(fileAttachments).where(inArray(fileAttachments.id, fileIds));
+      }, 'Get file attachments by IDs');
+    } catch (error) {
+      logger.error(`Failed to get file attachments with IDs ${fileIds.join(', ')}`, { error });
+      throw new DatabaseError(`Failed to get file attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createPrivateMessageWithAttachments(
+    message: InsertPrivateMessage & { senderId: number },
+    files?: Express.Multer.File[]
+  ): Promise<PrivateMessage> {
+    try {
+      return await executeWithRetry(async () => {
+        // First, create the message
+        const [newMessage] = await db
+          .insert(privateMessages)
+          .values({
+            content: message.content,
+            senderId: message.senderId,
+            recipientId: message.recipientId,
+          })
+          .returning();
+
+        // If there are files, create file attachments and link them to the message
+        if (files && files.length > 0) {
+          const fileAttachmentRecords = await Promise.all(
+            files.map(async (file) => {
+              const [fileRecord] = await db
+                .insert(fileAttachments)
+                .values({
+                  filename: file.filename,
+                  originalFilename: file.originalname,
+                  mimeType: file.mimetype,
+                  size: file.size,
+                  path: file.path,
+                  uploaderId: message.senderId,
+                })
+                .returning();
+              return fileRecord;
+            })
+          );
+
+          // Create message attachment records
+          await db.insert(privateMessageAttachments).values(
+            fileAttachmentRecords.map((file) => ({
+              messageId: newMessage.id,
+              fileId: file.id,
+            }))
+          );
+        }
+
+        return newMessage;
+      }, 'Create private message with attachments');
+    } catch (error) {
+      logger.error('Failed to create private message with attachments', { error });
+      throw new DatabaseError(`Failed to create private message with attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createGroupMessageWithAttachments(
+    message: InsertGroupMessage & { senderId: number },
+    files?: Express.Multer.File[]
+  ): Promise<GroupMessage> {
+    try {
+      return await executeWithRetry(async () => {
+        // First, create the message
+        const [newMessage] = await db
+          .insert(groupMessages)
+          .values({
+            content: message.content,
+            channelId: message.channelId,
+            senderId: message.senderId,
+          })
+          .returning();
+
+        // If there are files, create file attachments and link them to the message
+        if (files && files.length > 0) {
+          const fileAttachmentRecords = await Promise.all(
+            files.map(async (file) => {
+              const [fileRecord] = await db
+                .insert(fileAttachments)
+                .values({
+                  filename: file.filename,
+                  originalFilename: file.originalname,
+                  mimeType: file.mimetype,
+                  size: file.size,
+                  path: file.path,
+                  uploaderId: message.senderId,
+                })
+                .returning();
+              return fileRecord;
+            })
+          );
+
+          // Create message attachment records
+          await db.insert(groupMessageAttachments).values(
+            fileAttachmentRecords.map((file) => ({
+              messageId: newMessage.id,
+              fileId: file.id,
+            }))
+          );
+        }
+
+        return newMessage;
+      }, 'Create group message with attachments');
+    } catch (error) {
+      logger.error('Failed to create group message with attachments', { error });
+      throw new DatabaseError(`Failed to create group message with attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const attachments = await db
+          .select({
+            id: fileAttachments.id,
+            filename: fileAttachments.filename,
+            originalFilename: fileAttachments.originalFilename,
+            mimeType: fileAttachments.mimeType,
+            size: fileAttachments.size,
+            path: fileAttachments.path,
+            uploaderId: fileAttachments.uploaderId,
+            createdAt: fileAttachments.createdAt,
+          })
+          .from(privateMessageAttachments)
+          .innerJoin(
+            fileAttachments,
+            eq(privateMessageAttachments.fileId, fileAttachments.id)
+          )
+          .where(eq(privateMessageAttachments.messageId, messageId));
+        
+        return attachments;
+      }, 'Get attachments for private message');
+    } catch (error) {
+      logger.error(`Failed to get attachments for private message ${messageId}`, { error });
+      throw new DatabaseError(`Failed to get private message attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getGroupMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const attachments = await db
+          .select({
+            id: fileAttachments.id,
+            filename: fileAttachments.filename,
+            originalFilename: fileAttachments.originalFilename,
+            mimeType: fileAttachments.mimeType,
+            size: fileAttachments.size,
+            path: fileAttachments.path,
+            uploaderId: fileAttachments.uploaderId,
+            createdAt: fileAttachments.createdAt,
+          })
+          .from(groupMessageAttachments)
+          .innerJoin(
+            fileAttachments,
+            eq(groupMessageAttachments.fileId, fileAttachments.id)
+          )
+          .where(eq(groupMessageAttachments.messageId, messageId));
+        
+        return attachments;
+      }, 'Get attachments for group message');
+    } catch (error) {
+      logger.error(`Failed to get attachments for group message ${messageId}`, { error });
+      throw new DatabaseError(`Failed to get group message attachments: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, json, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, json, unique, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -133,6 +133,32 @@ export const privateMessages = pgTable("private_messages", {
   readAt: timestamp("read_at"),
 });
 
+// File attachment table
+export const fileAttachments = pgTable("file_attachments", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  mimeType: varchar("mime_type", { length: 255 }).notNull(),
+  size: integer("size").notNull(), // size in bytes
+  path: text("path").notNull(),
+  uploaderId: integer("uploader_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Attachment associations for private messages
+export const privateMessageAttachments = pgTable("private_message_attachments", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").references(() => privateMessages.id).notNull(),
+  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+});
+
+// Attachment associations for group messages
+export const groupMessageAttachments = pgTable("group_message_attachments", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").references(() => groupMessages.id).notNull(),
+  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+});
+
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   creator: one(users, {
     fields: [tasks.creatorId],
@@ -192,7 +218,7 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   }),
 }));
 
-export const privateMessagesRelations = relations(privateMessages, ({ one }) => ({
+export const privateMessagesRelations = relations(privateMessages, ({ one, many }) => ({
   sender: one(users, {
     fields: [privateMessages.senderId],
     references: [users.id],
@@ -201,6 +227,7 @@ export const privateMessagesRelations = relations(privateMessages, ({ one }) => 
     fields: [privateMessages.recipientId],
     references: [users.id],
   }),
+  attachments: many(privateMessageAttachments),
 }));
 
 export const groupChannelsRelations = relations(groupChannels, ({ one, many }) => ({
@@ -223,7 +250,7 @@ export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
   }),
 }));
 
-export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
+export const groupMessagesRelations = relations(groupMessages, ({ one, many }) => ({
   channel: one(groupChannels, {
     fields: [groupMessages.channelId],
     references: [groupChannels.id],
@@ -232,6 +259,7 @@ export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
     fields: [groupMessages.senderId],
     references: [users.id],
   }),
+  attachments: many(groupMessageAttachments),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -244,6 +272,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdChannels: many(groupChannels, { relationName: "creator" }),
   channelMemberships: many(channelMembers),
   groupMessages: many(groupMessages, { relationName: "sender" }),
+  uploadedFiles: many(fileAttachments, { relationName: "uploader" }),
 }));
 
 export const workflowsRelations = relations(workflows, ({ one, many }) => ({
@@ -276,6 +305,40 @@ export const workflowTransitionsRelations = relations(workflowTransitions, ({ on
   }),
 }));
 
+// File attachment relations
+export const fileAttachmentsRelations = relations(fileAttachments, ({ one, many }) => ({
+  uploader: one(users, {
+    fields: [fileAttachments.uploaderId],
+    references: [users.id],
+  }),
+  privateMessages: many(privateMessageAttachments),
+  groupMessages: many(groupMessageAttachments),
+}));
+
+// PrivateMessageAttachments relations
+export const privateMessageAttachmentsRelations = relations(privateMessageAttachments, ({ one }) => ({
+  message: one(privateMessages, {
+    fields: [privateMessageAttachments.messageId],
+    references: [privateMessages.id],
+  }),
+  file: one(fileAttachments, {
+    fields: [privateMessageAttachments.fileId],
+    references: [fileAttachments.id],
+  }),
+}));
+
+// GroupMessageAttachments relations
+export const groupMessageAttachmentsRelations = relations(groupMessageAttachments, ({ one }) => ({
+  message: one(groupMessages, {
+    fields: [groupMessageAttachments.messageId],
+    references: [groupMessages.id],
+  }),
+  file: one(fileAttachments, {
+    fields: [groupMessageAttachments.fileId],
+    references: [fileAttachments.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -300,6 +363,7 @@ export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pi
   content: true,
 }).extend({
   recipientId: z.number(),
+  attachments: z.array(z.instanceof(File)).optional(),
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
@@ -338,6 +402,8 @@ export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
   content: true,
   channelId: true,
+}).extend({
+  attachments: z.array(z.instanceof(File)).optional(),
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({
@@ -380,3 +446,29 @@ export type GroupMessage = typeof groupMessages.$inferSelect;
 export type InsertGroupChannel = z.infer<typeof insertGroupChannelSchema>;
 export type InsertChannelMember = z.infer<typeof insertChannelMemberSchema>;
 export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
+
+// File attachment schemas and types
+export const insertFileAttachmentSchema = createInsertSchema(fileAttachments).pick({
+  filename: true,
+  originalFilename: true,
+  mimeType: true,
+  size: true,
+  path: true,
+});
+
+export const insertPrivateMessageAttachmentSchema = createInsertSchema(privateMessageAttachments).pick({
+  messageId: true,
+  fileId: true,
+});
+
+export const insertGroupMessageAttachmentSchema = createInsertSchema(groupMessageAttachments).pick({
+  messageId: true,
+  fileId: true,
+});
+
+export type FileAttachment = typeof fileAttachments.$inferSelect;
+export type PrivateMessageAttachment = typeof privateMessageAttachments.$inferSelect;
+export type GroupMessageAttachment = typeof groupMessageAttachments.$inferSelect;
+export type InsertFileAttachment = z.infer<typeof insertFileAttachmentSchema>;
+export type InsertPrivateMessageAttachment = z.infer<typeof insertPrivateMessageAttachmentSchema>;
+export type InsertGroupMessageAttachment = z.infer<typeof insertGroupMessageAttachmentSchema>;
