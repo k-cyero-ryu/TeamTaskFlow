@@ -1,67 +1,83 @@
 /**
- * Simple logger class for consistent logging format
+ * Simple logger utility for better structured logging
  */
 export class Logger {
-  private context: string;
+  private source: string;
   
-  /**
-   * Create a new logger with a specific context
-   * @param context The context of the logger (usually the class or module name)
-   */
-  constructor(context: string) {
-    this.context = context;
+  constructor(source: string) {
+    this.source = source;
   }
   
   /**
-   * Log a debug message
-   * @param message The message to log
-   * @param meta Optional metadata to include
+   * Log an informational message
+   * @param message Log message
+   * @param data Optional data to include
    */
-  debug(message: string, meta?: any): void {
-    this.log('DEBUG', message, meta);
-  }
-  
-  /**
-   * Log an info message
-   * @param message The message to log
-   * @param meta Optional metadata to include
-   */
-  info(message: string, meta?: any): void {
-    this.log('INFO', message, meta);
+  info(message: string, data?: Record<string, any>) {
+    this.log('INFO', message, data);
   }
   
   /**
    * Log a warning message
-   * @param message The message to log
-   * @param meta Optional metadata to include
+   * @param message Log message
+   * @param data Optional data to include
    */
-  warn(message: string, meta?: any): void {
-    this.log('WARN', message, meta);
+  warn(message: string, data?: Record<string, any>) {
+    this.log('WARN', message, data);
   }
   
   /**
    * Log an error message
-   * @param message The message to log
-   * @param meta Optional metadata to include
+   * @param message Log message
+   * @param data Optional data to include
    */
-  error(message: string, meta?: any): void {
-    this.log('ERROR', message, meta);
+  error(message: string, data?: Record<string, any>) {
+    // Handle special case for error objects
+    if (data && data.error instanceof Error) {
+      const err = data.error;
+      data = {
+        ...data,
+        error: {
+          name: err.name,
+          message: err.message,
+          stack: err.stack
+        }
+      };
+    }
+    
+    this.log('ERROR', message, data);
   }
   
   /**
-   * Log a message with a specific level
-   * @param level The log level
-   * @param message The message to log
-   * @param meta Optional metadata to include
+   * Log a debug message
+   * @param message Log message
+   * @param data Optional data to include
    */
-  private log(level: string, message: string, meta?: any): void {
+  debug(message: string, data?: Record<string, any>) {
+    // Only log debug messages if DEBUG environment variable is set
+    if (process.env.DEBUG) {
+      this.log('DEBUG', message, data);
+    }
+  }
+  
+  /**
+   * Private method to handle all logging
+   */
+  private log(level: string, message: string, data?: Record<string, any>) {
     const timestamp = new Date().toISOString();
-    console.log(JSON.stringify({
+    const logEntry = {
       timestamp,
       level,
-      context: `[${this.context}]`,
+      source: this.source,
       message,
-      meta: meta || null
-    }));
+      ...data
+    };
+    
+    // Special formatting for errors for better visibility
+    if (level === 'ERROR') {
+      console.error(JSON.stringify(logEntry, null, 2));
+    } else {
+      console.log(JSON.stringify(logEntry));
+    }
   }
 }

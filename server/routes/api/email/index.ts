@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { storage } from '../../../storage';
-import { isAuthenticated, isAdmin } from '../../../middleware';
+import { requireAuth, isAdmin, validateRequest } from '../../../middleware';
 import { z } from 'zod';
-import { validateRequest } from '../../../middleware';
 import { emailService } from '../../../services/email';
 
 const router = Router();
@@ -31,7 +30,7 @@ const updateNotificationSchema = z.object({
 });
 
 // Get all email notifications for the authenticated user
-router.get('/notifications', isAuthenticated, async (req, res) => {
+router.get('/notifications', requireAuth, async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -46,7 +45,7 @@ router.get('/notifications', isAuthenticated, async (req, res) => {
 });
 
 // Create a new email notification
-router.post('/notifications', isAuthenticated, validateRequest(createNotificationSchema), async (req, res) => {
+router.post('/notifications', requireAuth, validateRequest(createNotificationSchema), async (req, res) => {
   try {
     // Ensure the user can only create notifications for themselves
     if (req.user && req.body.userId !== req.user.id) {
@@ -89,7 +88,7 @@ router.post('/notifications', isAuthenticated, validateRequest(createNotificatio
 });
 
 // Get a specific email notification
-router.get('/notifications/:id', isAuthenticated, async (req, res) => {
+router.get('/notifications/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -114,7 +113,7 @@ router.get('/notifications/:id', isAuthenticated, async (req, res) => {
 });
 
 // Update an email notification
-router.put('/notifications/:id', isAuthenticated, validateRequest(updateNotificationSchema), async (req, res) => {
+router.put('/notifications/:id', requireAuth, validateRequest(updateNotificationSchema), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -145,7 +144,7 @@ router.put('/notifications/:id', isAuthenticated, validateRequest(updateNotifica
 });
 
 // Delete an email notification
-router.delete('/notifications/:id', isAuthenticated, async (req, res) => {
+router.delete('/notifications/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -189,7 +188,7 @@ router.post('/send-pending', isAdmin, async (req, res) => {
 });
 
 // Update user's email settings
-router.put('/settings', isAuthenticated, async (req, res) => {
+router.put('/settings', requireAuth, async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

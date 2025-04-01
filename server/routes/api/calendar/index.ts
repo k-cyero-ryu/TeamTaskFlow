@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { storage } from '../../../storage';
-import { isAuthenticated } from '../../../middleware';
+import { requireAuth } from '../../../middleware';
 import { z } from 'zod';
 import { validateRequest } from '../../../middleware';
 import { calendarService } from '../../../services/calendar';
@@ -30,7 +30,7 @@ const updateEventSchema = z.object({
 });
 
 // Get all calendar events for the authenticated user
-router.get('/events', isAuthenticated, async (req, res) => {
+router.get('/events', requireAuth, async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -45,7 +45,7 @@ router.get('/events', isAuthenticated, async (req, res) => {
 });
 
 // Create a new calendar event
-router.post('/events', isAuthenticated, validateRequest(createEventSchema), async (req, res) => {
+router.post('/events', requireAuth, validateRequest(createEventSchema), async (req, res) => {
   try {
     // Ensure the user can only create events for themselves
     if (req.user && req.body.userId !== req.user.id) {
@@ -61,7 +61,7 @@ router.post('/events', isAuthenticated, validateRequest(createEventSchema), asyn
 });
 
 // Get a specific calendar event
-router.get('/events/:id', isAuthenticated, async (req, res) => {
+router.get('/events/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -86,7 +86,7 @@ router.get('/events/:id', isAuthenticated, async (req, res) => {
 });
 
 // Update a calendar event
-router.put('/events/:id', isAuthenticated, validateRequest(updateEventSchema), async (req, res) => {
+router.put('/events/:id', requireAuth, validateRequest(updateEventSchema), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -112,7 +112,7 @@ router.put('/events/:id', isAuthenticated, validateRequest(updateEventSchema), a
 });
 
 // Delete a calendar event
-router.delete('/events/:id', isAuthenticated, async (req, res) => {
+router.delete('/events/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -138,7 +138,7 @@ router.delete('/events/:id', isAuthenticated, async (req, res) => {
 });
 
 // Generate iCalendar file for all events
-router.get('/ical', isAuthenticated, async (req, res) => {
+router.get('/ical', requireAuth, async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -160,7 +160,7 @@ router.get('/ical', isAuthenticated, async (req, res) => {
 });
 
 // Generate iCalendar file for a specific event
-router.get('/ical/:id', isAuthenticated, async (req, res) => {
+router.get('/ical/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
