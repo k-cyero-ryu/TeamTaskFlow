@@ -88,21 +88,35 @@ export async function apiRequest(
     credentials: "include",
   };
 
-  const res = await fetch(url, config);
-  
-  // Clone the response before checking if it's ok
-  // This ensures we can still return a usable response object
-  const resForError = res.clone();
-  
   try {
-    await throwIfResNotOk(resForError);
+    const res = await fetch(url, config);
+    
+    // Create a clone immediately for error checking
+    const resForError = res.clone();
+    
+    // Check if response is OK
+    if (!resForError.ok) {
+      // Try to get error details from response
+      try {
+        const errorData = await resForError.json();
+        const error = new Error(
+          errorData.message || 
+          errorData.error?.message || 
+          `Request failed with status ${resForError.status}`
+        );
+        (error as any).status = resForError.status;
+        throw error;
+      } catch (jsonError) {
+        // If we couldn't parse JSON, throw with status text
+        throw new Error(`Request failed: ${resForError.statusText || resForError.status}`);
+      }
+    }
+    
+    return res;
   } catch (error) {
-    // If error checking fails, we still want to propagate the error
-    // but we also want to return a usable response object
+    console.error("API request error:", error);
     throw error;
   }
-  
-  return res;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -111,45 +125,35 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    // Clone the response before error checking
-    const resForError = res.clone();
-    
     try {
-      await throwIfResNotOk(resForError);
-    } catch (error) {
-      throw error;
-    }
-    
-    try {
-      return await res.json();
-    } catch (error) {
-      console.error("Failed to parse JSON response:", error);
+      const res = await fetch(queryKey[0] as string, {
+        credentials: "include",
+      });
+
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      // Create a clone right away before doing anything with the response
+      const resForProcessing = res.clone();
       
-      // Clone the response to read it again - we already used the original for json()
-      const resForText = res.clone();
+      // Check if response is ok using the original response
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(errorData.message || errorData.error?.message || res.statusText);
+      }
       
+      // Use the clone for the actual data
       try {
-        const text = await resForText.text();
+        return await resForProcessing.json();
+      } catch (error) {
+        console.error("Failed to parse JSON response:", error);
         
-        // If it's HTML, provide a more helpful error
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          throw new Error(`Server returned HTML instead of JSON. This usually indicates a server-side error.`);
-        } else {
-          // If it's not HTML, just throw a more descriptive error
-          throw new Error(`Failed to parse server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
-        }
-      } catch (textError) {
-        // If reading as text also fails, throw the original error
         throw new Error(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`);
       }
+    } catch (error) {
+      console.error("Query error:", error);
+      throw error;
     }
   };
 
