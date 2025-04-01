@@ -408,10 +408,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: Pick<User, 'id' | 'username'> })[]> {
+  async getPrivateMessages(userId1: number, userId2: number): Promise<(PrivateMessage & { sender: Pick<User, 'id' | 'username'>; attachments?: (FileAttachment & { id: number })[] })[]> {
     try {
       return await executeWithRetry(async () => {
-        return await db
+        const messages = await db
           .select({
             id: privateMessages.id,
             content: privateMessages.content,
@@ -441,6 +441,24 @@ export class DatabaseStorage implements IStorage {
             )
           )
           .orderBy(privateMessages.createdAt);
+          
+        // For each message, fetch its attachments
+        const messagesWithAttachments = await Promise.all(
+          messages.map(async (message) => {
+            try {
+              const attachments = await this.getPrivateMessageAttachments(message.id);
+              return {
+                ...message,
+                attachments: attachments.length > 0 ? attachments : undefined
+              };
+            } catch (error) {
+              logger.error(`Failed to get attachments for message ${message.id}`, { error });
+              return message;
+            }
+          })
+        );
+        
+        return messagesWithAttachments;
       }, 'Get private messages between users');
     } catch (error) {
       logger.error(`Failed to get private messages between users ${userId1} and ${userId2}`, { error });
@@ -925,10 +943,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]> {
+  async getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'>; attachments?: (FileAttachment & { id: number })[] })[]> {
     try {
       return await executeWithRetry(async () => {
-        return await db
+        const messages = await db
           .select({
             id: groupMessages.id,
             content: groupMessages.content,
@@ -945,6 +963,24 @@ export class DatabaseStorage implements IStorage {
           .innerJoin(users, eq(groupMessages.senderId, users.id))
           .where(eq(groupMessages.channelId, channelId))
           .orderBy(groupMessages.createdAt);
+        
+        // For each message, fetch its attachments
+        const messagesWithAttachments = await Promise.all(
+          messages.map(async (message) => {
+            try {
+              const attachments = await this.getGroupMessageAttachments(message.id);
+              return {
+                ...message,
+                attachments: attachments.length > 0 ? attachments : undefined
+              };
+            } catch (error) {
+              logger.error(`Failed to get attachments for group message ${message.id}`, { error });
+              return message;
+            }
+          })
+        );
+        
+        return messagesWithAttachments;
       }, 'Get group messages for channel');
     } catch (error) {
       logger.error(`Failed to get messages for channel ${channelId}`, { error });
