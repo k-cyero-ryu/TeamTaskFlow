@@ -243,7 +243,8 @@ export default function ChatConversation({ params }: { params: { id: string } })
       setIsUploading(true);
       try {
         const formData = new FormData();
-        formData.append('content', message);
+        // If no message content is provided, use a default empty string
+        formData.append('content', message || ' ');
         selectedFiles.forEach(file => {
           formData.append('files', file);
         });
