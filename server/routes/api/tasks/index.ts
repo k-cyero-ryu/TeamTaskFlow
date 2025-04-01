@@ -60,7 +60,7 @@ router.get('/', requireAuth, async (req, res) => {
  * @desc Create a new task
  * @access Private
  */
-router.post('/', requireAuth, validateParams(insertTaskSchema), async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user!.id;
     
@@ -175,7 +175,9 @@ router.get('/:taskId/comments', requireAuth, async (req, res) => {
  * @desc Create a new comment for a task
  * @access Private
  */
-router.post('/:taskId/comments', requireAuth, validateParams(insertCommentSchema), async (req, res) => {
+router.post('/:taskId/comments', requireAuth, validateParams({
+  taskId: (id) => !isNaN(parseInt(id))
+}), async (req, res) => {
   try {
     const taskId = parseInt(req.params.taskId);
     const userId = req.user!.id;
@@ -183,9 +185,15 @@ router.post('/:taskId/comments', requireAuth, validateParams(insertCommentSchema
     if (isNaN(taskId)) {
       throw new ValidationError('Invalid task ID');
     }
+    
+    // Validate comment content
+    const { content } = req.body;
+    if (!content || typeof content !== 'string' || content.trim() === '') {
+      throw new ValidationError('Comment content is required');
+    }
 
     const comment = await storage.createComment({
-      ...req.body,
+      content,
       taskId,
       userId,
     });

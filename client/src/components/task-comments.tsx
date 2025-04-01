@@ -36,9 +36,26 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
 
   const createCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      // Use the apiRequest helper to ensure proper response handling
-      const res = await apiRequest('POST', `/api/tasks/${taskId}/comments`, { content });
-      return res.json();
+      try {
+        // Ensure content is properly formatted as required by the API
+        const payload = { content };
+        const res = await apiRequest('POST', `/api/tasks/${taskId}/comments`, payload);
+        
+        // Clone the response before consuming it
+        const responseClone = res.clone();
+        
+        try {
+          return await responseClone.json();
+        } catch (jsonError) {
+          console.error("Failed to parse comment response:", jsonError);
+          const textResponse = await res.text();
+          console.log("Raw response:", textResponse);
+          throw new Error("Failed to create comment: Invalid response format");
+        }
+      } catch (error) {
+        console.error("Comment creation error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/comments`] });
