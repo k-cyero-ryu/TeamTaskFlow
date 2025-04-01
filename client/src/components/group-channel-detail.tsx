@@ -602,7 +602,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
                 
                 {/* Display file attachments if any */}
                 {msg.attachments && msg.attachments.length > 0 && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 space-y-2">
                     {msg.attachments.map((attachment) => (
                       <FileAttachmentComponent
                         key={attachment.id}

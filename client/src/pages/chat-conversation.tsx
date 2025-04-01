@@ -361,7 +361,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
                     
                     {/* Display file attachments if any */}
                     {message.attachments && message.attachments.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-2">
                         {message.attachments.map((attachment) => (
                           <FileAttachmentComponent
                             key={attachment.id}

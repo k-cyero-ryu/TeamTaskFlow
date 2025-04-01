@@ -180,24 +180,57 @@ export function FileAttachment({ filename, size, url, className }: FileAttachmen
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
   
-  // Get file extension to show appropriate icon (can be expanded later)
+  // Get file extension to determine file type
   const extension = filename.split('.').pop()?.toLowerCase() || '';
   
+  // Check if the file is an image based on extension
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+  
   return (
-    <a 
-      href={url} 
-      target="_blank" 
-      rel="noopener noreferrer" 
-      className={cn("flex items-center gap-2 p-2 bg-background border rounded-md transition-colors hover:bg-accent/50 min-w-[120px]", className)}
-      download={filename}
-    >
-      <File className="h-4 w-4 text-muted-foreground" />
-      <div className="flex flex-col overflow-hidden">
-        <span className="text-sm font-medium truncate">{filename}</span>
-        {formattedSize && (
-          <span className="text-xs text-muted-foreground">{formattedSize}</span>
-        )}
-      </div>
-    </a>
+    <div className="flex flex-col">
+      {isImage ? (
+        <div className="flex flex-col">
+          <div className="mb-1 overflow-hidden rounded-md border border-muted">
+            <img 
+              src={url} 
+              alt={filename} 
+              className="max-h-[200px] w-auto object-contain"
+              loading="lazy"
+            />
+          </div>
+          <a 
+            href={url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className={cn("flex items-center gap-2 p-2 bg-background border rounded-md transition-colors hover:bg-accent/50", className)}
+            download={filename}
+          >
+            <File className="h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium truncate">{filename}</span>
+              {formattedSize && (
+                <span className="text-xs text-muted-foreground">{formattedSize}</span>
+              )}
+            </div>
+          </a>
+        </div>
+      ) : (
+        <a 
+          href={url} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className={cn("flex items-center gap-2 p-2 bg-background border rounded-md transition-colors hover:bg-accent/50 min-w-[120px]", className)}
+          download={filename}
+        >
+          <File className="h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-sm font-medium truncate">{filename}</span>
+            {formattedSize && (
+              <span className="text-xs text-muted-foreground">{formattedSize}</span>
+            )}
+          </div>
+        </a>
+      )}
+    </div>
   );
 }
