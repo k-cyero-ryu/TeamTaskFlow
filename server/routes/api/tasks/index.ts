@@ -65,10 +65,27 @@ router.post('/', requireAuth, async (req, res) => {
     const userId = req.user!.id;
     
     // Extract workflow and stage IDs from the request
-    const { workflowId, stageId, ...taskData } = req.body;
+    const { workflowId, stageId, dueDate, ...taskData } = req.body;
+
+    // Make sure dueDate is properly handled
+    let processedDueDate = null;
+    if (dueDate) {
+      // Ensure it's a proper Date object
+      try {
+        processedDueDate = new Date(dueDate);
+        // Validate the date
+        if (isNaN(processedDueDate.getTime())) {
+          processedDueDate = null;
+        }
+      } catch (e) {
+        logger.warn('Invalid date format received for dueDate', { dueDate });
+        processedDueDate = null;
+      }
+    }
 
     const task = await storage.createTask({
       ...taskData,
+      dueDate: processedDueDate,
       workflowId: workflowId || null,
       stageId: stageId || null,
       creatorId: userId,
