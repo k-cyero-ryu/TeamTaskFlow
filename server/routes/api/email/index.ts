@@ -198,7 +198,8 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
       subject: "Welcome to Team Collaborator!",
       content: html,
       type: "welcome",
-      status: "pending"
+      status: "pending",
+      recipientEmail: userEmail
     });
     
     // Send email

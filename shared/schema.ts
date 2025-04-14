@@ -540,7 +540,9 @@ export type InsertPrivateMessageAttachment = z.infer<typeof insertPrivateMessage
 export type InsertGroupMessageAttachment = z.infer<typeof insertGroupMessageAttachmentSchema>;
 
 // Email notification and calendar event schemas and types
-export const insertEmailNotificationSchema = createInsertSchema(emailNotifications);
+export const insertEmailNotificationSchema = createInsertSchema(emailNotifications).extend({
+  recipientEmail: z.string().email().optional(),
+});
 // Fixed schema that matches the actual database columns
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).pick({
