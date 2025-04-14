@@ -202,26 +202,53 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
       recipientEmail: userEmail
     });
     
-    // Send email
-    await emailService.sendEmail({
-      to: userEmail,
-      subject: "Welcome to Team Collaborator!",
-      html,
-      metadata: { userId: req.user.id, notificationType: "welcome" }
-    });
+    try {
+      // Send email
+      await emailService.sendEmail({
+        to: userEmail,
+        subject: "Welcome to Team Collaborator!",
+        html,
+        metadata: { userId: req.user.id, notificationType: "welcome" }
+      });
+      
+      // Update notification status to sent if email sending succeeds
+      await storage.updateEmailNotification(notification.id, { 
+        status: 'sent',
+        sentAt: new Date()
+      });
+    } catch (emailError) {
+      // Update notification status to failed if email sending fails
+      await storage.updateEmailNotification(notification.id, { 
+        status: 'failed',
+        error: emailError instanceof Error ? emailError.message : String(emailError)
+      });
+      
+      // Don't throw the error, as we still created the notification successfully
+      logger.warn('Email sending failed but notification was created', { 
+        error: emailError, 
+        notificationId: notification.id 
+      });
+    }
     
-    // Update notification status
-    await storage.updateEmailNotification(notification.id, { 
-      status: 'sent',
-      sentAt: new Date()
-    });
+    // Get updated notification status
+    const updatedNotification = await storage.getEmailNotification(notification.id);
     
-    logger.info('Welcome email sent successfully', { userId: req.user.id });
+    // Log based on the actual status
+    if (updatedNotification?.status === 'sent') {
+      logger.info('Welcome email sent successfully', { userId: req.user.id });
+    } else {
+      logger.info('Welcome email notification created', { 
+        userId: req.user.id, 
+        status: updatedNotification?.status || 'unknown' 
+      });
+    }
     
     res.json({ 
       success: true, 
-      message: "Welcome email sent successfully",
-      notification
+      message: updatedNotification?.status === 'sent' 
+        ? "Welcome email sent successfully" 
+        : "Welcome email notification created",
+      notification: updatedNotification || notification
     });
   } catch (error) {
     logger.error('Error sending welcome email', { error, userId: req.user?.id });

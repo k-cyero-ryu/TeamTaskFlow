@@ -114,17 +114,14 @@ export class EmailService {
       });
     }
     
-    // In development or if no SMTP credentials, use nodemailer's "ethereal" test account
+    // In development or if no SMTP credentials, use nodemailer's test account or JSON transport
     if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
-      logger.info('Using development email transport');
+      logger.info('Using development JSON email transport');
+      
+      // Use a "mock" transport that just logs the emails instead of sending them
       return nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.ETHEREAL_EMAIL || 'ethereal.user@ethereal.email',
-          pass: process.env.ETHEREAL_PASSWORD || 'ethereal_password'
-        }
+        jsonTransport: true,
+        name: 'team-collaborator-dev'
       });
     }
     
