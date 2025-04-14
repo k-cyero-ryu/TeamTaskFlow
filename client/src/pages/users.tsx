@@ -57,11 +57,7 @@ export default function Users() {
 
   const createUserMutation = useMutation({
     mutationFn: async (data: { username: string; password: string; email?: string; notificationPreferences?: any }) => {
-      const res = await apiRequest("/api/register", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      });
+      const res = await apiRequest("POST", "/api/register", data);
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Failed to create user");
       return json;

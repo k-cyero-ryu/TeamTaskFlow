@@ -182,7 +182,12 @@ function CreateTaskDialogContent() {
   });
 
   function onSubmit(data: InsertTask) {
-    createTaskMutation.mutate(data);
+    // Ensure dueDate is properly formatted before sending to server
+    const formattedData = {
+      ...data,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null
+    };
+    createTaskMutation.mutate(formattedData);
   }
 
   const addSubtask = () => {
@@ -317,7 +322,10 @@ function CreateTaskDialogContent() {
                         <Calendar
                           mode="single"
                           selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            // Ensure we always pass a proper Date object or null
+                            field.onChange(date ? date : null);
+                          }}
                           disabled={(date) => date < new Date()}
                           initialFocus
                         />
