@@ -177,17 +177,13 @@ export const emailNotifications = pgTable("email_notifications", {
   userId: integer("user_id").references(() => users.id).notNull(),
   subject: text("subject").notNull(),
   content: text("content").notNull(),
-  recipientEmail: text("recipient_email").notNull(),
   type: text("type").notNull(), // task_assigned, task_updated, task_commented, mentioned, etc.
   status: text("status").notNull().default("pending"), // pending, sent, failed
   sentAt: timestamp("sent_at"),
-  error: text("error"),
+  error: text("error_message"),
   relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.
   relatedEntityType: text("related_entity_type"), // task, comment, etc.
-  metadata: jsonb("metadata"),
-  sendAt: timestamp("send_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
 });
 
 // Calendar events table
@@ -543,18 +539,8 @@ export type InsertPrivateMessageAttachment = z.infer<typeof insertPrivateMessage
 export type InsertGroupMessageAttachment = z.infer<typeof insertGroupMessageAttachmentSchema>;
 
 // Email notification and calendar event schemas and types
-export const insertEmailNotificationSchema = createInsertSchema(emailNotifications).pick({
-  userId: true,
-  subject: true,
-  content: true,
-  recipientEmail: true,
-  type: true,
-  status: true,
-  relatedEntityId: true,
-  relatedEntityType: true,
-  metadata: true,
-  sendAt: true,
-});
+export const insertEmailNotificationSchema = createInsertSchema(emailNotifications);
+// Fixed schema that matches the actual database columns
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).pick({
   userId: true,

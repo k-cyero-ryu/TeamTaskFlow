@@ -32,17 +32,13 @@ type EmailNotification = {
   userId: number;
   subject: string;
   content: string;
-  recipientEmail: string;
   type: string;
   status: "pending" | "sent" | "failed";
-  error?: string;
-  relatedEntityId?: number;
-  relatedEntityType?: string;
-  metadata?: any;
-  sendAt?: string;
-  sentAt?: string;
-  createdAt: string;
-  updatedAt?: string;
+  error: string | null;
+  relatedEntityId: number | null;
+  relatedEntityType: string | null;
+  sentAt: Date | null;
+  createdAt: Date;
 };
 
 export function NotificationsDropdown() {
@@ -121,11 +117,14 @@ export function NotificationsDropdown() {
   };
 
   // Format date for display
-  const formatDate = (dateString: string) => {
+  const formatDate = (date: Date | string) => {
     try {
-      return format(new Date(dateString), "MMM d, yyyy h:mm a");
+      if (date instanceof Date) {
+        return format(date, "MMM d, yyyy h:mm a");
+      }
+      return format(new Date(date), "MMM d, yyyy h:mm a");
     } catch (e) {
-      return dateString;
+      return String(date);
     }
   };
 
@@ -227,7 +226,7 @@ export function NotificationsDropdown() {
           
           <div className="border rounded-md p-4 bg-card">
             <div className="flex justify-between mb-3">
-              <span className="text-sm text-muted-foreground">To: {selectedNotification?.recipientEmail}</span>
+              <span className="text-sm text-muted-foreground">Notification ID: {selectedNotification?.id}</span>
               <Badge variant="outline" className={selectedNotification?.status ? getStatusColor(selectedNotification.status) : ""}>
                 {selectedNotification?.status}
               </Badge>

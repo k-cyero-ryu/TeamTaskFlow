@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { EmailNotification } from '../../../shared/schema';
 import { Logger } from '../../utils/logger';
+import { storage } from '../../storage';
 
 // Initialize logger for email service
 const logger = new Logger('EmailService');
@@ -299,16 +300,24 @@ export class EmailService {
           continue;
         }
         
-        if (notification.sendAt && new Date(notification.sendAt) > new Date()) {
+        // We removed sendAt from the schema, so this check is no longer needed
+        // if (notification.sendAt && new Date(notification.sendAt) > new Date()) {
+        //   continue;
+        // }
+        
+        // Get user email from user associated with notification
+        const user = await storage.getUser(notification.userId);
+        if (!user || !user.email) {
+          logger.error(`User ${notification.userId} has no email to send notification to`);
           continue;
         }
         
         // Send the email
         await this.sendEmail({
-          to: notification.recipientEmail,
+          to: user.email,
           subject: notification.subject,
           html: notification.content,
-          metadata: notification.metadata
+          metadata: {}
         });
         
         // Update with success

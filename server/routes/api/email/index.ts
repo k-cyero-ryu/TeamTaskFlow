@@ -92,7 +92,7 @@ router.put('/settings', requireAuth, validateRequest(emailPreferencesSchema), as
     let updatedUser = req.user;
     
     // Update email if provided
-    if (email) {
+    if (email !== undefined) {
       updatedUser = await storage.updateUserEmail(req.user.id, email);
       logger.info('User email updated', { userId: req.user.id, email });
     }
@@ -172,22 +172,18 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
     }
     
     // Get or set user email
-    let userEmail = req.user.email;
+    // Get user's current information from storage
+    const userData = await storage.getUser(req.user.id);
+    let userEmail = userData?.email || '';
     
     if (!userEmail) {
-      // If user doesn't have an email, check if there's one in settings
-      const userSettings = await storage.getUserByUsername(req.user.username);
-      userEmail = userSettings?.email;
-      
-      // If still no email, use a default or return an error
-      if (!userEmail) {
-        return res.status(400).json({
-          error: {
-            type: 'VALIDATION_ERROR',
-            message: 'User email not set. Please update your email in settings.'
-          }
-        });
-      }
+      // If still no email, return an error
+      return res.status(400).json({
+        error: {
+          type: 'VALIDATION_ERROR',
+          message: 'User email not set. Please update your email in settings.'
+        }
+      });
     }
     
     // Generate welcome email content
@@ -199,7 +195,6 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
     // Create notification record
     const notification = await storage.createEmailNotification({
       userId: req.user.id,
-      recipientEmail: userEmail,
       subject: "Welcome to Team Collaborator!",
       content: html,
       type: "welcome",

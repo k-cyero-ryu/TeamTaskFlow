@@ -235,11 +235,7 @@ function EditUserDialog({ user }: EditUserDialogProps) {
 
   const updateUserMutation = useMutation({
     mutationFn: async (data: { email?: string; notificationPreferences?: Record<string, boolean> }) => {
-      const res = await apiRequest(`/api/users/${user.id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      });
+      const res = await apiRequest("PUT", `/api/users/${user.id}`, data);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message || "Failed to update user");
       return json;
