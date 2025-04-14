@@ -96,6 +96,50 @@ router.post('/', requireAuth, async (req, res) => {
       type: "task_created",
       data: task,
     });
+    
+    // Generate email notifications for task participants and responsible person
+    try {
+      // Get all involved users (participants and responsible person)
+      // Get task participants
+      const taskParticipants = await storage.getTaskParticipants(task.id);
+      const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
+        allInvolvedUserIds.push(task.responsibleId);
+      }
+      
+      // Get all user details
+      const users = await storage.getUsers();
+      
+      // Create notifications for each involved user
+      for (const involvedUserId of allInvolvedUserIds) {
+        if (involvedUserId === userId) continue; // Skip creator
+        
+        const user = users.find(u => u.id === involvedUserId);
+        if (!user || !user.email) continue; // Skip if no user or no email
+        
+        // Create task assignment notification
+        await storage.createEmailNotification({
+          userId: involvedUserId,
+          recipientEmail: user.email,
+          subject: `You've been assigned to a task: ${task.title}`,
+          content: `You have been assigned to the task "${task.title}". ${
+            task.dueDate ? `The task is due on ${new Date(task.dueDate).toLocaleDateString()}.` : ''
+          }`,
+          type: 'task_assignment',
+          status: 'pending',
+          relatedEntityId: task.id,
+          relatedEntityType: 'task'
+        });
+        
+        logger.info('Task assignment notification created', { 
+          taskId: task.id, 
+          userId: involvedUserId 
+        });
+      }
+    } catch (error) {
+      // Don't fail the request if notification creation fails
+      logger.error('Error creating task notifications', { error, taskId: task.id });
+    }
 
     logger.info('Task created successfully', { taskId: task.id, userId });
     res.status(201).json(task);
@@ -124,6 +168,58 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
     }
 
     const task = await storage.updateTaskStatus(taskId, status);
+    
+    // Create notifications for task status updates
+    try {
+      // First get the task details to know who's involved
+      const updatedTask = await storage.getTask(taskId);
+      if (!updatedTask) {
+        throw new Error('Task not found after status update');
+      }
+      
+      // Get all involved users (participants and responsible person)
+      // Get task participants
+      const taskParticipants = await storage.getTaskParticipants(taskId);
+      const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      if (updatedTask.responsibleId && !allInvolvedUserIds.includes(updatedTask.responsibleId)) {
+        allInvolvedUserIds.push(updatedTask.responsibleId);
+      }
+      if (updatedTask.creatorId && !allInvolvedUserIds.includes(updatedTask.creatorId)) {
+        allInvolvedUserIds.push(updatedTask.creatorId);
+      }
+      
+      // Get all user details
+      const users = await storage.getUsers();
+      
+      // Create notifications for each involved user
+      for (const involvedUserId of allInvolvedUserIds) {
+        if (involvedUserId === req.user!.id) continue; // Skip the user who updated the status
+        
+        const user = users.find(u => u.id === involvedUserId);
+        if (!user || !user.email) continue; // Skip if no user or no email
+        
+        // Create task status update notification
+        await storage.createEmailNotification({
+          userId: involvedUserId,
+          recipientEmail: user.email,
+          subject: `Task status updated: ${updatedTask.title}`,
+          content: `The status of task "${updatedTask.title}" has been updated to "${status}".`,
+          type: 'task_update',
+          status: 'pending',
+          relatedEntityId: taskId,
+          relatedEntityType: 'task'
+        });
+        
+        logger.info('Task status notification created', { 
+          taskId, 
+          userId: involvedUserId,
+          status
+        });
+      }
+    } catch (error) {
+      // Don't fail the request if notification creation fails
+      logger.error('Error creating task status notifications', { error, taskId });
+    }
     
     logger.info('Task status updated successfully', { taskId, status, userId: req.user?.id });
     res.json(task);

@@ -183,6 +183,7 @@ export const emailNotifications = pgTable("email_notifications", {
   error: text("error_message"),
   relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.
   relatedEntityType: text("related_entity_type"), // task, comment, etc.
+  recipientEmail: text("recipient_email"), // The email address to send the notification to
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
