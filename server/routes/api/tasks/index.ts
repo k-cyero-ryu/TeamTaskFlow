@@ -65,7 +65,7 @@ router.post('/', requireAuth, async (req, res) => {
     const userId = req.user!.id;
     
     // Extract workflow and stage IDs from the request
-    const { workflowId, stageId, dueDate, ...taskData } = req.body;
+    const { workflowId, stageId, dueDate, participantIds, ...taskData } = req.body;
 
     // Make sure dueDate is properly handled
     let processedDueDate = null;
@@ -90,6 +90,18 @@ router.post('/', requireAuth, async (req, res) => {
       stageId: stageId || null,
       creatorId: userId,
     });
+    
+    // Add task participants if provided
+    if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
+      try {
+        for (const participantId of participantIds) {
+          await storage.addTaskParticipant(task.id, participantId);
+          logger.info('Task participant added', { taskId: task.id, participantId });
+        }
+      } catch (error) {
+        logger.error('Error adding task participants', { error, taskId: task.id });
+      }
+    }
 
     // Broadcast the new task to all connected clients
     broadcastWebSocketMessage({
@@ -102,13 +114,36 @@ router.post('/', requireAuth, async (req, res) => {
       // Get all involved users (participants and responsible person)
       // Get task participants
       const taskParticipants = await storage.getTaskParticipants(task.id);
-      const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      const allInvolvedUserIds = taskParticipants.map(p => p.userId);
       if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
         allInvolvedUserIds.push(task.responsibleId);
       }
       
       // Get all user details
       const users = await storage.getUsers();
+      
+      // Create notification for the creator (task created)
+      const creator = users.find(u => u.id === userId);
+      if (creator && creator.email) {
+        // Create task creation notification for the creator
+        await storage.createEmailNotification({
+          userId: userId,
+          recipientEmail: creator.email,
+          subject: `Task created: ${task.title}`,
+          content: `You have created a new task: "${task.title}". ${
+            task.dueDate ? `The task is due on ${new Date(task.dueDate).toLocaleDateString()}.` : ''
+          }`,
+          type: 'task_created',
+          status: 'pending',
+          relatedEntityId: task.id,
+          relatedEntityType: 'task'
+        });
+        
+        logger.info('Task creation notification created', { 
+          taskId: task.id, 
+          userId: userId 
+        });
+      }
       
       // Create notifications for each involved user
       for (const involvedUserId of allInvolvedUserIds) {
