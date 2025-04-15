@@ -216,6 +216,9 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
+              <div className="text-xs font-medium text-muted-foreground">
+                {task.responsible ? `Assigned to: ${task.responsible.username}` : "Unassigned"}
+              </div>
               <p className="text-sm">
                 Due {task.dueDate ? format(new Date(task.dueDate), "MMM d") : "No date"}
                 {task.dueDate && (
