@@ -93,13 +93,17 @@ router.put('/settings', requireAuth, validateRequest(emailPreferencesSchema), as
     
     // Update email if provided
     if (email !== undefined) {
-      updatedUser = await storage.updateUserEmail(req.user.id, email);
-      logger.info('User email updated', { userId: req.user.id, email });
+      // Make sure we're passing a string, not a null
+      const emailToUpdate = email || "";
+      updatedUser = await storage.updateUserEmail(req.user.id, emailToUpdate);
+      logger.info('User email updated', { userId: req.user.id, email: emailToUpdate });
     }
     
     // Update notification preferences if provided
     if (notificationPreferences) {
-      updatedUser = await storage.updateUserNotificationPreferences(req.user.id, notificationPreferences);
+      // Need to typecast to ensure compatibility
+      const preferences = notificationPreferences as Record<string, boolean>;
+      updatedUser = await storage.updateUserNotificationPreferences(req.user.id, preferences);
       logger.info('User notification preferences updated', { userId: req.user.id });
     }
     

@@ -103,13 +103,26 @@ router.post('/', requireAuth, async (req, res) => {
     
     // Generate email notifications for task participants and responsible person
     try {
+      // Log the participantIds that were passed to createTask
+      logger.info('Task creation participantIds', { 
+        participantIds: Array.isArray(participantIds) ? participantIds : [], 
+        responsibleId: task.responsibleId 
+      });
+      
       // Get all involved users (participants and responsible person)
       // Get task participants
       const taskParticipants = await storage.getTaskParticipants(task.id);
+      logger.info('Task participants found', { participants: taskParticipants });
+      
+      // Make sure to include all participants in notifications
       const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      
+      // Always include responsible person if set
       if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
         allInvolvedUserIds.push(task.responsibleId);
       }
+      
+      logger.info('All involved users for notifications', { allInvolvedUserIds });
       
       // Get all user details
       const users = await storage.getUsers();
@@ -207,14 +220,28 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
       // Get all involved users (participants and responsible person)
       // Get task participants
       const taskParticipants = await storage.getTaskParticipants(taskId);
+      logger.info('Task status update - found participants', { 
+        taskId,
+        participants: taskParticipants 
+      });
+      
+      // Make sure to include all participants in notifications
       const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      
+      // Always include responsible person if set
       if (updatedTask.responsibleId && !allInvolvedUserIds.includes(updatedTask.responsibleId)) {
         allInvolvedUserIds.push(updatedTask.responsibleId);
       }
+      
       // Always include the creator in status update notifications
       if (updatedTask.creatorId && !allInvolvedUserIds.includes(updatedTask.creatorId)) {
         allInvolvedUserIds.push(updatedTask.creatorId);
       }
+      
+      logger.info('All involved users for status update notifications', { 
+        taskId,
+        allInvolvedUserIds 
+      });
       
       // Get all user details
       const users = await storage.getUsers();
@@ -350,13 +377,30 @@ router.post('/:taskId/comments', requireAuth, validateParams({
       
       // Get all involved users
       const taskParticipants = await storage.getTaskParticipants(taskId);
+      logger.info('Comment notification - found participants', { 
+        taskId,
+        commentId: comment.id,
+        participants: taskParticipants 
+      });
+      
+      // Make sure to include all participants in notifications
       const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      
+      // Always include responsible person if set
       if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
         allInvolvedUserIds.push(task.responsibleId);
       }
+      
+      // Always include the creator in comment notifications
       if (task.creatorId && !allInvolvedUserIds.includes(task.creatorId)) {
         allInvolvedUserIds.push(task.creatorId);
       }
+      
+      logger.info('All involved users for comment notifications', { 
+        taskId,
+        commentId: comment.id,
+        allInvolvedUserIds 
+      });
       
       // Get all user details
       const users = await storage.getUsers();
