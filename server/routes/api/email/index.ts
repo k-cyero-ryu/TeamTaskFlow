@@ -5,7 +5,7 @@ import { storage } from '../../../storage';
 import { emailService } from '../../../services/email';
 import { Logger } from '../../../utils/logger';
 import smtpRoutes from './smtp';
-import { User } from '../../../shared/schema';
+import type { User } from '@shared/schema';
 
 const router = Router();
 const logger = new Logger('EmailRoutes');
