@@ -96,7 +96,7 @@ interface IStorage {
   deleteCalendarEvent(id: number): Promise<void>;
   
   // User methods with email and notification preferences
-  updateUserEmail(userId: number, email: string): Promise<User>;
+  updateUserEmail(userId: number, email: string | undefined): Promise<User>;
   updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User>;
 }
 
@@ -1440,7 +1440,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User methods with email and notification preferences
-  async updateUserEmail(userId: number, email: string): Promise<User> {
+  async updateUserEmail(userId: number, email: string | undefined): Promise<User> {
     try {
       return await executeWithRetry(async () => {
         const [updatedUser] = await db

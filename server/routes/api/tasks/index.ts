@@ -83,17 +83,31 @@ router.post('/', requireAuth, async (req, res) => {
       }
     }
 
+    // Normalize participant IDs to make sure we have valid numbers
+    // This will prevent issues when adding participants
+    const normalizedParticipantIds = Array.isArray(participantIds) 
+      ? participantIds
+          .filter(id => id !== null && id !== undefined) // Remove null/undefined entries
+          .map(id => typeof id === 'string' ? parseInt(id, 10) : id) // Convert string IDs to numbers
+          .filter(id => !isNaN(id) && id > 0) // Keep only valid positive numbers
+      : [];
+      
+    logger.info('Normalized participant IDs', { 
+      original: participantIds,
+      normalized: normalizedParticipantIds
+    });
+    
     const task = await storage.createTask({
       ...taskData,
       dueDate: processedDueDate,
       workflowId: workflowId || null,
       stageId: stageId || null,
       creatorId: userId,
-      participantIds: Array.isArray(participantIds) ? participantIds : [],
+      participantIds: normalizedParticipantIds,
     });
     
-    // Participants are handled automatically in the storage.createTask method when passed participantIds
-    // No additional action needed here as the storage layer already handles this
+    // Participants are added in the storage.createTask method using the normalized IDs
+    // We've added extensive logging and error handling there to ensure this works correctly
 
     // Broadcast the new task to all connected clients
     broadcastWebSocketMessage({

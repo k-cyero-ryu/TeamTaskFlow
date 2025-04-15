@@ -5,6 +5,7 @@ import { storage } from '../../../storage';
 import { emailService } from '../../../services/email';
 import { Logger } from '../../../utils/logger';
 import smtpRoutes from './smtp';
+import { User } from '../../../shared/schema';
 
 const router = Router();
 const logger = new Logger('EmailRoutes');
@@ -89,11 +90,13 @@ router.put('/settings', requireAuth, validateRequest(emailPreferencesSchema), as
     }
     
     const { email, notificationPreferences } = req.body;
-    let updatedUser = req.user;
+    // Need to cast here to avoid type errors since the returned User type is different
+    // from the req.user object which comes from passport
+    let updatedUser = req.user as unknown as User;
     
     // Update email if provided
     if (email !== undefined) {
-      // Make sure we're passing a string, not a null
+      // Make sure we're passing a string or undefined, not null
       const emailToUpdate = email || undefined; // Use undefined instead of empty string for null values
       updatedUser = await storage.updateUserEmail(req.user.id, emailToUpdate);
       logger.info('User email updated', { userId: req.user.id, email: emailToUpdate || "none" });
@@ -103,7 +106,9 @@ router.put('/settings', requireAuth, validateRequest(emailPreferencesSchema), as
     if (notificationPreferences) {
       // Need to typecast to ensure compatibility
       const preferences = notificationPreferences as Record<string, boolean>;
-      updatedUser = await storage.updateUserNotificationPreferences(req.user.id, preferences);
+      const updatedUserWithPrefs = await storage.updateUserNotificationPreferences(req.user.id, preferences);
+      // Update our working copy with the new preferences
+      updatedUser = updatedUserWithPrefs;
       logger.info('User notification preferences updated', { userId: req.user.id });
     }
     
