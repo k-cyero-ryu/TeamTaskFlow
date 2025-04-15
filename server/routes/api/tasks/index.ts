@@ -109,13 +109,22 @@ router.post('/', requireAuth, async (req, res) => {
         responsibleId: task.responsibleId 
       });
       
-      // Get all involved users (participants and responsible person)
-      // Get task participants
+      // Original participant ids passed to createTask
+      const originalParticipantIds = Array.isArray(participantIds) ? participantIds : [];
+      
+      // Get task participants from the database (these should match the participantIds we passed in)
       const taskParticipants = await storage.getTaskParticipants(task.id);
       logger.info('Task participants found', { participants: taskParticipants });
       
       // Make sure to include all participants in notifications
       const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      
+      // Double-check: include any participantIds that might not have been picked up
+      for (const participantId of originalParticipantIds) {
+        if (!allInvolvedUserIds.includes(participantId)) {
+          allInvolvedUserIds.push(participantId);
+        }
+      }
       
       // Always include responsible person if set
       if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
