@@ -94,9 +94,9 @@ router.put('/settings', requireAuth, validateRequest(emailPreferencesSchema), as
     // Update email if provided
     if (email !== undefined) {
       // Make sure we're passing a string, not a null
-      const emailToUpdate = email || "";
+      const emailToUpdate = email || undefined; // Use undefined instead of empty string for null values
       updatedUser = await storage.updateUserEmail(req.user.id, emailToUpdate);
-      logger.info('User email updated', { userId: req.user.id, email: emailToUpdate });
+      logger.info('User email updated', { userId: req.user.id, email: emailToUpdate || "none" });
     }
     
     // Update notification preferences if provided

@@ -203,12 +203,35 @@ export class DatabaseStorage implements IStorage {
 
         // Add participants if any
         if (participantIds?.length) {
-          await db.insert(taskParticipants).values(
-            participantIds.map(userId => ({
-              taskId: newTask.id,
-              userId,
-            }))
-          );
+          try {
+            logger.info('Adding participants to task', { 
+              taskId: newTask.id, 
+              participantIds 
+            });
+            
+            // Make sure all participantIds are valid numbers
+            const validParticipantIds = participantIds
+              .filter(id => typeof id === 'number' && !isNaN(id) && id > 0)
+              .map(id => parseInt(String(id), 10)); // Ensure they're all integers
+              
+            await db.insert(taskParticipants).values(
+              validParticipantIds.map(userId => ({
+                taskId: newTask.id,
+                userId,
+              }))
+            );
+            
+            logger.info('Successfully added participants to task', { 
+              taskId: newTask.id, 
+              count: validParticipantIds.length 
+            });
+          } catch (participantError) {
+            // Log but don't fail the whole task creation
+            logger.error('Failed to add participants to task', { 
+              taskId: newTask.id, 
+              error: participantError 
+            });
+          }
         }
 
         // Add subtasks if any
