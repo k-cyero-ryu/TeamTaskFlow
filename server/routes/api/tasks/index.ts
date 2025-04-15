@@ -89,19 +89,11 @@ router.post('/', requireAuth, async (req, res) => {
       workflowId: workflowId || null,
       stageId: stageId || null,
       creatorId: userId,
+      participantIds: Array.isArray(participantIds) ? participantIds : [],
     });
     
-    // Add task participants if provided
-    if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
-      try {
-        for (const participantId of participantIds) {
-          await storage.addTaskParticipant(task.id, participantId);
-          logger.info('Task participant added', { taskId: task.id, participantId });
-        }
-      } catch (error) {
-        logger.error('Error adding task participants', { error, taskId: task.id });
-      }
-    }
+    // Participants are handled automatically in the storage.createTask method when passed participantIds
+    // No additional action needed here as the storage layer already handles this
 
     // Broadcast the new task to all connected clients
     broadcastWebSocketMessage({
@@ -114,7 +106,7 @@ router.post('/', requireAuth, async (req, res) => {
       // Get all involved users (participants and responsible person)
       // Get task participants
       const taskParticipants = await storage.getTaskParticipants(task.id);
-      const allInvolvedUserIds = taskParticipants.map(p => p.userId);
+      const allInvolvedUserIds = taskParticipants.map(p => p.id);
       if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
         allInvolvedUserIds.push(task.responsibleId);
       }
@@ -219,6 +211,7 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
       if (updatedTask.responsibleId && !allInvolvedUserIds.includes(updatedTask.responsibleId)) {
         allInvolvedUserIds.push(updatedTask.responsibleId);
       }
+      // Always include the creator in status update notifications
       if (updatedTask.creatorId && !allInvolvedUserIds.includes(updatedTask.creatorId)) {
         allInvolvedUserIds.push(updatedTask.creatorId);
       }
@@ -346,6 +339,59 @@ router.post('/:taskId/comments', requireAuth, validateParams({
       taskId,
       userId,
     });
+    
+    // Create notifications for task comments
+    try {
+      // Get the task to know who's involved
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+      
+      // Get all involved users
+      const taskParticipants = await storage.getTaskParticipants(taskId);
+      const allInvolvedUserIds = taskParticipants.map(p => p.id);
+      if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
+        allInvolvedUserIds.push(task.responsibleId);
+      }
+      if (task.creatorId && !allInvolvedUserIds.includes(task.creatorId)) {
+        allInvolvedUserIds.push(task.creatorId);
+      }
+      
+      // Get all user details
+      const users = await storage.getUsers();
+      const commenter = users.find(u => u.id === userId);
+      const commenterName = commenter ? commenter.username : 'Someone';
+      
+      // Create notifications for each involved user
+      for (const involvedUserId of allInvolvedUserIds) {
+        if (involvedUserId === userId) continue; // Skip the commenter
+        
+        const user = users.find(u => u.id === involvedUserId);
+        if (!user || !user.email) continue; // Skip if no user or no email
+        
+        // Create comment notification
+        await storage.createEmailNotification({
+          userId: involvedUserId,
+          recipientEmail: user.email,
+          subject: `New comment on task: ${task.title}`,
+          content: `${commenterName} commented on the task "${task.title}": "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`,
+          type: 'task_comment',
+          status: 'pending',
+          relatedEntityId: taskId,
+          relatedEntityType: 'task'
+        });
+        
+        logger.info('Comment notification created', { 
+          taskId, 
+          userId: involvedUserId,
+          commenterId: userId
+        });
+      }
+    } catch (error) {
+      // Don't fail the request if notification creation fails
+      logger.error('Error creating comment notifications', { error, taskId, commentId: comment.id });
+    }
     
     logger.info('Comment created successfully', { taskId, commentId: comment.id, userId });
     res.status(201).json(comment);
