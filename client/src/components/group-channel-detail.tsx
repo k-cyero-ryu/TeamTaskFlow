@@ -205,14 +205,23 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
       console.log('Sending message to channel', channelId, content);
-      const response = await apiRequest('POST', `/api/channels/${channelId}/messages`, { 
-        content,
-        channelId  // Explicitly include the channelId as a number in the request body
-      });
-      
-      return await response.json();
+      try {
+        // Make sure parameters are in the correct order: method, url, data
+        const response = await apiRequest('POST', `/api/channels/${channelId}/messages`, { 
+          content,
+          channelId: Number(channelId)  // Explicitly include the channelId as a number in the request body
+        });
+        
+        const responseData = await response.json();
+        console.log('Message sent successfully, response:', responseData);
+        return responseData;
+      } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log('Message sent successfully:', data);
       // Clear the message input
       setMessage('');
       
@@ -237,6 +246,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       }, 100);
     },
     onError: (error) => {
+      console.error('Failed to send message:', error);
       toast({
         title: 'Failed to send message',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
@@ -282,10 +292,18 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const removeMember = useMutation({
     mutationFn: async (userId: number) => {
       console.log('Removing member from channel', channelId, userId);
-      await apiRequest('DELETE', `/api/channels/${channelId}/members/${userId}`, null);
-      return true;
+      try {
+        // Use null as the third parameter for DELETE requests with no body
+        const response = await apiRequest('DELETE', `/api/channels/${channelId}/members/${userId}`, null);
+        console.log('Member removed successfully:', response.status);
+        return true;
+      } catch (error) {
+        console.error('Error removing member:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log('Member removal confirmed in UI');
       // Force refresh
       queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
       toast({
@@ -294,6 +312,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       });
     },
     onError: (error) => {
+      console.error('Failed to remove member, UI error:', error);
       toast({
         title: 'Failed to remove member',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
@@ -317,10 +336,12 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     if (selectedFiles.length > 0) {
       setIsUploading(true);
       try {
+        console.log('Uploading files to channel', channelId, 'files count:', selectedFiles.length);
         const formData = new FormData();
         // If no message content is provided, use a default empty string
         formData.append('content', message || ' ');
         selectedFiles.forEach(file => {
+          console.log('Adding file to form data:', file.name, file.type, file.size);
           formData.append('files', file);
         });
         
@@ -332,10 +353,13 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
         });
         
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('File upload failed response:', errorText);
           throw new Error(`Failed to upload: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('File upload successful, response:', data);
         
         // Update the UI and clear the form
         setMessage('');
@@ -352,6 +376,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
       } catch (error) {
+        console.error('Error uploading files:', error);
         toast({
           title: 'Failed to send message with attachments',
           description: error instanceof Error ? error.message : 'An unexpected error occurred',
