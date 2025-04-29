@@ -4,21 +4,27 @@ import { requireAuth, validateParams } from '../../../middleware';
 import { insertGroupChannelSchema, insertGroupMessageSchema } from '@shared/schema';
 import { z } from 'zod';
 import { broadcastWebSocketMessage, sendWebSocketMessageToUser } from '../../../websocket';
+import { Logger } from '../../../utils/logger';
 
 // Create a router
 const router = Router();
+const logger = new Logger('ChannelRoutes');
 
 // Get all channels for the current user
 router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
+      logger.warn('Authentication required for fetching channels');
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    logger.info('Fetching channels for user', { userId });
     const channels = await storage.getGroupChannels(userId);
+    logger.info('Channels fetched successfully', { userId, channelCount: channels.length });
     return res.json(channels);
   } catch (error) {
+    logger.error('Error fetching channels', { error, userId: req.user?.id });
     next(error);
   }
 });
@@ -65,20 +71,32 @@ router.post('/',
     try {
       const userId = req.user?.id;
       if (!userId) {
+        logger.warn('Authentication required for creating channel');
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      logger.info('Creating new channel', { userId, channelName: req.body.name });
+      
       const channelData = req.body;
       const newChannel = await storage.createGroupChannel({
         ...channelData,
         creatorId: userId,
       });
       
+      logger.info('Channel created successfully', { 
+        channelId: newChannel.id, 
+        channelName: newChannel.name,
+        userId
+      });
+      
       // Automatically add the creator as an admin member
+      logger.debug('Adding creator as admin member', { channelId: newChannel.id, userId });
       await storage.addChannelMember(newChannel.id, userId, true);
 
+      logger.info('Channel creation completed', { channelId: newChannel.id, userId });
       return res.status(201).json(newChannel);
     } catch (error) {
+      logger.error('Error creating channel', { error, userId: req.user?.id });
       next(error);
     }
 });
@@ -239,37 +257,64 @@ router.post('/:id/messages',
     try {
       const userId = req.user?.id;
       if (!userId) {
+        logger.warn('Authentication required for sending channel message');
         return res.status(401).json({ error: 'Authentication required' });
       }
 
       const channelId = parseInt(req.params.id);
       if (isNaN(channelId)) {
+        logger.warn('Invalid channel ID provided', { channelId: req.params.id, userId });
         return res.status(400).json({ error: 'Invalid channel ID' });
       }
+
+      logger.info('Attempting to send message to channel', { 
+        channelId, 
+        userId,
+        messageContent: req.body.content?.substring(0, 50) // Log the first 50 chars of message for debugging
+      });
 
       // Get the channel to check if it's public or private
       const channel = await storage.getGroupChannel(channelId);
       if (!channel) {
+        logger.warn('Channel not found', { channelId, userId });
         return res.status(404).json({ error: 'Channel not found' });
       }
 
       // Check if the user is a member of the channel
       const members = await storage.getChannelMembers(channelId);
+      logger.debug('Retrieved channel members', { 
+        channelId, 
+        membersCount: members.length,
+        memberIds: members.map(m => m.userId)
+      });
+
       let isMember = members.some(member => member.userId === userId);
       
       // For private channels, require membership
       if (channel.isPrivate && !isMember) {
+        logger.warn('User attempted to send message to private channel without membership', {
+          channelId,
+          userId,
+          isPrivate: channel.isPrivate
+        });
         return res.status(403).json({ error: 'You are not a member of this private channel' });
       }
       
       // For public channels, automatically add the user as a member if they're not already
       if (!channel.isPrivate && !isMember) {
+        logger.info('Adding user as member to public channel', { channelId, userId });
         await storage.addChannelMember(channelId, userId, false);
         // Update member status
         isMember = true;
         // Get updated members list
         const updatedMembers = await storage.getChannelMembers(channelId);
         members.push(...updatedMembers.filter(m => m.userId === userId));
+        
+        logger.debug('User added as member to channel', {
+          channelId,
+          userId,
+          totalMembers: members.length
+        });
       }
 
       // Make sure channelId is explicitly set in the message data
@@ -278,10 +323,22 @@ router.post('/:id/messages',
         channelId: channelId // Ensure channelId is set correctly
       };
       
+      logger.debug('Preparing to create group message', {
+        channelId,
+        userId,
+        messageData: { ...messageData, content: messageData.content?.substring(0, 50) }
+      });
+      
       // Create the message
       const newMessage = await storage.createGroupMessage({
         ...messageData,
         senderId: userId,
+      });
+
+      logger.info('Created new group message', {
+        channelId,
+        messageId: newMessage.id,
+        userId
       });
 
       // Get sender details for the response
@@ -294,19 +351,33 @@ router.post('/:id/messages',
         }
       };
 
-      // Log the message for debugging
-      console.log('New group message created:', messageWithSender);
-
       // Broadcast message to all channel members 
       const memberIds = members.map(member => member.userId);
+      logger.debug('Broadcasting message to channel members', {
+        channelId,
+        messageId: newMessage.id,
+        memberCount: memberIds.length,
+        memberIds
+      });
+      
       broadcastWebSocketMessage({
         type: 'NEW_GROUP_MESSAGE',
         data: messageWithSender,
       }, memberIds);
 
+      logger.info('Group message sent successfully', {
+        channelId,
+        messageId: newMessage.id,
+        userId
+      });
+
       return res.status(201).json(messageWithSender);
     } catch (error) {
-      console.error('Error sending channel message:', error);
+      logger.error('Error sending channel message', { 
+        error, 
+        channelId: req.params.id, 
+        userId: req.user?.id 
+      });
       next(error);
     }
 });

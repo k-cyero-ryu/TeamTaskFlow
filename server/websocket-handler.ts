@@ -93,25 +93,35 @@ function authenticateWebSocketConnection(ws: WebSocket, sessionID: string): void
       return;
     }
 
-    if (!session.passport?.user) {
-      logger.warn('No passport user in session', { 
+    // Get the user ID from the session
+    // The session shape depends on passport, but we need to handle it safely
+    const passportData = session.passport as any;
+    const userId = passportData?.user;
+
+    if (!userId) {
+      logger.warn('No user ID found in session', { 
         sessionID,
-        hasPassport: !!session.passport 
+        hasPassport: !!passportData
       });
       ws.close(1008, 'Unauthorized');
       return;
     }
 
-    const userId = session.passport.user;
+    // Store the client connection with user ID for later use
     clients.set(ws, userId);
 
     logger.info(`WebSocket client connected and authenticated`, { userId });
 
-    ws.send(JSON.stringify({
-      type: "connection_status",
-      status: "connected",
-      userId
-    }));
+    // Send a confirmation to the client
+    try {
+      ws.send(JSON.stringify({
+        type: "connection_status",
+        status: "connected",
+        userId
+      }));
+    } catch (error) {
+      logger.error('Error sending connection status', { error, userId });
+    }
   });
 }
 
