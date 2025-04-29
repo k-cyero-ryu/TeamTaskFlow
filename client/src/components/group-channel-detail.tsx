@@ -249,10 +249,18 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const addMember = useMutation({
     mutationFn: async (data: { userId: number, isAdmin?: boolean }) => {
       console.log('Adding member to channel', channelId, data);
-      const response = await apiRequest('POST', `/api/channels/${channelId}/members`, data);
-      return await response.json();
+      try {
+        const response = await apiRequest('POST', `/api/channels/${channelId}/members`, data);
+        const responseData = await response.json();
+        console.log('Member added successfully, response:', responseData);
+        return responseData;
+      } catch (error) {
+        console.error('Error adding member:', error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Member added successfully:', data);
       // Force refresh
       queryClient.invalidateQueries({ queryKey: ['/api/channels', channelId, 'members'] });
       toast({
@@ -261,6 +269,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
       });
     },
     onError: (error) => {
+      console.error('Failed to add member:', error);
       toast({
         title: 'Failed to add member',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',

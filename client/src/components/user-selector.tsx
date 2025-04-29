@@ -21,22 +21,31 @@ export function UserSelector({ id, name, value, onChange }: UserSelectorProps) {
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
     queryFn: async () => {
+      console.log('Fetching users for selector');
       try {
         const response = await fetch('/api/users', {
+          headers: {
+            'Content-Type': 'application/json',
+          },
           credentials: 'include',
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch users');
+          const errorText = await response.text();
+          console.error('Failed response when fetching users:', errorText);
+          throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
         }
         
-        return response.json();
+        const data = await response.json();
+        console.log('Users loaded:', data);
+        return Array.isArray(data) ? data : [];
       } catch (error) {
         console.error('Error fetching users:', error);
         return [];
       }
     },
     staleTime: 60000, // Cache for 1 minute
+    refetchOnMount: true,
   });
 
   // Update selected value when the external value changes
