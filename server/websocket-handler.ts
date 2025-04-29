@@ -12,6 +12,22 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
     server,
     path: "/ws",
     clientTracking: true,
+    // Add WebSocket compression options for better performance
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024
+      },
+      // Only use compression for messages larger than 1KB
+      threshold: 1024,
+      // Disable context takeover for consistent performance
+      serverNoContextTakeover: true,
+      clientNoContextTakeover: true
+    }
   });
 
   wss.on("connection", handleConnection);
@@ -20,41 +36,98 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
     logger.error("WebSocket server error", { error });
   });
 
+  // Set up a server-side heartbeat to keep connections alive
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          // Send ping to active clients
+          ws.send(JSON.stringify({ type: "ping" }));
+        } catch (error) {
+          logger.error("Error sending ping", { error });
+        }
+      }
+    });
+  }, 30000); // Send ping every 30 seconds
+
+  // Clean up interval when server shuts down
+  server.on("close", () => {
+    clearInterval(pingInterval);
+    logger.info("WebSocket server closed, heartbeat stopped");
+  });
+
   return wss;
 }
 
 /**
- * Handle new WebSocket connections
+ * Handle new WebSocket connections with more robust error handling
  */
 async function handleConnection(ws: WebSocket, req: any) {
   try {
+    // Get IP address with fallbacks
+    const ip = req.headers['x-forwarded-for'] || 
+               req.headers['x-real-ip'] || 
+               req.socket.remoteAddress || 
+               'unknown';
+               
     logger.info("WebSocket connection attempt", { 
-      ip: req.socket.remoteAddress,
+      ip,
       headers: sanitizeHeaders(req.headers) 
     });
 
-    // Parse cookies from the upgrade request
-    const cookies = parseCookie(req.headers.cookie || '');
-    const sessionID = extractSessionId(cookies);
-
-    if (!sessionID) {
-      logger.warn('WebSocket connection rejected: No valid session ID', { 
-        availableCookies: Object.keys(cookies)
-      });
-      ws.close(1008, 'Unauthorized');
+    // Ensure cookie header exists
+    if (!req.headers.cookie) {
+      logger.warn('WebSocket connection rejected: No cookies provided');
+      ws.close(1008, 'No cookies provided');
       return;
     }
 
-    logger.info('WebSocket connection attempt with session ID', { sessionId: sessionID });
+    try {
+      // Parse cookies from the upgrade request with error handling
+      const cookies = parseCookie(req.headers.cookie);
+      const sessionID = extractSessionId(cookies);
 
-    // Verify session and get user data
-    authenticateWebSocketConnection(ws, sessionID);
+      if (!sessionID) {
+        logger.warn('WebSocket connection rejected: No valid session ID', { 
+          availableCookies: Object.keys(cookies)
+        });
+        ws.close(1008, 'No valid session ID');
+        return;
+      }
 
-    // Set up message handlers
-    setupWebSocketEventHandlers(ws);
+      logger.info('WebSocket connection attempt with session ID', { sessionId: sessionID });
+
+      // Verify session and get user data
+      authenticateWebSocketConnection(ws, sessionID);
+
+      // Set up message handlers
+      setupWebSocketEventHandlers(ws);
+      
+      // Set a timeout in case authentication doesn't respond
+      const authTimeout = setTimeout(() => {
+        if (!clients.has(ws) && ws.readyState === WebSocket.OPEN) {
+          logger.warn('WebSocket authentication timed out');
+          ws.close(1008, 'Authentication timeout');
+        }
+      }, 10000); // 10 second timeout
+      
+      // Clear the timeout when the connection closes
+      ws.once('close', () => {
+        clearTimeout(authTimeout);
+      });
+      
+    } catch (cookieError) {
+      logger.error('Error parsing cookies', { error: cookieError });
+      ws.close(1008, 'Invalid cookie format');
+      return;
+    }
   } catch (error) {
     logger.error("WebSocket connection error", { error });
-    ws.close(1011, 'Internal Server Error');
+    try {
+      ws.close(1011, 'Internal Server Error');
+    } catch (closeError) {
+      logger.error("Error closing WebSocket after error", { error: closeError });
+    }
   }
 }
 

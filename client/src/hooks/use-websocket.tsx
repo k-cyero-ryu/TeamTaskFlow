@@ -71,8 +71,15 @@ export function useWebSocket() {
           else if (message.type === 'connection_status') {
             console.log('WebSocket connection status:', message.status);
             if (message.status === 'connected') {
+              console.log('WebSocket authenticated successfully, userId:', message.userId);
               // Connection successfully authenticated
               setConnected(true);
+              
+              // Also dispatch a connection event for components to listen for
+              const connectionEvent = new CustomEvent('websocketConnected', {
+                detail: { userId: message.userId }
+              });
+              window.dispatchEvent(connectionEvent);
             }
           }
           else if (message.type === 'NEW_GROUP_MESSAGE') {
