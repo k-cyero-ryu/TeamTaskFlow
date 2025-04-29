@@ -80,11 +80,7 @@ export function GroupChannelList() {
   // Create channel mutation
   const createChannel = useMutation({
     mutationFn: (values: z.infer<typeof createChannelSchema>) => {
-      return apiRequest('/api/channels', {
-        method: 'POST',
-        body: JSON.stringify(values),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return apiRequest('POST', '/api/channels', values);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/channels'] });

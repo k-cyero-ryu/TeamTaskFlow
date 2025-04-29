@@ -205,21 +205,10 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
       console.log('Sending message to channel', channelId, content);
-      const response = await fetch(`/api/channels/${channelId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ 
-          content,
-          channelId: channelId    // Explicitly include the channelId as a number in the request body
-        }),
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
+      const response = await apiRequest('POST', `/api/channels/${channelId}/messages`, { 
+        content,
+        channelId  // Explicitly include the channelId as a number in the request body
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server response:', errorText);
-        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
-      }
       
       return await response.json();
     },
@@ -260,17 +249,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const addMember = useMutation({
     mutationFn: async (data: { userId: number, isAdmin?: boolean }) => {
       console.log('Adding member to channel', channelId, data);
-      const response = await fetch(`/api/channels/${channelId}/members`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to add member: ${response.status} ${response.statusText}`);
-      }
-      
+      const response = await apiRequest('POST', `/api/channels/${channelId}/members`, data);
       return await response.json();
     },
     onSuccess: () => {
@@ -294,16 +273,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
   const removeMember = useMutation({
     mutationFn: async (userId: number) => {
       console.log('Removing member from channel', channelId, userId);
-      const response = await fetch(`/api/channels/${channelId}/members/${userId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to remove member: ${response.status} ${response.statusText}`);
-      }
-      
+      await apiRequest('DELETE', `/api/channels/${channelId}/members/${userId}`, null);
       return true;
     },
     onSuccess: () => {
@@ -345,6 +315,7 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
           formData.append('files', file);
         });
         
+        // For file uploads we still need to use fetch directly with formData
         const response = await fetch(`/api/uploads/group-message/${channelId}`, {
           method: 'POST',
           body: formData,
