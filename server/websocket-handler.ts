@@ -61,7 +61,7 @@ async function handleConnection(ws: WebSocket, req: any) {
 /**
  * Extract session ID from cookies
  */
-function extractSessionId(cookies: Record<string, string>): string | null {
+function extractSessionId(cookies: Record<string, string | undefined>): string | null {
   const sessionCookie = cookies['connect.sid'];
   if (!sessionCookie) return null;
   
@@ -131,6 +131,20 @@ function setupWebSocketEventHandlers(ws: WebSocket): void {
 
       if (message.type === "ping") {
         ws.send(JSON.stringify({ type: "pong" }));
+      } else if (message.type === "NEW_GROUP_MESSAGE" && message.data) {
+        // Handle group message event
+        logger.debug("Handling group message event", { 
+          channelId: message.data.channelId,
+          messageId: message.data.id
+        });
+        
+        // Find members to broadcast to (will be handled in the route handler)
+      } else if (message.type === "CHANNEL_MEMBER_ADDED" || message.type === "CHANNEL_MEMBER_REMOVED") {
+        // Handle channel membership changes
+        logger.debug("Handling channel membership event", { 
+          type: message.type,
+          channelId: message.data?.channelId
+        });
       }
     } catch (error) {
       logger.error("WebSocket message handling error", { error });

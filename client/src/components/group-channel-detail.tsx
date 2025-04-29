@@ -209,13 +209,15 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
         method: 'POST',
         body: JSON.stringify({ 
           content,
-          channelId    // Include the channelId in the request body as required by schema
+          channelId: channelId    // Explicitly include the channelId as a number in the request body
         }),
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server response:', errorText);
         throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
       }
       

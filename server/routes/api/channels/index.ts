@@ -272,10 +272,15 @@ router.post('/:id/messages',
         members.push(...updatedMembers.filter(m => m.userId === userId));
       }
 
-      const messageData = req.body;
+      // Make sure channelId is explicitly set in the message data
+      const messageData = {
+        ...req.body,
+        channelId: channelId // Ensure channelId is set correctly
+      };
+      
+      // Create the message
       const newMessage = await storage.createGroupMessage({
         ...messageData,
-        channelId,
         senderId: userId,
       });
 
@@ -289,6 +294,9 @@ router.post('/:id/messages',
         }
       };
 
+      // Log the message for debugging
+      console.log('New group message created:', messageWithSender);
+
       // Broadcast message to all channel members 
       const memberIds = members.map(member => member.userId);
       broadcastWebSocketMessage({
@@ -298,6 +306,7 @@ router.post('/:id/messages',
 
       return res.status(201).json(messageWithSender);
     } catch (error) {
+      console.error('Error sending channel message:', error);
       next(error);
     }
 });
