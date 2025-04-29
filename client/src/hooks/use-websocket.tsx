@@ -67,6 +67,17 @@ export function useWebSocket() {
           // Process standard message types here
           if (message.type === 'pong') {
             // No need to log heartbeats
+          } else if (message.type === 'ping') {
+            // Respond to server-initiated ping with pong
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+              try {
+                socketRef.current.send(JSON.stringify({ type: 'pong' }));
+                // Don't log this message type anymore as it's just a heartbeat
+                return; // Exit early to avoid "Unknown WebSocket message type" log
+              } catch (error) {
+                console.error('Error sending pong response:', error);
+              }
+            }
           } 
           else if (message.type === 'connection_status') {
             console.log('WebSocket connection status:', message.status);
@@ -80,6 +91,9 @@ export function useWebSocket() {
                 detail: { userId: message.userId }
               });
               window.dispatchEvent(connectionEvent);
+              
+              // Exit early to avoid "Unknown WebSocket message type" log
+              return;
             }
           }
           else if (message.type === 'NEW_GROUP_MESSAGE') {

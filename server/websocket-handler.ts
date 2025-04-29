@@ -168,13 +168,30 @@ function authenticateWebSocketConnection(ws: WebSocket, sessionID: string): void
 
     // Get the user ID from the session
     // The session shape depends on passport, but we need to handle it safely
-    const passportData = session.passport as any;
-    const userId = passportData?.user;
+    let userId: number | undefined;
+
+    // Cast session to any to avoid TypeScript errors with properties that
+    // might exist at runtime but are not in the type definition
+    const anySession = session as any;
+
+    // Check if session has passport data, which is the expected shape
+    if (anySession.passport && typeof anySession.passport === 'object' && 'user' in anySession.passport) {
+      userId = anySession.passport.user;
+    } 
+    // Fallback method for non-standard session structures
+    else if (anySession.user && typeof anySession.user === 'object' && 'id' in anySession.user) {
+      // Some implementations store the user object directly
+      userId = anySession.user.id;
+    }
+    // Second fallback if user ID is stored directly
+    else if (anySession.userId && typeof anySession.userId === 'number') {
+      userId = anySession.userId;
+    }
 
     if (!userId) {
       logger.warn('No user ID found in session', { 
         sessionID,
-        hasPassport: !!passportData
+        sessionKeys: Object.keys(anySession)
       });
       ws.close(1008, 'Unauthorized');
       return;
