@@ -79,10 +79,13 @@ export function GroupChannelList() {
 
   // Create channel mutation
   const createChannel = useMutation({
-    mutationFn: (values: z.infer<typeof createChannelSchema>) => {
-      return apiRequest('POST', '/api/channels', values);
+    mutationFn: async (values: z.infer<typeof createChannelSchema>) => {
+      console.log('Creating channel with values:', values);
+      const response = await apiRequest('POST', '/api/channels', values);
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Channel created successfully:', data);
       queryClient.invalidateQueries({ queryKey: ['/api/channels'] });
       toast({
         title: 'Channel created',
@@ -92,6 +95,7 @@ export function GroupChannelList() {
       form.reset();
     },
     onError: (error) => {
+      console.error('Channel creation error:', error);
       toast({
         title: 'Failed to create channel',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
