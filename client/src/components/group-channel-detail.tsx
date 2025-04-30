@@ -206,10 +206,9 @@ export function GroupChannelDetail({ channelId }: GroupChannelDetailProps) {
     mutationFn: async (content: string) => {
       console.log('Sending message to channel', channelId, content);
       try {
-        // Make sure parameters are in the correct order: method, url, data
+        // The schema only expects content and channelId in the exact format required by insertGroupMessageSchema
         const response = await apiRequest('POST', `/api/channels/${channelId}/messages`, { 
-          content,
-          channelId: Number(channelId)  // Explicitly include the channelId as a number in the request body
+          content: content,  // Just include content, not channelId in the body
         });
         
         const responseData = await response.json();
