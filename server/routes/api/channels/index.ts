@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { storage } from '../../../storage';
-import { requireAuth, validateParams } from '../../../middleware';
+import { requireAuth, validateParams, validateRequest } from '../../../middleware';
 import { insertGroupChannelSchema, insertGroupMessageSchema } from '@shared/schema';
 import { z } from 'zod';
 import { broadcastWebSocketMessage, sendWebSocketMessageToUser } from '../../../websocket';
@@ -66,7 +66,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
 // Create a new channel
 router.post('/', 
   requireAuth,
-  validateParams(insertGroupChannelSchema), 
+  validateRequest(insertGroupChannelSchema), 
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -126,7 +126,7 @@ router.get('/:id/members', requireAuth, async (req: Request, res: Response, next
 // Add a user to a channel
 router.post('/:id/members', 
   requireAuth,
-  validateParams(z.object({
+  validateRequest(z.object({
     userId: z.number(),
     isAdmin: z.boolean().optional(),
   })), 
@@ -252,7 +252,7 @@ router.get('/:id/messages', requireAuth, async (req: Request, res: Response, nex
 // Send a message to a channel
 router.post('/:id/messages', 
   requireAuth,
-  validateParams(insertGroupMessageSchema), 
+  validateRequest(insertGroupMessageSchema), 
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
