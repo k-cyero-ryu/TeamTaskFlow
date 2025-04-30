@@ -11,7 +11,7 @@ import {
   NotFoundError, 
   InternalServerError 
 } from '../../../utils/errors';
-import { validateParams, requireAuth } from '../../../middleware';
+import { validateRequest, requireAuth } from '../../../middleware';
 import { Logger } from '../../../utils/logger';
 
 const router = Router();
@@ -39,7 +39,7 @@ router.get('/', requireAuth, async (req, res) => {
  * @desc Create a new workflow
  * @access Private
  */
-router.post('/', requireAuth, validateParams(insertWorkflowSchema), async (req, res) => {
+router.post('/', requireAuth, validateRequest(insertWorkflowSchema), async (req, res) => {
   try {
     const userId = req.user!.id;
     
@@ -190,7 +190,7 @@ router.get('/:workflowId/stages/:stageId/tasks', requireAuth, async (req, res) =
  * @desc Create a new stage for a workflow
  * @access Private
  */
-router.post('/:id/stages', requireAuth, validateParams(insertWorkflowStageSchema), async (req, res) => {
+router.post('/:id/stages', requireAuth, validateRequest(insertWorkflowStageSchema), async (req, res) => {
   try {
     const workflowId = parseInt(req.params.id);
     
@@ -256,7 +256,7 @@ router.get('/:id/transitions', requireAuth, async (req, res) => {
  * @desc Create a new workflow transition
  * @access Private
  */
-router.post('/transitions', requireAuth, validateParams(insertWorkflowTransitionSchema), async (req, res) => {
+router.post('/transitions', requireAuth, validateRequest(insertWorkflowTransitionSchema), async (req, res) => {
   try {
     const transition = await storage.createWorkflowTransition(req.body);
     
