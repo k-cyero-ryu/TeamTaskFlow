@@ -317,9 +317,9 @@ router.post('/:id/messages',
         });
       }
 
-      // Make sure channelId is explicitly set in the message data
+      // Make sure channelId is explicitly set in the message data, but don't modify the original request body
       const messageData = {
-        ...req.body,
+        content: req.body.content,
         channelId: channelId // Ensure channelId is set correctly
       };
       
