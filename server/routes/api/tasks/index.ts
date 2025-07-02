@@ -11,6 +11,7 @@ import {
 import { validateParams, requireAuth } from '../../../middleware';
 import { Logger } from '../../../utils/logger';
 import { broadcastWebSocketMessage } from '../../../websocket';
+import { notificationService } from '../../../services/notification-service';
 
 const router = Router();
 const logger = new Logger('TaskRoutes');
@@ -115,93 +116,43 @@ router.post('/', requireAuth, async (req, res) => {
       data: task,
     });
     
-    // Generate email notifications for task participants and responsible person
+    // Send email notifications to task participants
     try {
-      // Log the participantIds that were passed to createTask
-      logger.info('Task creation participantIds', { 
-        participantIds: Array.isArray(participantIds) ? participantIds : [], 
-        responsibleId: task.responsibleId 
+      const creator = await storage.getUser(userId);
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      
+      // Get task participants and responsible person
+      const taskParticipants = await storage.getTaskParticipants(task.id);
+      const responsibleUser = task.responsibleId ? await storage.getUser(task.responsibleId) : null;
+      
+      // Collect all users who should receive notifications (excluding creator)
+      const usersToNotify = new Set<number>();
+      
+      // Add participants
+      taskParticipants.forEach(p => {
+        if (p.id !== userId) usersToNotify.add(p.id);
       });
       
-      // Original participant ids passed to createTask
-      const originalParticipantIds = Array.isArray(participantIds) ? participantIds : [];
+      // Add responsible person
+      if (responsibleUser && responsibleUser.id !== userId) {
+        usersToNotify.add(responsibleUser.id);
+      }
       
-      // Get task participants from the database (these should match the participantIds we passed in)
-      const taskParticipants = await storage.getTaskParticipants(task.id);
-      logger.info('Task participants found', { participants: taskParticipants });
-      
-      // Make sure to include all participants in notifications
-      const allInvolvedUserIds = taskParticipants.map(p => p.id);
-      
-      // Double-check: include any participantIds that might not have been picked up
-      for (const participantId of originalParticipantIds) {
-        if (!allInvolvedUserIds.includes(participantId)) {
-          allInvolvedUserIds.push(participantId);
+      // Send assignment notifications
+      for (const participantUserId of Array.from(usersToNotify)) {
+        const participant = await storage.getUser(participantUserId);
+        if (participant && creator) {
+          await notificationService.sendTaskAssignmentNotification({
+            task,
+            assignedUser: participant,
+            user: creator,
+            baseUrl
+          });
         }
-      }
-      
-      // Always include responsible person if set
-      if (task.responsibleId && !allInvolvedUserIds.includes(task.responsibleId)) {
-        allInvolvedUserIds.push(task.responsibleId);
-      }
-      
-      logger.info('All involved users for notifications', { allInvolvedUserIds });
-      
-      // Get all user details
-      const users = await storage.getUsers();
-      
-      // Create notification for the creator (task created)
-      const creator = users.find(u => u.id === userId);
-      if (creator && creator.email) {
-        // Create task creation notification for the creator
-        await storage.createEmailNotification({
-          userId: userId,
-          recipientEmail: creator.email,
-          subject: `Task created: ${task.title}`,
-          content: `You have created a new task: "${task.title}". ${
-            task.dueDate ? `The task is due on ${new Date(task.dueDate).toLocaleDateString()}.` : ''
-          }`,
-          type: 'task_created',
-          status: 'pending',
-          relatedEntityId: task.id,
-          relatedEntityType: 'task'
-        });
-        
-        logger.info('Task creation notification created', { 
-          taskId: task.id, 
-          userId: userId 
-        });
-      }
-      
-      // Create notifications for each involved user
-      for (const involvedUserId of allInvolvedUserIds) {
-        if (involvedUserId === userId) continue; // Skip creator
-        
-        const user = users.find(u => u.id === involvedUserId);
-        if (!user || !user.email) continue; // Skip if no user or no email
-        
-        // Create task assignment notification
-        await storage.createEmailNotification({
-          userId: involvedUserId,
-          recipientEmail: user.email,
-          subject: `You've been assigned to a task: ${task.title}`,
-          content: `You have been assigned to the task "${task.title}". ${
-            task.dueDate ? `The task is due on ${new Date(task.dueDate).toLocaleDateString()}.` : ''
-          }`,
-          type: 'task_assignment',
-          status: 'pending',
-          relatedEntityId: task.id,
-          relatedEntityType: 'task'
-        });
-        
-        logger.info('Task assignment notification created', { 
-          taskId: task.id, 
-          userId: involvedUserId 
-        });
       }
     } catch (error) {
       // Don't fail the request if notification creation fails
-      logger.error('Error creating task notifications', { error, taskId: task.id });
+      logger.error('Error sending task notifications', { error, taskId: task.id });
     }
 
     logger.info('Task created successfully', { taskId: task.id, userId });

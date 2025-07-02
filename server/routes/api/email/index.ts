@@ -165,6 +165,59 @@ router.get('/notifications', requireAuth, async (req, res) => {
 });
 
 /**
+ * @route POST /api/email/notifications/process-pending
+ * @desc Process and send pending email notifications
+ * @access Private
+ */
+router.post('/notifications/process-pending', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: {
+          type: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required'
+        }
+      });
+    }
+    
+    // Get pending notifications for the current user
+    const pendingNotifications = await storage.getUserEmailNotifications(req.user.id);
+    const pending = pendingNotifications.filter(n => n.status === 'pending');
+    
+    if (pending.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No pending notifications to process',
+        processed: 0
+      });
+    }
+    
+    // Process pending emails
+    const results = await emailService.processPendingEmails(pending);
+    
+    logger.info('Processed pending emails', { 
+      userId: req.user.id, 
+      sent: results.sent, 
+      failed: results.failed 
+    });
+    
+    res.json({
+      success: true,
+      message: `Processed ${results.sent + results.failed} notifications. ${results.sent} sent successfully, ${results.failed} failed.`,
+      results
+    });
+  } catch (error) {
+    logger.error('Error processing pending emails', { error, userId: req.user?.id });
+    res.status(500).json({ 
+      error: {
+        type: 'SERVER_ERROR',
+        message: 'Failed to process pending emails'
+      }
+    });
+  }
+});
+
+/**
  * @route POST /api/email/notifications/send-welcome
  * @desc Send a test welcome email for the current user
  * @access Private

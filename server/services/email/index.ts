@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { EmailNotification } from '../../../shared/schema';
 import { Logger } from '../../utils/logger';
 import { storage } from '../../storage';
+import { sendGridService } from './sendgrid';
 
 // Initialize logger for email service
 const logger = new Logger('EmailService');
@@ -213,6 +214,33 @@ export class EmailService {
    * @returns Information about the sent message
    */
   async sendEmail(options: EmailSendOptions): Promise<nodemailer.SentMessageInfo> {
+    // Try SendGrid first if available
+    if (sendGridService.isAvailable()) {
+      try {
+        const success = await sendGridService.sendEmail({
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+          from: options.from
+        });
+        
+        if (success) {
+          return {
+            messageId: `sendgrid-${Date.now()}`,
+            envelope: { from: options.from || this.defaultFrom, to: [options.to] },
+            accepted: [options.to],
+            rejected: [],
+            pending: [],
+            response: 'SendGrid email sent successfully'
+          };
+        }
+      } catch (error) {
+        logger.warn('SendGrid failed, falling back to SMTP', { error });
+      }
+    }
+
+    // Fallback to regular SMTP
     try {
       const mailOptions = {
         from: options.from || this.defaultFrom,
@@ -222,7 +250,7 @@ export class EmailService {
         html: options.html
       };
       
-      logger.debug('Sending email', { 
+      logger.debug('Sending email via SMTP', { 
         to: options.to, 
         subject: options.subject,
         metadata: options.metadata 
@@ -230,7 +258,7 @@ export class EmailService {
       
       const info = await this.transporter.sendMail(mailOptions);
       
-      logger.info('Email sent successfully', { 
+      logger.info('Email sent successfully via SMTP', { 
         messageId: info.messageId,
         to: options.to,
         metadata: options.metadata

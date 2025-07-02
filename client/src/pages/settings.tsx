@@ -62,6 +62,8 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const [testEmailStatus, setTestEmailStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [testEmailMessage, setTestEmailMessage] = useState("");
+  const [testWelcomeStatus, setTestWelcomeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [processPendingStatus, setProcessPendingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   // SMTP settings form
   const smtpForm = useForm({
@@ -212,6 +214,72 @@ export default function SettingsPage() {
     } catch (error) {
       setTestEmailStatus('error');
       setTestEmailMessage(error instanceof Error ? error.message : "An unknown error occurred");
+    }
+  };
+
+  // Function to send test welcome email
+  const sendTestWelcomeEmail = async () => {
+    setTestWelcomeStatus('loading');
+    
+    try {
+      const response = await apiRequest("POST", "/api/email/notifications/send-welcome");
+      const result = await response.json();
+      
+      if (response.ok) {
+        setTestWelcomeStatus('success');
+        toast({
+          title: "Welcome Email Sent",
+          description: result.message || "Test welcome email has been sent successfully!",
+        });
+      } else {
+        setTestWelcomeStatus('error');
+        toast({
+          title: "Failed to Send Email",
+          description: result.error?.message || "Failed to send test welcome email.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setTestWelcomeStatus('error');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to process pending emails
+  const processPendingEmails = async () => {
+    setProcessPendingStatus('loading');
+    
+    try {
+      const response = await apiRequest("POST", "/api/email/notifications/process-pending");
+      const result = await response.json();
+      
+      if (response.ok) {
+        setProcessPendingStatus('success');
+        toast({
+          title: "Emails Processed",
+          description: result.message || "Pending email notifications have been processed!",
+        });
+        // Refresh notifications list
+        queryClient.invalidateQueries({ queryKey: ['/api/email/notifications'] });
+      } else {
+        setProcessPendingStatus('error');
+        toast({
+          title: "Failed to Process Emails",
+          description: result.error?.message || "Failed to process pending emails.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setProcessPendingStatus('error');
+      toast({
+        title: "Error", 
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
     }
   };
 
@@ -415,20 +483,57 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   
-                  <Button 
-                    type="submit" 
-                    disabled={updateNotificationPreferences.isPending}
-                    className="w-full sm:w-auto"
-                  >
-                    {updateNotificationPreferences.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Notification Preferences"
-                    )}
-                  </Button>
+                  <div className="flex gap-3 flex-wrap">
+                    <Button 
+                      type="submit" 
+                      disabled={updateNotificationPreferences.isPending}
+                      className="w-full sm:w-auto"
+                    >
+                      {updateNotificationPreferences.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Notification Preferences"
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={sendTestWelcomeEmail}
+                      disabled={testWelcomeStatus === 'loading'}
+                    >
+                      {testWelcomeStatus === 'loading' ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Test Welcome Email
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={processPendingEmails}
+                      disabled={processPendingStatus === 'loading'}
+                    >
+                      {processPendingStatus === 'loading' ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Process Pending Emails"
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </CardContent>

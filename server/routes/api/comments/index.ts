@@ -9,6 +9,7 @@ import { requireAuth, validateParams, validateRequest } from '../../../middlewar
 import { Logger } from '../../../utils/logger';
 import { insertCommentSchema } from '@shared/schema';
 import { broadcastWebSocketMessage } from '../../../websocket';
+import { notificationService } from '../../../services/notification-service';
 
 const router = Router();
 const logger = new Logger('CommentRoutes');
@@ -77,6 +78,49 @@ router.post('/:taskId', requireAuth, validateParams({
       type: 'COMMENT_CREATED',
       data: newComment
     });
+    
+    // Send email notifications to task participants
+    try {
+      const commenter = await storage.getUser(userId);
+      const taskParticipants = await storage.getTaskParticipants(taskId);
+      const responsibleUser = task.responsibleId ? await storage.getUser(task.responsibleId) : null;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      
+      // Collect all users who should receive notifications (excluding commenter)
+      const usersToNotify = new Set<number>();
+      
+      // Add participants
+      taskParticipants.forEach(p => {
+        if (p.id !== userId) usersToNotify.add(p.id);
+      });
+      
+      // Add responsible person
+      if (responsibleUser && responsibleUser.id !== userId) {
+        usersToNotify.add(responsibleUser.id);
+      }
+      
+      // Add task creator
+      if (task.creatorId !== userId) {
+        usersToNotify.add(task.creatorId);
+      }
+      
+      // Send comment notifications
+      for (const recipientUserId of Array.from(usersToNotify)) {
+        const recipient = await storage.getUser(recipientUserId);
+        if (recipient && commenter) {
+          await notificationService.sendTaskCommentNotification({
+            task,
+            comment: newComment,
+            commenter,
+            recipient,
+            baseUrl
+          });
+        }
+      }
+    } catch (error) {
+      // Don't fail the request if notification creation fails
+      logger.error('Error sending comment notifications', { error, taskId, commentId: comment.id });
+    }
     
     logger.info('Comment created successfully', { taskId, commentId: comment.id, userId });
     res.status(201).json(newComment);
