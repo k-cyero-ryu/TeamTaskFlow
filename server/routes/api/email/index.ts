@@ -323,4 +323,58 @@ router.post('/notifications/send-welcome', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/email/direct-test
+ * @desc Send a direct test email (for testing purposes)
+ * @access Public (for testing only)
+ */
+router.post('/direct-test', async (req, res) => {
+  try {
+    const testEmail = 'darkryuudan@gmail.com';
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Email System Test</h2>
+        <p>Hello! This is a test email from your Team Collaborator application.</p>
+        <p><strong>Test Results:</strong></p>
+        <ul>
+          <li>✅ Email service is working correctly</li>
+          <li>✅ SMTP configuration is functional</li>
+          <li>✅ Email notifications are ready to use</li>
+        </ul>
+        <p>Your email notification system is now operational!</p>
+        <p><small>Sent at: ${new Date().toLocaleString()}</small></p>
+        <hr>
+        <p style="color: #666; font-size: 12px;">This is an automated test message from Team Collaborator.</p>
+      </div>
+    `;
+    
+    await emailService.sendEmail({
+      to: testEmail,
+      subject: 'Team Collaborator - Email System Test',
+      html,
+      metadata: { testType: 'direct-test' }
+    });
+    
+    logger.info('Direct test email sent successfully', { to: testEmail });
+    
+    res.json({
+      success: true,
+      message: `Test email sent successfully to ${testEmail}`,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('Failed to send direct test email', { error });
+    
+    res.status(500).json({
+      error: {
+        type: 'EMAIL_SEND_ERROR',
+        message: 'Failed to send test email',
+        details: error instanceof Error ? error.message : String(error)
+      }
+    });
+  }
+});
+
 export default router;
