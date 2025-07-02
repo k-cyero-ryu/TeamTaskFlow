@@ -546,7 +546,9 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Email Server Settings (SMTP)</CardTitle>
               <CardDescription>
-                Configure the SMTP server settings for sending email notifications. These settings are global for the entire application.
+                Configure SMTP settings for reliable email delivery. The system uses SMTP as the primary method and SendGrid as optional fallback.
+                <br />
+                <strong>Quick Setup:</strong> For testing, you can use Gmail SMTP with an app password (smtp.gmail.com, port 587).
               </CardDescription>
             </CardHeader>
             <CardContent>

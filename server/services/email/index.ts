@@ -214,33 +214,7 @@ export class EmailService {
    * @returns Information about the sent message
    */
   async sendEmail(options: EmailSendOptions): Promise<nodemailer.SentMessageInfo> {
-    // Try SendGrid first if available
-    if (sendGridService.isAvailable()) {
-      try {
-        const success = await sendGridService.sendEmail({
-          to: options.to,
-          subject: options.subject,
-          html: options.html,
-          text: options.text,
-          from: options.from
-        });
-        
-        if (success) {
-          return {
-            messageId: `sendgrid-${Date.now()}`,
-            envelope: { from: options.from || this.defaultFrom, to: [options.to] },
-            accepted: [options.to],
-            rejected: [],
-            pending: [],
-            response: 'SendGrid email sent successfully'
-          };
-        }
-      } catch (error) {
-        logger.warn('SendGrid failed, falling back to SMTP', { error });
-      }
-    }
-
-    // Fallback to regular SMTP
+    // Use SMTP as primary method (no verification required)
     try {
       const mailOptions = {
         from: options.from || this.defaultFrom,
@@ -265,15 +239,53 @@ export class EmailService {
       });
       
       return info;
-    } catch (error) {
-      logger.error('Failed to send email', { 
-        error, 
+    } catch (smtpError) {
+      logger.warn('SMTP delivery failed, trying SendGrid as fallback', { 
+        error: smtpError,
+        to: options.to 
+      });
+      
+      // Only try SendGrid as fallback if SMTP fails and SendGrid is available
+      if (sendGridService.isAvailable()) {
+        try {
+          const success = await sendGridService.sendEmail({
+            to: options.to,
+            subject: options.subject,
+            html: options.html,
+            text: options.text,
+            from: options.from
+          });
+          
+          if (success) {
+            logger.info('Email sent successfully via SendGrid fallback', { 
+              to: options.to, 
+              subject: options.subject,
+              metadata: options.metadata
+            });
+            
+            return {
+              messageId: `sendgrid-fallback-${Date.now()}`,
+              envelope: { from: options.from || this.defaultFrom, to: [options.to] },
+              accepted: [options.to],
+              rejected: [],
+              pending: [],
+              response: 'SendGrid fallback email sent successfully'
+            };
+          }
+        } catch (sendGridError) {
+          logger.error('SendGrid fallback also failed', { error: sendGridError });
+        }
+      }
+      
+      // If both methods fail, throw the original SMTP error
+      logger.error('All email delivery methods failed', { 
+        smtpError, 
         to: options.to, 
         subject: options.subject,
         metadata: options.metadata
       });
       
-      throw error;
+      throw smtpError;
     }
   }
   
