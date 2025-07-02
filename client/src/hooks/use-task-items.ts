@@ -29,7 +29,7 @@ export function useSubtasks(taskId: number) {
   // Improved mutation with optimistic updates and more granular cache invalidation
   const updateSubtaskStatus = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/subtasks/${id}/status`, {
+      const res = await apiRequest("PATCH", `/api/tasks/subtasks/${id}/status`, {
         completed,
       });
       const data = await res.json();
@@ -169,7 +169,7 @@ export function useTaskSteps(taskId: number) {
   // Improved mutation with optimistic updates and more granular cache invalidation
   const updateStepStatus = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/steps/${id}/status`, {
+      const res = await apiRequest("PATCH", `/api/tasks/steps/${id}/status`, {
         completed,
       });
       const data = await res.json();
