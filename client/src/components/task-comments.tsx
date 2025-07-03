@@ -165,7 +165,7 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
   };
 
   const downloadFile = (filename: string) => {
-    window.open(`/api/uploads/download/${filename}`, '_blank');
+    window.open(`/api/uploads/file/${filename}`, '_blank');
   };
 
   const getFileIcon = (mimeType: string) => {
@@ -278,27 +278,58 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
                   {comment.attachments && comment.attachments.length > 0 && (
                     <div className="grid grid-cols-1 gap-2">
                       {comment.attachments.map((attachment) => (
-                        <div
-                          key={attachment.id}
-                          className="flex items-center gap-2 p-2 bg-muted rounded-md"
-                        >
-                          <span className="text-lg">{getFileIcon(attachment.mimeType)}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {attachment.originalFilename}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatFileSize(attachment.size)}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => downloadFile(attachment.filename)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                        <div key={attachment.id} className="space-y-2">
+                          {attachment.mimeType.startsWith('image/') ? (
+                            <div className="space-y-2">
+                              <img
+                                src={`/api/uploads/file/${attachment.filename}`}
+                                alt={attachment.originalFilename}
+                                className="max-w-full h-auto max-h-64 rounded-md border"
+                                loading="lazy"
+                              />
+                              <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{getFileIcon(attachment.mimeType)}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {attachment.originalFilename}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatFileSize(attachment.size)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => downloadFile(attachment.filename)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                              <span className="text-lg">{getFileIcon(attachment.mimeType)}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {attachment.originalFilename}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(attachment.size)}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => downloadFile(attachment.filename)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -326,25 +357,57 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
           {selectedFiles.length > 0 && (
             <div className="grid grid-cols-1 gap-2">
               {selectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-2 bg-muted rounded-md"
-                >
-                  <span className="text-lg">{getFileIcon(file.type)}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(index)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                <div key={index} className="space-y-2">
+                  {file.type.startsWith('image/') ? (
+                    <div className="space-y-2">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="max-w-full h-auto max-h-32 rounded-md border"
+                        onLoad={(e) => {
+                          // Clean up the object URL after loading
+                          URL.revokeObjectURL((e.target as HTMLImageElement).src);
+                        }}
+                      />
+                      <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{getFileIcon(file.type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                      <span className="text-lg">{getFileIcon(file.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
