@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Calendar, MapPin, User, DollarSign, Edit, Trash2, Package, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,16 @@ export default function EstimationsPage() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  // Keep selectedEstimation in sync with the latest data from the cache
+  useEffect(() => {
+    if (selectedEstimation && estimations.length > 0) {
+      const updatedEstimation = estimations.find(est => est.id === selectedEstimation.id);
+      if (updatedEstimation) {
+        setSelectedEstimation(updatedEstimation);
+      }
+    }
+  }, [estimations, selectedEstimation?.id]);
 
   // Create estimation form
   const createForm = useForm<EstimationFormData>({
@@ -218,8 +228,45 @@ export default function EstimationsPage() {
       });
       return response.json();
     },
+    onMutate: async ({ estimationId, stockItemId, quantity }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
+
+      // Snapshot previous value
+      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
+
+      // Get the stock item details
+      const stockItem = stockItems.find(item => item.id === stockItemId);
+      if (!stockItem) return { previousEstimations };
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
+        if (!old) return old;
+        return old.map(estimation => {
+          if (estimation.id === estimationId) {
+            const newItem = {
+              id: Date.now(), // Temporary ID
+              quantity,
+              unitCost: stockItem.cost,
+              totalCost: stockItem.cost * quantity,
+              stockItem: {
+                id: stockItem.id,
+                name: stockItem.name,
+                cost: stockItem.cost
+              }
+            };
+            return {
+              ...estimation,
+              items: [...estimation.items, newItem]
+            };
+          }
+          return estimation;
+        });
+      });
+
+      return { previousEstimations };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
       setShowAddItemDialog(false);
       setSelectedStockItem("");
       setItemQuantity(1);
@@ -228,12 +275,20 @@ export default function EstimationsPage() {
         description: "Item added to estimation",
       });
     },
-    onError: (error: Error) => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousEstimations) {
+        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to add item",
+        description: err.message || "Failed to add item",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to get real data
+      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
     },
   });
 
@@ -242,19 +297,49 @@ export default function EstimationsPage() {
     mutationFn: async (itemId: number) => {
       await apiRequest("DELETE", `/api/estimations/${selectedEstimation?.id}/items/${itemId}`);
     },
+    onMutate: async (itemId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
+
+      // Snapshot previous value
+      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
+        if (!old) return old;
+        return old.map(estimation => {
+          if (estimation.id === selectedEstimation?.id) {
+            return {
+              ...estimation,
+              items: estimation.items.filter(item => item.id !== itemId)
+            };
+          }
+          return estimation;
+        });
+      });
+
+      return { previousEstimations };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
       toast({
         title: "Success",
         description: "Item removed from estimation",
       });
     },
-    onError: (error: Error) => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousEstimations) {
+        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to remove item",
+        description: err.message || "Failed to remove item",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
     },
   });
 
@@ -266,19 +351,47 @@ export default function EstimationsPage() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
-      toast({
-        title: "Success",
-        description: "Item quantity updated",
+    onMutate: async ({ itemId, quantity }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
+
+      // Snapshot previous value
+      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
+        if (!old) return old;
+        return old.map(estimation => {
+          if (estimation.id === selectedEstimation?.id) {
+            return {
+              ...estimation,
+              items: estimation.items.map(item => 
+                item.id === itemId 
+                  ? { ...item, quantity, totalCost: item.unitCost * quantity }
+                  : item
+              )
+            };
+          }
+          return estimation;
+        });
       });
+
+      return { previousEstimations };
     },
-    onError: (error: Error) => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousEstimations) {
+        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to update item",
+        description: err.message || "Failed to update item",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
     },
   });
 
