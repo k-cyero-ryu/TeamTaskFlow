@@ -377,4 +377,128 @@ router.post('/direct-test', async (req, res) => {
   }
 });
 
+/**
+ * @route PUT /api/email/notifications/:id/read
+ * @desc Mark a notification as read
+ * @access Private
+ */
+router.put('/notifications/:id/read', requireAuth, async (req, res) => {
+  try {
+    const notificationId = parseInt(req.params.id);
+    
+    if (isNaN(notificationId)) {
+      return res.status(400).json({
+        error: {
+          type: 'VALIDATION_ERROR',
+          message: 'Invalid notification ID'
+        }
+      });
+    }
+
+    // Verify the notification belongs to the current user
+    const notification = await storage.getEmailNotification(notificationId);
+    if (!notification) {
+      return res.status(404).json({
+        error: {
+          type: 'NOT_FOUND',
+          message: 'Notification not found'
+        }
+      });
+    }
+
+    if (notification.userId !== req.user!.id) {
+      return res.status(403).json({
+        error: {
+          type: 'FORBIDDEN',
+          message: 'Access denied'
+        }
+      });
+    }
+
+    const updatedNotification = await storage.markNotificationAsRead(notificationId);
+    
+    logger.info('Notification marked as read', { 
+      notificationId, 
+      userId: req.user!.id 
+    });
+    
+    res.json(updatedNotification);
+  } catch (error) {
+    logger.error('Failed to mark notification as read', { 
+      error, 
+      notificationId: req.params.id,
+      userId: req.user?.id 
+    });
+    
+    res.status(500).json({
+      error: {
+        type: 'INTERNAL_ERROR',
+        message: 'Failed to mark notification as read'
+      }
+    });
+  }
+});
+
+/**
+ * @route PUT /api/email/notifications/:id/unread
+ * @desc Mark a notification as unread
+ * @access Private
+ */
+router.put('/notifications/:id/unread', requireAuth, async (req, res) => {
+  try {
+    const notificationId = parseInt(req.params.id);
+    
+    if (isNaN(notificationId)) {
+      return res.status(400).json({
+        error: {
+          type: 'VALIDATION_ERROR',
+          message: 'Invalid notification ID'
+        }
+      });
+    }
+
+    // Verify the notification belongs to the current user
+    const notification = await storage.getEmailNotification(notificationId);
+    if (!notification) {
+      return res.status(404).json({
+        error: {
+          type: 'NOT_FOUND',
+          message: 'Notification not found'
+        }
+      });
+    }
+
+    if (notification.userId !== req.user!.id) {
+      return res.status(403).json({
+        error: {
+          type: 'FORBIDDEN',
+          message: 'Access denied'
+        }
+      });
+    }
+
+    const updatedNotification = await storage.markNotificationAsUnread(notificationId);
+    
+    logger.info('Notification marked as unread', { 
+      notificationId, 
+      userId: req.user!.id 
+    });
+    
+    res.json(updatedNotification);
+  } catch (error) {
+    logger.error('Failed to mark notification as unread', { 
+      error, 
+      notificationId: req.params.id,
+      userId: req.user?.id 
+    });
+    
+    res.status(500).json({
+      error: {
+        type: 'INTERNAL_ERROR',
+        message: 'Failed to mark notification as unread'
+      }
+    });
+  }
+});
+
 export default router;

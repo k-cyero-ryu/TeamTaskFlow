@@ -179,6 +179,8 @@ export const emailNotifications = pgTable("email_notifications", {
   content: text("content").notNull(),
   type: text("type").notNull(), // task_assigned, task_updated, task_commented, mentioned, etc.
   status: text("status").notNull().default("pending"), // pending, sent, failed
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
   sentAt: timestamp("sent_at"),
   error: text("error_message"),
   relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.

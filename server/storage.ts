@@ -86,6 +86,8 @@ interface IStorage {
   getUserEmailNotifications(userId: number): Promise<EmailNotification[]>;
   updateEmailNotification(id: number, data: Partial<EmailNotification>): Promise<EmailNotification>;
   deleteEmailNotification(id: number): Promise<void>;
+  markNotificationAsRead(id: number): Promise<EmailNotification>;
+  markNotificationAsUnread(id: number): Promise<EmailNotification>;
   
   // Calendar event methods
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
@@ -1336,6 +1338,54 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to delete email notification with ID ${id}`, { error });
       throw new DatabaseError(`Failed to delete email notification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async markNotificationAsRead(id: number): Promise<EmailNotification> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedNotification] = await db
+          .update(emailNotifications)
+          .set({ 
+            isRead: true,
+            readAt: new Date()
+          })
+          .where(eq(emailNotifications.id, id))
+          .returning();
+        
+        if (!updatedNotification) {
+          throw new Error(`Email notification with ID ${id} not found`);
+        }
+        
+        return updatedNotification;
+      }, 'Mark notification as read');
+    } catch (error) {
+      logger.error(`Failed to mark notification as read with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to mark notification as read: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async markNotificationAsUnread(id: number): Promise<EmailNotification> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedNotification] = await db
+          .update(emailNotifications)
+          .set({ 
+            isRead: false,
+            readAt: null
+          })
+          .where(eq(emailNotifications.id, id))
+          .returning();
+        
+        if (!updatedNotification) {
+          throw new Error(`Email notification with ID ${id} not found`);
+        }
+        
+        return updatedNotification;
+      }, 'Mark notification as unread');
+    } catch (error) {
+      logger.error(`Failed to mark notification as unread with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to mark notification as unread: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
