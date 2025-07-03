@@ -134,6 +134,17 @@ export default function StockPage() {
   >({
     queryKey: ["/api/stock/items", selectedItemForHistory?.id, "movements"],
     enabled: !!selectedItemForHistory && showMovementHistoryDialog,
+    queryFn: async () => {
+      if (!selectedItemForHistory) return [];
+      console.log('Fetching movements for item:', selectedItemForHistory.id);
+      const response = await fetch(`/api/stock/items/${selectedItemForHistory.id}/movements`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch movements');
+      }
+      const data = await response.json();
+      console.log('Received movements:', data);
+      return data;
+    },
   });
 
   // Delete mutation
