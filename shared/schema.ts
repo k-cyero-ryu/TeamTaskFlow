@@ -739,6 +739,7 @@ export const estimations = pgTable("estimations", {
   address: text("address").notNull(),
   clientName: text("client_name").notNull(),
   clientInformation: text("client_information"),
+  techniqueId: integer("technique_id").references(() => users.id),
   createdById: integer("created_by_id").references(() => users.id).notNull(),
   totalCost: integer("total_cost").default(0), // calculated field in cents
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -767,6 +768,7 @@ export const insertEstimationSchema = createInsertSchema(estimations).pick({
   address: true,
   clientName: true,
   clientInformation: true,
+  techniqueId: true,
 }).extend({
   date: z.string().transform((str) => new Date(str)),
 });
@@ -788,6 +790,10 @@ export type InsertEstimationItem = z.infer<typeof insertEstimationItemSchema>;
 export const estimationsRelations = relations(estimations, ({ one, many }) => ({
   createdBy: one(users, {
     fields: [estimations.createdById],
+    references: [users.id],
+  }),
+  technique: one(users, {
+    fields: [estimations.techniqueId],
     references: [users.id],
   }),
   items: many(estimationItems),

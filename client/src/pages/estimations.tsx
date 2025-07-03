@@ -25,6 +25,7 @@ type Estimation = {
   address: string;
   clientName: string;
   clientInformation: string | null;
+  techniqueId: number | null;
   totalCost: number;
   createdAt: string;
   updatedAt: string | null;
@@ -43,6 +44,11 @@ type Estimation = {
       cost: number;
     };
   }>;
+};
+
+type User = {
+  id: number;
+  username: string;
 };
 
 const estimationFormSchema = insertEstimationSchema.extend({
@@ -76,6 +82,11 @@ export default function EstimationsPage() {
     queryKey: ["/api/stock/items"],
   });
 
+  // Fetch users for technique selection
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
   // Create estimation form
   const createForm = useForm<EstimationFormData>({
     resolver: zodResolver(estimationFormSchema),
@@ -85,6 +96,7 @@ export default function EstimationsPage() {
       address: "",
       clientName: "",
       clientInformation: "",
+      techniqueId: undefined,
     },
   });
 
@@ -177,6 +189,7 @@ export default function EstimationsPage() {
       address: estimation.address,
       clientName: estimation.clientName,
       clientInformation: estimation.clientInformation || "",
+      techniqueId: estimation.techniqueId,
     });
     setShowEditDialog(true);
   };
@@ -469,6 +482,31 @@ export default function EstimationsPage() {
               />
               <FormField
                 control={createForm.control}
+                name="techniqueId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Technique (Optional)</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} value={field.value?.toString() || ""}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a technique" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No technique selected</SelectItem>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createForm.control}
                 name="clientInformation"
                 render={({ field }) => (
                   <FormItem>
@@ -556,6 +594,31 @@ export default function EstimationsPage() {
                     <FormLabel>Address</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="Enter project address" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="techniqueId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Technique (Optional)</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} value={field.value?.toString() || ""}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a technique" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No technique selected</SelectItem>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

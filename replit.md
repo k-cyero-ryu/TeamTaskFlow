@@ -98,6 +98,12 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 03, 2025. Added Technique field to estimations with user selection dropdown
+  - Enhanced estimations database schema with techniqueId field referencing users table
+  - Updated both create and edit estimation forms to include technique user selection
+  - Integrated with existing users API to populate technique dropdown with all system users
+  - Simplified estimation interface to focus on items and quantities only, removing cost displays
+  - Updated estimation cards and item management to show only essential workflow information
 - July 03, 2025. Implemented comprehensive Estimations management system
   - Created complete backend schema for estimations and estimation items with database tables and relations
   - Built full REST API for estimations with CRUD operations for both estimations and their items
