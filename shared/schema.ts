@@ -767,6 +767,8 @@ export const insertEstimationSchema = createInsertSchema(estimations).pick({
   address: true,
   clientName: true,
   clientInformation: true,
+}).extend({
+  date: z.string().transform((str) => new Date(str)),
 });
 
 export const insertEstimationItemSchema = createInsertSchema(estimationItems).pick({

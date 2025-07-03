@@ -82,11 +82,9 @@ router.post("/", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    console.log('Request body:', req.body);
     const validationResult = insertEstimationSchema.safeParse(req.body);
 
     if (!validationResult.success) {
-      console.log('Validation errors:', validationResult.error.errors);
       return res.status(400).json({ 
         error: "Invalid estimation data", 
         details: validationResult.error.errors 
