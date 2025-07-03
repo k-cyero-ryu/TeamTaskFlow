@@ -61,7 +61,12 @@ class WebSocketClient {
               const updatedTask = message.data;
               console.log('Updating task due date in cache:', updatedTask);
               
+              // Check all query keys to see what's actually cached
+              const cacheKeys = queryClient.getQueryCache().getAll().map(query => query.queryKey);
+              console.log('All cache keys:', cacheKeys);
+              
               queryClient.setQueryData<any[]>(['/api/tasks'], (oldTasks) => {
+                console.log('Old tasks from cache:', oldTasks);
                 if (!oldTasks) {
                   console.log('No old tasks found in cache');
                   return oldTasks;
@@ -69,7 +74,7 @@ class WebSocketClient {
                 const newTasks = oldTasks.map(task => 
                   task.id === updatedTask.id ? { ...task, dueDate: updatedTask.dueDate } : task
                 );
-                console.log('Updated tasks cache with new due date');
+                console.log('Updated tasks cache with new due date, newTasks:', newTasks);
                 return newTasks;
               });
               
