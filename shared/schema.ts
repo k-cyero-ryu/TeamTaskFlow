@@ -171,6 +171,13 @@ export const groupMessageAttachments = pgTable("group_message_attachments", {
   fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
 });
 
+// Attachment associations for comments
+export const commentAttachments = pgTable("comment_attachments", {
+  id: serial("id").primaryKey(),
+  commentId: integer("comment_id").references(() => comments.id).notNull(),
+  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+});
+
 // Email notifications table
 export const emailNotifications = pgTable("email_notifications", {
   id: serial("id").primaryKey(),
@@ -253,7 +260,7 @@ export const taskParticipantsRelations = relations(taskParticipants, ({ one }) =
   }),
 }));
 
-export const commentsRelations = relations(comments, ({ one }) => ({
+export const commentsRelations = relations(comments, ({ one, many }) => ({
   task: one(tasks, {
     fields: [comments.taskId],
     references: [tasks.id],
@@ -262,6 +269,7 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     fields: [comments.userId],
     references: [users.id],
   }),
+  attachments: many(commentAttachments),
 }));
 
 export const privateMessagesRelations = relations(privateMessages, ({ one, many }) => ({
@@ -361,6 +369,7 @@ export const fileAttachmentsRelations = relations(fileAttachments, ({ one, many 
   }),
   privateMessages: many(privateMessageAttachments),
   groupMessages: many(groupMessageAttachments),
+  comments: many(commentAttachments),
 }));
 
 // PrivateMessageAttachments relations
@@ -383,6 +392,18 @@ export const groupMessageAttachmentsRelations = relations(groupMessageAttachment
   }),
   file: one(fileAttachments, {
     fields: [groupMessageAttachments.fileId],
+    references: [fileAttachments.id],
+  }),
+}));
+
+// Comment attachments relations
+export const commentAttachmentsRelations = relations(commentAttachments, ({ one }) => ({
+  comment: one(comments, {
+    fields: [commentAttachments.commentId],
+    references: [comments.id],
+  }),
+  file: one(fileAttachments, {
+    fields: [commentAttachments.fileId],
     references: [fileAttachments.id],
   }),
 }));
@@ -424,6 +445,8 @@ export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
 export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
   taskId: true,
+}).extend({
+  attachments: z.array(z.instanceof(File)).optional(),
 });
 
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
@@ -533,12 +556,19 @@ export const insertGroupMessageAttachmentSchema = createInsertSchema(groupMessag
   fileId: true,
 });
 
+export const insertCommentAttachmentSchema = createInsertSchema(commentAttachments).pick({
+  commentId: true,
+  fileId: true,
+});
+
 export type FileAttachment = typeof fileAttachments.$inferSelect;
 export type PrivateMessageAttachment = typeof privateMessageAttachments.$inferSelect;
 export type GroupMessageAttachment = typeof groupMessageAttachments.$inferSelect;
+export type CommentAttachment = typeof commentAttachments.$inferSelect;
 export type InsertFileAttachment = z.infer<typeof insertFileAttachmentSchema>;
 export type InsertPrivateMessageAttachment = z.infer<typeof insertPrivateMessageAttachmentSchema>;
 export type InsertGroupMessageAttachment = z.infer<typeof insertGroupMessageAttachmentSchema>;
+export type InsertCommentAttachment = z.infer<typeof insertCommentAttachmentSchema>;
 
 // Email notification and calendar event schemas and types
 export const insertEmailNotificationSchema = createInsertSchema(emailNotifications).extend({

@@ -246,4 +246,96 @@ router.get('/file/:filename', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/uploads/comment/:taskId
+ * @desc Upload file(s) and send as comment
+ * @access Private
+ */
+router.post('/comment/:taskId', requireAuth, upload.array('files', 5), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const taskId = parseInt(req.params.taskId);
+    
+    if (isNaN(taskId)) {
+      return res.status(400).json({ error: 'Invalid task ID' });
+    }
+
+    if (!req.body.content) {
+      return res.status(400).json({ error: 'Comment content is required' });
+    }
+
+    // Check if task exists
+    const task = await storage.getTask(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const files = req.files as Express.Multer.File[];
+    
+    // Create comment with attachments
+    const comment = await storage.createCommentWithAttachments(
+      {
+        content: req.body.content,
+        taskId,
+        userId,
+      },
+      files
+    );
+
+    // Get the created file attachments
+    const attachments = await storage.getCommentAttachments(comment.id);
+
+    // Get comment author details
+    const user = await storage.getUser(userId);
+    
+    // Return the comment with attachments and user info
+    const commentWithDetails = {
+      ...comment,
+      user: {
+        id: user?.id,
+        username: user?.username,
+      },
+      attachments: attachments.length > 0 ? attachments : undefined,
+    };
+    
+    logger.info('Comment with attachments created successfully', { 
+      commentId: comment.id, 
+      taskId, 
+      userId, 
+      attachmentCount: attachments.length 
+    });
+    
+    res.status(201).json(commentWithDetails);
+  } catch (error) {
+    logger.error('Error creating comment with attachments', { 
+      taskId: req.params.taskId, 
+      error, 
+      userId: req.user?.id 
+    });
+    
+    // Clean up any uploaded files if the comment creation failed
+    if (req.files && Array.isArray(req.files)) {
+      const files = req.files as Express.Multer.File[];
+      for (const file of files) {
+        try {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        } catch (cleanupError) {
+          logger.error('Failed to clean up uploaded file', { 
+            filename: file.filename, 
+            path: file.path, 
+            error: cleanupError 
+          });
+        }
+      }
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to create comment with attachments',
+      message: error instanceof Error ? error.message : 'An unknown error occurred'
+    });
+  }
+});
+
 export default router;

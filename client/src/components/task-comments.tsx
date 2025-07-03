@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreVertical, Trash2, Edit2 } from "lucide-react";
+import { MoreVertical, Trash2, Edit2, Paperclip, Download, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
-import type { Comment } from "@shared/schema";
+import type { Comment, FileAttachment } from "@shared/schema";
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 interface TaskCommentsProps {
   taskId: number;
@@ -25,32 +35,55 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingComment, setEditingComment] = useState<{
     id: number;
     content: string;
   } | null>(null);
 
-  const { data: comments = [] } = useQuery<(Comment & { user: { id: number; username: string } })[]>({
+  const { data: comments = [] } = useQuery<(Comment & { user: { id: number; username: string }, attachments?: FileAttachment[] })[]>({
     queryKey: [`/api/tasks/${taskId}/comments`],
   });
 
   const createCommentMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, files }: { content: string; files: File[] }) => {
       try {
-        // Ensure content is properly formatted as required by the API
-        const payload = { content };
-        const res = await apiRequest('POST', `/api/tasks/${taskId}/comments`, payload);
-        
-        // Clone the response before consuming it
-        const responseClone = res.clone();
-        
-        try {
-          return await responseClone.json();
-        } catch (jsonError) {
-          console.error("Failed to parse comment response:", jsonError);
-          const textResponse = await res.text();
-          console.log("Raw response:", textResponse);
-          throw new Error("Failed to create comment: Invalid response format");
+        if (files.length > 0) {
+          // Use the file upload endpoint for comments with attachments
+          const formData = new FormData();
+          formData.append('content', content);
+          
+          files.forEach((file) => {
+            formData.append('files', file);
+          });
+          
+          const res = await fetch(`/api/uploads/comment/${taskId}`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Failed to create comment: ${errorText}`);
+          }
+          
+          return await res.json();
+        } else {
+          // Use the regular comment endpoint for text-only comments
+          const payload = { content };
+          const res = await apiRequest('POST', `/api/tasks/${taskId}/comments`, payload);
+          
+          const responseClone = res.clone();
+          
+          try {
+            return await responseClone.json();
+          } catch (jsonError) {
+            console.error("Failed to parse comment response:", jsonError);
+            const textResponse = await res.text();
+            console.log("Raw response:", textResponse);
+            throw new Error("Failed to create comment: Invalid response format");
+          }
         }
       } catch (error) {
         console.error("Comment creation error:", error);
@@ -60,6 +93,7 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}/comments`] });
       setComment("");
+      setSelectedFiles([]);
       toast({
         title: "Comment added",
         description: "Your comment has been added successfully.",
@@ -117,6 +151,38 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
       });
     },
   });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const downloadFile = (filename: string) => {
+    window.open(`/api/uploads/download/${filename}`, '_blank');
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) {
+      return '🖼️';
+    } else if (mimeType.includes('pdf')) {
+      return '📄';
+    } else if (mimeType.includes('word') || mimeType.includes('document')) {
+      return '📝';
+    } else if (mimeType.includes('sheet') || mimeType.includes('excel')) {
+      return '📊';
+    } else if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
+      return '📈';
+    } else {
+      return '📎';
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -207,7 +273,37 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm">{comment.content}</p>
+                <div className="space-y-2">
+                  <p className="text-sm">{comment.content}</p>
+                  {comment.attachments && comment.attachments.length > 0 && (
+                    <div className="grid grid-cols-1 gap-2">
+                      {comment.attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                        >
+                          <span className="text-lg">{getFileIcon(attachment.mimeType)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {attachment.originalFilename}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(attachment.size)}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadFile(attachment.filename)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -225,11 +321,64 @@ export default function TaskComments({ taskId }: TaskCommentsProps) {
             onChange={(e) => setComment(e.target.value)}
             className="min-h-[60px]"
           />
-          <div className="flex justify-end">
+          
+          {/* File attachments */}
+          {selectedFiles.length > 0 && (
+            <div className="grid grid-cols-1 gap-2">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                >
+                  <span className="text-lg">{getFileIcon(file.type)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 w-8 p-0"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="*/*"
+              />
+              {selectedFiles.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                </span>
+              )}
+            </div>
             <Button
               onClick={() => {
                 if (comment.trim()) {
-                  createCommentMutation.mutate(comment);
+                  createCommentMutation.mutate({ content: comment, files: selectedFiles });
                 }
               }}
               disabled={!comment.trim() || createCommentMutation.isPending}

@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, emailNotifications, calendarEvents } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -35,7 +35,7 @@ interface IStorage {
   getTaskParticipants(taskId: number): Promise<{ username: string; id: number }[]>;
   updateSubtaskStatus(id: number, completed: boolean): Promise<void>;
   updateTaskStepStatus(id: number, completed: boolean): Promise<void>;
-  getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'> })[]>;
+  getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'>, attachments?: FileAttachment[] })[]>;
   createComment(comment: InsertComment & { userId: number }): Promise<Comment>;
   updateComment(id: number, content: string): Promise<Comment>;
   deleteComment(id: number): Promise<void>;
@@ -80,6 +80,13 @@ interface IStorage {
   ): Promise<GroupMessage>;
   getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
   getGroupMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
+  
+  // Comment with attachments methods
+  createCommentWithAttachments(
+    comment: InsertComment & { userId: number },
+    files?: Express.Multer.File[]
+  ): Promise<Comment>;
+  getCommentAttachments(commentId: number): Promise<(FileAttachment & { id: number })[]>;
 
   // Email notification methods
   createEmailNotification(notification: InsertEmailNotification): Promise<EmailNotification>;
@@ -412,10 +419,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'> })[]> {
+  async getTaskComments(taskId: number): Promise<(Comment & { user: Pick<User, 'id' | 'username'>, attachments?: FileAttachment[] })[]> {
     try {
       return await executeWithRetry(async () => {
-        return await db
+        // Get comments with user information
+        const commentsWithUsers = await db
           .select({
             id: comments.id,
             content: comments.content,
@@ -432,6 +440,24 @@ export class DatabaseStorage implements IStorage {
           .innerJoin(users, eq(comments.userId, users.id))
           .where(eq(comments.taskId, taskId))
           .orderBy(comments.createdAt);
+
+        // Get attachments for each comment
+        const commentsWithAttachments = await Promise.all(
+          commentsWithUsers.map(async (comment) => {
+            try {
+              const attachments = await this.getCommentAttachments(comment.id);
+              return {
+                ...comment,
+                attachments: attachments.length > 0 ? attachments : undefined
+              };
+            } catch (error) {
+              logger.error(`Failed to get attachments for comment ${comment.id}`, { error });
+              return comment;
+            }
+          })
+        );
+
+        return commentsWithAttachments;
       }, 'Get comments for task');
     } catch (error) {
       logger.error(`Failed to get comments for task ${taskId}`, { error });
@@ -1299,6 +1325,85 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to get attachments for group message ${messageId}`, { error });
       throw new DatabaseError(`Failed to get group message attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Comment attachment methods
+  async createCommentWithAttachments(
+    comment: InsertComment & { userId: number },
+    files?: Express.Multer.File[]
+  ): Promise<Comment> {
+    try {
+      return await executeWithRetry(async () => {
+        // First, create the comment
+        const [newComment] = await db
+          .insert(comments)
+          .values({
+            content: comment.content,
+            taskId: comment.taskId,
+            userId: comment.userId,
+          })
+          .returning();
+
+        // If there are files, process and attach them
+        if (files && files.length > 0) {
+          const fileInserts = files.map(file => ({
+            filename: file.filename!,
+            originalFilename: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            path: file.path,
+            uploaderId: comment.userId,
+          }));
+          
+          const createdFiles = await db
+            .insert(fileAttachments)
+            .values(fileInserts)
+            .returning();
+          
+          // Create comment-attachment associations
+          const attachmentInserts = createdFiles.map(file => ({
+            commentId: newComment.id,
+            fileId: file.id,
+          }));
+          
+          await db.insert(commentAttachments).values(attachmentInserts);
+        }
+
+        return newComment;
+      }, 'Create comment with attachments');
+    } catch (error) {
+      logger.error('Failed to create comment with attachments', { error, commentId: comment.taskId });
+      throw new DatabaseError(`Failed to create comment with attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getCommentAttachments(commentId: number): Promise<(FileAttachment & { id: number })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const attachments = await db
+          .select({
+            id: fileAttachments.id,
+            filename: fileAttachments.filename,
+            originalFilename: fileAttachments.originalFilename,
+            mimeType: fileAttachments.mimeType,
+            size: fileAttachments.size,
+            path: fileAttachments.path,
+            uploaderId: fileAttachments.uploaderId,
+            createdAt: fileAttachments.createdAt,
+          })
+          .from(commentAttachments)
+          .innerJoin(
+            fileAttachments,
+            eq(commentAttachments.fileId, fileAttachments.id)
+          )
+          .where(eq(commentAttachments.commentId, commentId));
+        
+        return attachments;
+      }, 'Get attachments for comment');
+    } catch (error) {
+      logger.error(`Failed to get attachments for comment ${commentId}`, { error });
+      throw new DatabaseError(`Failed to get comment attachments: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
