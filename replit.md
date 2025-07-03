@@ -98,6 +98,12 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 03, 2025. Completed stock management system with user permissions
+  - Fixed critical database errors preventing member management dialog from loading
+  - Implemented missing GET endpoint for fetching user stock permissions
+  - Added comprehensive user permission validation system with proper null handling
+  - Enhanced stock access control with View/Manage/Adjust permission levels
+  - Successfully validated permission system with non-admin users accessing stock features
 - July 03, 2025. Added file upload and preview functionality to task comments
   - Implemented complete backend schema for comment attachments with database tables and relations
   - Created comment file upload API endpoint with proper validation and error handling
