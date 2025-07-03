@@ -12,7 +12,7 @@ const smtpSettingsSchema = z.object({
   host: z.string().min(1, "SMTP host is required"),
   port: z.number().int().positive("Port must be a positive number"),
   user: z.string().min(1, "SMTP username is required"),
-  password: z.string().min(1, "SMTP password is required"),
+  password: z.string().optional(),
   secure: z.boolean().default(false),
   fromEmail: z.string().email("Must be a valid email address"),
   fromName: z.string().min(1, "From name is required"),
@@ -38,14 +38,14 @@ router.get('/smtp-settings', requireAuth, isAdmin, (req, res) => {
       return res.json(safeSettings);
     }
     
-    // Otherwise, return default settings
+    // Otherwise, return current environment settings
     return res.json({
-      host: process.env.SMTP_HOST || '',
+      host: process.env.SMTP_HOST || 'smtp.godaddy.com',
       port: parseInt(process.env.SMTP_PORT || '587', 10),
-      user: process.env.SMTP_USER || '',
-      password: process.env.SMTP_PASSWORD ? '••••••••' : '',
+      user: process.env.GODADDY_SMTP_USER || process.env.SMTP_USER || '',
+      password: process.env.GODADDY_SMTP_PASSWORD || process.env.SMTP_PASSWORD ? '••••••••' : '',
       secure: process.env.SMTP_SECURE === 'true',
-      fromEmail: 'noreply@teamcollaborator.com',
+      fromEmail: process.env.COMPANY_EMAIL_FROM || 'noreply@teamcollaborator.com',
       fromName: 'Team Collaborator',
     });
   } catch (error) {
@@ -61,20 +61,31 @@ router.get('/smtp-settings', requireAuth, isAdmin, (req, res) => {
  */
 router.put('/smtp-settings', requireAuth, isAdmin, validateRequest(smtpSettingsSchema), (req, res) => {
   try {
-    // Store the settings
-    smtpSettings = req.body;
+    // If password is empty, keep the current password from environment
+    const passwordToUse = req.body.password || 
+                         process.env.GODADDY_SMTP_PASSWORD || 
+                         process.env.SMTP_PASSWORD || 
+                         (smtpSettings?.password);
     
-    // Update email service with new settings
-    emailService.updateSmtpSettings({
-      host: smtpSettings.host,
-      port: smtpSettings.port,
-      auth: {
-        user: smtpSettings.user,
-        pass: smtpSettings.password,
-      },
-      secure: smtpSettings.secure,
-      from: `${smtpSettings.fromName} <${smtpSettings.fromEmail}>`,
-    });
+    // Store the settings
+    smtpSettings = {
+      ...req.body,
+      password: passwordToUse,
+    };
+    
+    // Update email service with new settings (only if we have all required fields)
+    if (smtpSettings) {
+      emailService.updateSmtpSettings({
+        host: smtpSettings.host,
+        port: smtpSettings.port,
+        auth: {
+          user: smtpSettings.user,
+          pass: smtpSettings.password || '',
+        },
+        secure: smtpSettings.secure,
+        from: `${smtpSettings.fromName} <${smtpSettings.fromEmail}>`,
+      });
+    }
     
     logger.info('SMTP settings updated successfully', { userId: req.user?.id });
     

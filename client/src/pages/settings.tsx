@@ -36,7 +36,7 @@ const smtpSchema = z.object({
   host: z.string().min(1, "SMTP host is required"),
   port: z.coerce.number().int().positive("Port must be a positive number"),
   user: z.string().min(1, "SMTP username is required"),
-  password: z.string().min(1, "SMTP password is required"),
+  password: z.string().optional(),
   secure: z.boolean().default(false),
   fromEmail: z.string().email("Must be a valid email address"),
   fromName: z.string().min(1, "From name is required"),
@@ -107,7 +107,12 @@ export default function SettingsPage() {
   // Update form when data is available
   useEffect(() => {
     if (smtpSettings) {
-      smtpForm.reset(smtpSettings as any);
+      // Handle the password field specially - don't reset it if it's masked
+      const settingsToReset = {
+        ...smtpSettings,
+        password: (smtpSettings as any).password === '••••••••' ? '' : (smtpSettings as any).password || '',
+      };
+      smtpForm.reset(settingsToReset as any);
     }
   }, [smtpSettings, smtpForm]);
 
@@ -614,10 +619,13 @@ export default function SettingsPage() {
                           <FormControl>
                             <Input 
                               type="password" 
-                              placeholder="••••••••" 
+                              placeholder="Leave empty to keep current password" 
                               {...field} 
                             />
                           </FormControl>
+                          <FormDescription>
+                            Leave empty to keep the current password. Enter a new password to update it.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
