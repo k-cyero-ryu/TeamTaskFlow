@@ -606,12 +606,12 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Technique (Optional)</FormLabel>
                     <FormControl>
-                      <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} value={field.value?.toString() || ""}>
+                      <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a technique" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No technique selected</SelectItem>
+                          <SelectItem value="none">No technique selected</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
                               {user.username}
@@ -631,7 +631,7 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Client Information (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Additional client information" rows={3} />
+                      <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -725,12 +725,12 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Technique (Optional)</FormLabel>
                     <FormControl>
-                      <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} value={field.value?.toString() || ""}>
+                      <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a technique" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No technique selected</SelectItem>
+                          <SelectItem value="none">No technique selected</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
                               {user.username}
@@ -750,7 +750,7 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Client Information (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Additional client information" rows={3} />
+                      <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
