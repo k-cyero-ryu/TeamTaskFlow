@@ -234,7 +234,8 @@ export default function EstimationsPage() {
 
   const updateItemMutation = useMutation({
     mutationFn: async (data: { itemId: number; quantity: number }) => {
-      const response = await apiRequest("PUT", `/api/estimations/items/${data.itemId}`, {
+      if (!selectedEstimation) throw new Error("No estimation selected");
+      const response = await apiRequest("PUT", `/api/estimations/${selectedEstimation.id}/items/${data.itemId}`, {
         quantity: data.quantity,
       });
       return response.json();
