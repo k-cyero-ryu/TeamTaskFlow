@@ -98,6 +98,13 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 03, 2025. Added file upload and preview functionality to task comments
+  - Implemented complete backend schema for comment attachments with database tables and relations
+  - Created comment file upload API endpoint with proper validation and error handling
+  - Enhanced frontend TaskComments component with file upload interface and drag-and-drop support
+  - Added image preview functionality for uploaded files both before and after posting
+  - Integrated file download functionality with proper MIME type handling and visual indicators
+  - Fixed database relation issues and ensured proper file storage and retrieval
 - July 02, 2025. Initial setup
 
 ## User Preferences
