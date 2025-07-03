@@ -91,11 +91,11 @@ export default function EstimationsPage() {
   useEffect(() => {
     if (selectedEstimation && estimations.length > 0) {
       const updatedEstimation = estimations.find(est => est.id === selectedEstimation.id);
-      if (updatedEstimation) {
+      if (updatedEstimation && JSON.stringify(updatedEstimation) !== JSON.stringify(selectedEstimation)) {
         setSelectedEstimation(updatedEstimation);
       }
     }
-  }, [estimations, selectedEstimation?.id]);
+  }, [estimations]);
 
   // Create estimation form
   const createForm = useForm<EstimationFormData>({
@@ -287,8 +287,10 @@ export default function EstimationsPage() {
       });
     },
     onSettled: () => {
-      // Always refetch after error or success to get real data
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      // Delay refetch to allow optimistic update to be visible
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      }, 100);
     },
   });
 
@@ -338,8 +340,10 @@ export default function EstimationsPage() {
       });
     },
     onSettled: () => {
-      // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      // Delay refetch to allow optimistic update to be visible
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      }, 100);
     },
   });
 
@@ -390,8 +394,10 @@ export default function EstimationsPage() {
       });
     },
     onSettled: () => {
-      // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      // Delay refetch to allow optimistic update to be visible
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      }, 100);
     },
   });
 
