@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Package, DollarSign, Users, TrendingUp, Edit, Trash2, User, UserPlus } from "lucide-react";
+import { Plus, Search, Filter, Package, DollarSign, Users, TrendingUp, Edit, Trash2, User, UserPlus, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
@@ -73,6 +73,8 @@ export default function StockPage() {
   const [showGlobalAssignDialog, setShowGlobalAssignDialog] = useState(false);
   const [globalAssigneeId, setGlobalAssigneeId] = useState<string>("");
   const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showMovementHistoryDialog, setShowMovementHistoryDialog] = useState(false);
+  const [selectedItemForHistory, setSelectedItemForHistory] = useState<StockItem | null>(null);
 
   // Check user permissions
   const { data: permissions } = useQuery<UserStockPermission>({
@@ -115,6 +117,22 @@ export default function StockPage() {
   >({
     queryKey: ["/api/stock/users"],
     enabled: showMembersDialog,
+  });
+
+  // Fetch movement history for selected item
+  const { data: movementHistory = [], isLoading: isLoadingMovements } = useQuery<
+    Array<{
+      id: number;
+      type: string;
+      quantityChange: number;
+      quantityAfter: number;
+      reason: string | null;
+      createdAt: string;
+      user: { username: string };
+    }>
+  >({
+    queryKey: ["/api/stock/items", selectedItemForHistory?.id, "movements"],
+    enabled: !!selectedItemForHistory && showMovementHistoryDialog,
   });
 
   // Delete mutation
@@ -616,6 +634,19 @@ export default function StockPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        {canView && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedItemForHistory(item);
+                              setShowMovementHistoryDialog(true);
+                            }}
+                            title="View movement history"
+                          >
+                            <History className="h-3 w-3" />
+                          </Button>
+                        )}
                         {(canAdjust || item.assignedUserId === user?.id) && (
                           <Button
                             variant="outline"
@@ -759,6 +790,81 @@ export default function StockPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Movement History Dialog */}
+      <Dialog open={showMovementHistoryDialog} onOpenChange={setShowMovementHistoryDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Movement History - {selectedItemForHistory?.name}</DialogTitle>
+            <DialogDescription>
+              View all quantity increases and decreases for this stock item
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {isLoadingMovements ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : movementHistory.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No movement history found for this item
+              </div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Change</TableHead>
+                      <TableHead>After</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>User</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {movementHistory.map((movement) => (
+                      <TableRow key={movement.id}>
+                        <TableCell>
+                          {new Date(movement.createdAt).toLocaleDateString()} {new Date(movement.createdAt).toLocaleTimeString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={movement.type === 'increase' ? 'default' : 'destructive'}
+                          >
+                            {movement.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={movement.quantityChange > 0 ? 'text-green-600' : 'text-red-600'}>
+                            {movement.quantityChange > 0 ? '+' : ''}{movement.quantityChange}
+                          </span>
+                        </TableCell>
+                        <TableCell>{movement.quantityAfter}</TableCell>
+                        <TableCell>{movement.reason || '-'}</TableCell>
+                        <TableCell>{movement.user.username}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowMovementHistoryDialog(false);
+                  setSelectedItemForHistory(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
