@@ -121,7 +121,7 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
   
   // Determine display mode based on limit prop
   const usePagination = limit !== undefined && limit < tasks.length;
-  const useVirtualization = !usePagination && tasks.length > 9; // Use virtualization for large non-limited lists
+  const useVirtualization = false; // Disable virtualization to use proper grid layout
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
