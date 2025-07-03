@@ -202,17 +202,17 @@ export default function CreateStockItemDialog({ onClose }: CreateStockItemDialog
                 <FormLabel>Assign to User</FormLabel>
                 <FormControl>
                   <Select
-                    value={field.value?.toString() || ""}
+                    value={field.value?.toString() || "none"}
                     onValueChange={(value) => 
-                      field.onChange(value ? parseInt(value) : null)
+                      field.onChange(value === "none" ? null : parseInt(value))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a user (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {users.map((user) => (
+                      <SelectItem value="none">None</SelectItem>
+                      {users.filter(u => u.id && u.username).map((user) => (
                         <SelectItem key={user.id} value={user.id.toString()}>
                           {user.username}
                         </SelectItem>
