@@ -2122,7 +2122,7 @@ export class DatabaseStorage implements IStorage {
   async getUsersWithStockAccess(): Promise<(User & { stockPermissions?: UserStockPermission })[]> {
     try {
       return await executeWithRetry(async () => {
-        const usersWithAccess = await db
+        const allUsers = await db
           .select({
             id: users.id,
             username: users.username,
@@ -2141,17 +2141,11 @@ export class DatabaseStorage implements IStorage {
           })
           .from(users)
           .leftJoin(userStockPermissions, eq(users.id, userStockPermissions.userId))
-          .where(
-            or(
-              eq(users.id, 1), // Admin user always has access
-              eq(userStockPermissions.canViewStock, true)
-            )
-          )
           .orderBy(users.username);
 
-        return usersWithAccess.map(user => ({
+        return allUsers.map(user => ({
           ...user,
-          stockPermissions: user.stockPermissions.id ? user.stockPermissions : undefined,
+          stockPermissions: user.stockPermissions?.id ? user.stockPermissions : undefined,
         }));
       }, 'Get users with stock access');
     } catch (error) {
