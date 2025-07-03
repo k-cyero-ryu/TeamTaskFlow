@@ -73,7 +73,7 @@ export default function EstimationsPage() {
 
   // Fetch stock items for selection
   const { data: stockItems = [] } = useQuery<Array<{id: number; name: string; cost: number}>>({
-    queryKey: ["/api/stock"],
+    queryKey: ["/api/stock/items"],
   });
 
   // Create estimation form
