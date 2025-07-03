@@ -446,6 +446,45 @@ router.get("/users", checkStockPermissions('manage'), async (req, res) => {
 });
 
 /**
+ * @route GET /api/stock/permissions/:userId
+ * @desc Get user stock permissions
+ * @access Private (users can only check their own permissions, managers can check any)
+ */
+router.get("/permissions/:userId", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    
+    // Users can only check their own permissions, unless they're admin/manager
+    if (req.user!.id !== userId && req.user!.id !== 1) {
+      const requesterPermissions = await storage.getUserStockPermissions(req.user!.id);
+      if (!requesterPermissions?.canManageStock) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+    }
+    
+    const permissions = await storage.getUserStockPermissions(userId);
+    
+    logger.info('User stock permissions fetched successfully', { 
+      targetUserId: userId,
+      requestedByUserId: req.user!.id 
+    });
+    
+    res.json(permissions || null);
+  } catch (error) {
+    logger.error('Failed to fetch user stock permissions', { 
+      error, 
+      targetUserId: req.params.userId,
+      requestedByUserId: req.user!.id 
+    });
+    res.status(500).json({ error: "Failed to fetch permissions" });
+  }
+});
+
+/**
  * @route POST /api/stock/permissions/:userId
  * @desc Update user stock permissions
  * @access Private (requires admin or stock management permission)
