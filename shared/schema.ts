@@ -136,6 +136,17 @@ export const comments = pgTable("comments", {
   updatedAt: timestamp("updated_at"),
 });
 
+export const taskHistory = pgTable("task_history", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  action: text("action").notNull(), // created, status_changed, due_date_changed, assigned, unassigned, etc.
+  oldValue: text("old_value"), // previous value (for changes)
+  newValue: text("new_value"), // new value (for changes)
+  details: text("details"), // additional details like subtask name, step title, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const privateMessages = pgTable("private_messages", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
@@ -233,6 +244,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(subtasks),
   steps: many(taskSteps),
   comments: many(comments),
+  history: many(taskHistory),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
@@ -270,6 +282,17 @@ export const commentsRelations = relations(comments, ({ one, many }) => ({
     references: [users.id],
   }),
   attachments: many(commentAttachments),
+}));
+
+export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskHistory.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskHistory.userId],
+    references: [users.id],
+  }),
 }));
 
 export const privateMessagesRelations = relations(privateMessages, ({ one, many }) => ({
@@ -321,6 +344,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   responsibleTasks: many(tasks, { relationName: "responsible" }),
   participatingTasks: many(taskParticipants),
   comments: many(comments),
+  taskHistory: many(taskHistory),
   sentMessages: many(privateMessages, { relationName: "sender" }),
   receivedMessages: many(privateMessages, { relationName: "recipient" }),
   createdChannels: many(groupChannels, { relationName: "creator" }),
@@ -536,6 +560,17 @@ export type GroupMessage = typeof groupMessages.$inferSelect;
 export type InsertGroupChannel = z.infer<typeof insertGroupChannelSchema>;
 export type InsertChannelMember = z.infer<typeof insertChannelMemberSchema>;
 export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
+export type TaskHistory = typeof taskHistory.$inferSelect;
+
+// Task history schema
+export const insertTaskHistorySchema = createInsertSchema(taskHistory).pick({
+  action: true,
+  oldValue: true,
+  newValue: true,
+  details: true,
+});
+
+export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
 
 // File attachment schemas and types
 export const insertFileAttachmentSchema = createInsertSchema(fileAttachments).pick({

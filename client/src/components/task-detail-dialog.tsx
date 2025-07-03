@@ -32,11 +32,12 @@ import { ExtendedTask } from "@/lib/types";
 import { ErrorBoundary } from "./error-boundary";
 import { handleQueryError } from "@/lib/error-utils";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw, Loader2, CheckCircle2, Calendar, Clipboard, Users, Edit2, X, Check } from "lucide-react";
+import { AlertCircle, RefreshCw, Loader2, CheckCircle2, Calendar, Clipboard, Users, Edit2, X, Check, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import TaskHistory from "./task-history";
 
 // Extended Task is now imported from lib/types
 
@@ -437,7 +438,7 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
       </DialogHeader>
 
       <Tabs defaultValue="details">
-        <TabsList className="grid w-full grid-cols-2" aria-label="Task information tabs">
+        <TabsList className="grid w-full grid-cols-3" aria-label="Task information tabs">
           <TabsTrigger id="details-tab-trigger" value="details" aria-controls="details-tab">
             <span className="flex items-center gap-1">
               <Clipboard className="h-4 w-4" aria-hidden="true" />
@@ -448,6 +449,12 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
             <span className="flex items-center gap-1">
               <Users className="h-4 w-4" aria-hidden="true" />
               Comments
+            </span>
+          </TabsTrigger>
+          <TabsTrigger id="history-tab-trigger" value="history" aria-controls="history-tab">
+            <span className="flex items-center gap-1">
+              <Clock className="h-4 w-4" aria-hidden="true" />
+              History
             </span>
           </TabsTrigger>
         </TabsList>
@@ -654,6 +661,10 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
 
         <TabsContent id="comments-tab" value="comments" role="tabpanel" aria-labelledby="comments-tab-trigger">
           <TaskComments taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent id="history-tab" value="history" role="tabpanel" aria-labelledby="history-tab-trigger">
+          <TaskHistory taskId={task.id} />
         </TabsContent>
       </Tabs>
     </>

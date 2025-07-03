@@ -12,6 +12,7 @@ import { validateParams, requireAuth } from '../../../middleware';
 import { Logger } from '../../../utils/logger';
 import { broadcastWebSocketMessage } from '../../../websocket';
 import { notificationService } from '../../../services/notification-service';
+import historyRouter from './history';
 
 const router = Router();
 const logger = new Logger('TaskRoutes');
@@ -627,5 +628,8 @@ router.delete('/comments/:id', requireAuth, async (req, res) => {
     handleApiError(res, error);
   }
 });
+
+// Mount history routes
+router.use('/:taskId/history', historyRouter);
 
 export default router;

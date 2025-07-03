@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -111,6 +111,10 @@ interface IStorage {
   updateUserUsername(userId: number, username: string): Promise<User>;
   updateUserPassword(userId: number, newPassword: string): Promise<User>;
   updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User>;
+  
+  // Task history methods
+  getTaskHistory(taskId: number): Promise<(TaskHistory & { user: Pick<User, 'id' | 'username'> })[]>;
+  createTaskHistoryEntry(entry: InsertTaskHistory & { taskId: number; userId: number }): Promise<TaskHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -244,13 +248,13 @@ export class DatabaseStorage implements IStorage {
   async createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task> {
     try {
       return await executeWithRetry(async (client) => {
-        const { subtasks: subtaskList, steps, participantIds, ...taskData } = task;
+        const { subtasks: subtaskList, steps, participantIds, creatorId, ...taskData } = task;
 
         // Create the task
         const [newTask] = await db.insert(tasks)
           .values({
             ...taskData,
-            status: "todo",
+            creatorId,
           })
           .returning();
 
@@ -307,6 +311,14 @@ export class DatabaseStorage implements IStorage {
           );
         }
 
+        // Create history entry for task creation
+        await this.createTaskHistoryEntry({
+          taskId: newTask.id,
+          userId: creatorId,
+          action: 'created',
+          details: `Task "${newTask.title}" was created`,
+        });
+
         return newTask;
       }, 'Create task with related entities');
     } catch (error) {
@@ -318,6 +330,12 @@ export class DatabaseStorage implements IStorage {
   async updateTaskStatus(id: number, status: string): Promise<Task> {
     try {
       return await executeWithRetry(async () => {
+        // Get current task to track old status
+        const currentTask = await this.getTask(id);
+        if (!currentTask) {
+          throw new Error("Task not found");
+        }
+        
         const [updatedTask] = await db
           .update(tasks)
           .set({ status })
@@ -326,6 +344,17 @@ export class DatabaseStorage implements IStorage {
     
         if (!updatedTask) {
           throw new Error("Task not found");
+        }
+    
+        // Create history entry for status change
+        if (currentTask.status !== status) {
+          await this.createTaskHistoryEntry({
+            taskId: id,
+            userId: updatedTask.creatorId, // Use creator as default, will be overridden in API route
+            action: 'status_changed',
+            oldValue: currentTask.status,
+            newValue: status,
+          });
         }
     
         return updatedTask;
@@ -339,6 +368,12 @@ export class DatabaseStorage implements IStorage {
   async updateTaskDueDate(id: number, dueDate: Date | null): Promise<Task> {
     try {
       return await executeWithRetry(async () => {
+        // Get current task to track old due date
+        const currentTask = await this.getTask(id);
+        if (!currentTask) {
+          throw new Error("Task not found");
+        }
+        
         const [updatedTask] = await db
           .update(tasks)
           .set({ dueDate })
@@ -347,6 +382,20 @@ export class DatabaseStorage implements IStorage {
     
         if (!updatedTask) {
           throw new Error("Task not found");
+        }
+    
+        // Create history entry for due date change
+        const oldDate = currentTask.dueDate?.toISOString() || null;
+        const newDate = dueDate?.toISOString() || null;
+        
+        if (oldDate !== newDate) {
+          await this.createTaskHistoryEntry({
+            taskId: id,
+            userId: updatedTask.creatorId, // Use creator as default, will be overridden in API route
+            action: 'due_date_changed',
+            oldValue: oldDate,
+            newValue: newDate,
+          });
         }
     
         return updatedTask;
@@ -1751,6 +1800,62 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update password for user ${userId}`, { error });
       throw new DatabaseError(`Failed to update user password: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Task history methods
+  async getTaskHistory(taskId: number): Promise<(TaskHistory & { user: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const history = await db
+          .select({
+            id: taskHistory.id,
+            taskId: taskHistory.taskId,
+            userId: taskHistory.userId,
+            action: taskHistory.action,
+            oldValue: taskHistory.oldValue,
+            newValue: taskHistory.newValue,
+            details: taskHistory.details,
+            createdAt: taskHistory.createdAt,
+            user: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(taskHistory)
+          .innerJoin(users, eq(taskHistory.userId, users.id))
+          .where(eq(taskHistory.taskId, taskId))
+          .orderBy(desc(taskHistory.createdAt));
+
+        return history;
+      }, 'Get task history');
+    } catch (error) {
+      logger.error(`Failed to get history for task ${taskId}`, { error });
+      throw new DatabaseError(`Failed to get task history: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createTaskHistoryEntry(entry: InsertTaskHistory & { taskId: number; userId: number }): Promise<TaskHistory> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newEntry] = await db
+          .insert(taskHistory)
+          .values({
+            taskId: entry.taskId,
+            userId: entry.userId,
+            action: entry.action,
+            oldValue: entry.oldValue,
+            newValue: entry.newValue,
+            details: entry.details,
+            createdAt: new Date(),
+          })
+          .returning();
+
+        return newEntry;
+      }, 'Create task history entry');
+    } catch (error) {
+      logger.error('Failed to create task history entry', { error, taskId: entry.taskId });
+      throw new DatabaseError(`Failed to create task history entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
