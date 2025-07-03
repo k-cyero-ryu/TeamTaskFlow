@@ -107,6 +107,8 @@ interface IStorage {
   
   // User methods with email and notification preferences
   updateUserEmail(userId: number, email: string | undefined): Promise<User>;
+  updateUserUsername(userId: number, username: string): Promise<User>;
+  updateUserPassword(userId: number, newPassword: string): Promise<User>;
   updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User>;
 }
 
@@ -1675,6 +1677,58 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update notification preferences for user ${userId}`, { error });
       throw new DatabaseError(`Failed to update user notification preferences: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateUserUsername(userId: number, username: string): Promise<User> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedUser] = await db
+          .update(users)
+          .set({ username })
+          .where(eq(users.id, userId))
+          .returning();
+        
+        if (!updatedUser) {
+          throw new Error('User not found');
+        }
+        
+        return updatedUser;
+      }, 'Update user username');
+    } catch (error) {
+      logger.error(`Failed to update username for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to update user username: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<User> {
+    try {
+      return await executeWithRetry(async () => {
+        // Import crypto functions for password hashing
+        const { scrypt, randomBytes } = await import('crypto');
+        const { promisify } = await import('util');
+        const scryptAsync = promisify(scrypt);
+
+        // Hash the new password
+        const salt = randomBytes(16).toString("hex");
+        const buf = (await scryptAsync(newPassword, salt, 64)) as Buffer;
+        const hashedPassword = `${buf.toString("hex")}.${salt}`;
+
+        const [updatedUser] = await db
+          .update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.id, userId))
+          .returning();
+        
+        if (!updatedUser) {
+          throw new Error('User not found');
+        }
+        
+        return updatedUser;
+      }, 'Update user password');
+    } catch (error) {
+      logger.error(`Failed to update password for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to update user password: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

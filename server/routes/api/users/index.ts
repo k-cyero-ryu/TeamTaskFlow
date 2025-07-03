@@ -95,6 +95,8 @@ router.put('/:id', requireAuth, isAdmin, async (req, res) => {
     const updateSchema = z.object({
       email: z.string().email().optional(),
       notificationPreferences: z.record(z.boolean()).optional(),
+      username: z.string().min(3).optional(),
+      newPassword: z.string().min(6).optional(),
     });
     
     const validationResult = updateSchema.safeParse(req.body);
@@ -113,6 +115,26 @@ router.put('/:id', requireAuth, isAdmin, async (req, res) => {
     // Update email if provided
     if (req.body.email) {
       updatedUser = await storage.updateUserEmail(userId, req.body.email);
+    }
+    
+    // Update username if provided
+    if (req.body.username) {
+      // Check if username is already taken
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({
+          error: {
+            type: 'VALIDATION_ERROR',
+            message: 'Username already exists'
+          }
+        });
+      }
+      updatedUser = await storage.updateUserUsername(userId, req.body.username);
+    }
+    
+    // Update password if provided
+    if (req.body.newPassword) {
+      updatedUser = await storage.updateUserPassword(userId, req.body.newPassword);
     }
     
     // Update notification preferences if provided
