@@ -61,24 +61,21 @@ class WebSocketClient {
               const updatedTask = message.data;
               console.log('Updating task due date in cache:', updatedTask);
               
-              // Check all query keys to see what's actually cached
-              const cacheKeys = queryClient.getQueryCache().getAll().map(query => query.queryKey);
-              console.log('All cache keys:', cacheKeys);
+              // Check if there's cached data and update it
+              const existingData = queryClient.getQueryData<any[]>(['/api/tasks']);
+              if (existingData) {
+                console.log('Found existing tasks in cache, updating...');
+                queryClient.setQueryData<any[]>(['/api/tasks'], (oldTasks) => {
+                  if (!oldTasks) return oldTasks;
+                  return oldTasks.map(task => 
+                    task.id === updatedTask.id ? { ...task, dueDate: updatedTask.dueDate } : task
+                  );
+                });
+              } else {
+                console.log('No cached tasks found, forcing refetch');
+              }
               
-              queryClient.setQueryData<any[]>(['/api/tasks'], (oldTasks) => {
-                console.log('Old tasks from cache:', oldTasks);
-                if (!oldTasks) {
-                  console.log('No old tasks found in cache');
-                  return oldTasks;
-                }
-                const newTasks = oldTasks.map(task => 
-                  task.id === updatedTask.id ? { ...task, dueDate: updatedTask.dueDate } : task
-                );
-                console.log('Updated tasks cache with new due date, newTasks:', newTasks);
-                return newTasks;
-              });
-              
-              // Force a complete refetch to ensure UI updates
+              // Always invalidate to ensure fresh data
               queryClient.invalidateQueries({
                 queryKey: ['/api/tasks']
               });

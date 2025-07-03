@@ -172,6 +172,11 @@ function DueDateEditor({ task }: { task: ExtendedTask }) {
 
 // Wrap the main component with error boundary
 export default function TaskDetailDialog(props: TaskDetailDialogProps) {
+  const { getTaskById } = useTasks();
+  
+  // Get the most up-to-date task from cache
+  const currentTask = getTaskById(props.task.id) || props.task;
+  
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent 
@@ -180,10 +185,10 @@ export default function TaskDetailDialog(props: TaskDetailDialogProps) {
         aria-describedby="task-detail-description"
       >
         <ErrorBoundary
-          fallback={<TaskDetailErrorState task={props.task} onClose={() => props.onOpenChange(false)} />}
+          fallback={<TaskDetailErrorState task={currentTask} onClose={() => props.onOpenChange(false)} />}
           showToast={false} // Contained in dialog, so no need for toast
         >
-          <TaskDetailContent task={props.task} />
+          <TaskDetailContent task={currentTask} />
         </ErrorBoundary>
       </DialogContent>
     </Dialog>
