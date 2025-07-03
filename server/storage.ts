@@ -25,6 +25,7 @@ interface IStorage {
   createUser(insertUser: InsertUser): Promise<User>;
   getUsers(): Promise<User[]>;
   getTasks(): Promise<Task[]>;
+  getTasksForUser(userId: number): Promise<Task[]>;
   getTask(id: number): Promise<Task | undefined>;
   createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
   updateTaskStatus(id: number, status: string): Promise<Task>;
@@ -175,6 +176,46 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to get tasks', { error });
       throw new DatabaseError(`Failed to get tasks: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getTasksForUser(userId: number): Promise<Task[]> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get tasks where the user is:
+        // 1. Creator
+        // 2. Responsible person
+        // 3. Participant
+        const userTasks = await db
+          .select({
+            id: tasks.id,
+            title: tasks.title,
+            description: tasks.description,
+            status: tasks.status,
+            priority: tasks.priority,
+            dueDate: tasks.dueDate,
+            createdAt: tasks.createdAt,
+            creatorId: tasks.creatorId,
+            responsibleId: tasks.responsibleId,
+            workflowId: tasks.workflowId,
+            stageId: tasks.stageId,
+          })
+          .from(tasks)
+          .leftJoin(taskParticipants, eq(tasks.id, taskParticipants.taskId))
+          .where(
+            or(
+              eq(tasks.creatorId, userId),           // User is creator
+              eq(tasks.responsibleId, userId),       // User is responsible
+              eq(taskParticipants.userId, userId)    // User is participant
+            )
+          )
+          .groupBy(tasks.id); // Group by task ID to avoid duplicates
+        
+        return userTasks;
+      }, 'Get tasks for user');
+    } catch (error) {
+      logger.error('Failed to get tasks for user', { error, userId });
+      throw new DatabaseError(`Failed to get tasks for user: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

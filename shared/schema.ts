@@ -468,6 +468,7 @@ export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick
 
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
   content: true,
+  channelId: true,
 }).extend({
   attachments: z.array(z.instanceof(File)).optional(),
 });

@@ -23,7 +23,8 @@ const logger = new Logger('TaskRoutes');
  */
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const tasks = await storage.getTasks();
+    const userId = req.user!.id;
+    const tasks = await storage.getTasksForUser(userId);
 
     const tasksWithDetails = await Promise.all(
       tasks.map(async (task) => {
