@@ -1,22 +1,27 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Calendar, MapPin, User, DollarSign, Edit, Trash2, Package, Minus } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { Calendar, Plus, Edit, Trash2, MapPin, User, Package, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { insertEstimationSchema } from "@shared/schema";
-import { z } from "zod";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+// Types
+type StockItem = {
+  id: number;
+  name: string;
+  cost: number;
+};
 
 type Estimation = {
   id: number;
@@ -51,12 +56,13 @@ type User = {
   username: string;
 };
 
-const estimationFormSchema = insertEstimationSchema.extend({
-  date: z.preprocess((arg) => {
-    if (arg === null || arg === undefined || arg === '') return null;
-    if (typeof arg === 'string' || arg instanceof Date) return new Date(arg);
-    return null;
-  }, z.date()),
+const estimationFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  date: z.date(),
+  address: z.string().min(1, "Address is required"),
+  clientName: z.string().min(1, "Client name is required"),
+  clientInformation: z.string().optional(),
+  techniqueId: z.number().optional(),
 });
 
 type EstimationFormData = z.infer<typeof estimationFormSchema>;
@@ -64,38 +70,24 @@ type EstimationFormData = z.infer<typeof estimationFormSchema>;
 export default function EstimationsPage() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedEstimation, setSelectedEstimation] = useState<Estimation | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showItemsDialog, setShowItemsDialog] = useState(false);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [selectedEstimation, setSelectedEstimation] = useState<Estimation | null>(null);
   const [selectedStockItem, setSelectedStockItem] = useState<string>("");
   const [itemQuantity, setItemQuantity] = useState(1);
 
-  // Fetch estimations
-  const { data: estimations = [], isLoading } = useQuery<Estimation[]>({
+  // Data fetching
+  const { data: estimations = [], isLoading, refetch } = useQuery<Estimation[]>({
     queryKey: ["/api/estimations"],
   });
 
-  // Fetch stock items for selection
-  const { data: stockItems = [] } = useQuery<Array<{id: number; name: string; cost: number}>>({
+  const { data: stockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/items"],
   });
 
-  // Fetch users for technique selection
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
-
-  // Keep selectedEstimation in sync with the latest data from the cache
-  useEffect(() => {
-    if (selectedEstimation && estimations.length > 0) {
-      const updatedEstimation = estimations.find(est => est.id === selectedEstimation.id);
-      if (updatedEstimation && JSON.stringify(updatedEstimation) !== JSON.stringify(selectedEstimation)) {
-        setSelectedEstimation(updatedEstimation);
-      }
-    }
-  }, [estimations]);
 
   // Create estimation form
   const createForm = useForm<EstimationFormData>({
@@ -113,16 +105,24 @@ export default function EstimationsPage() {
   // Edit estimation form
   const editForm = useForm<EstimationFormData>({
     resolver: zodResolver(estimationFormSchema),
+    defaultValues: {
+      name: "",
+      date: new Date(),
+      address: "",
+      clientName: "",
+      clientInformation: "",
+      techniqueId: undefined,
+    },
   });
 
-  // Create estimation mutation
+  // Mutations with immediate refresh
   const createMutation = useMutation({
     mutationFn: async (data: EstimationFormData) => {
       const response = await apiRequest("POST", "/api/estimations", data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      refetch();
       setShowCreateDialog(false);
       createForm.reset();
       toast({
@@ -139,7 +139,6 @@ export default function EstimationsPage() {
     },
   });
 
-  // Update estimation mutation
   const updateMutation = useMutation({
     mutationFn: async (data: EstimationFormData & { id: number }) => {
       const { id, ...updateData } = data;
@@ -147,7 +146,7 @@ export default function EstimationsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
+      refetch();
       setShowEditDialog(false);
       setSelectedEstimation(null);
       toast({
@@ -164,15 +163,13 @@ export default function EstimationsPage() {
     },
   });
 
-  // Delete estimation mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/estimations/${id}`);
+      const response = await apiRequest("DELETE", `/api/estimations/${id}`);
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
-      setShowDeleteDialog(false);
-      setSelectedEstimation(null);
+      refetch();
       toast({
         title: "Success",
         description: "Estimation deleted successfully",
@@ -187,39 +184,6 @@ export default function EstimationsPage() {
     },
   });
 
-  const handleCreate = (data: EstimationFormData) => {
-    createMutation.mutate(data);
-  };
-
-  const handleEdit = (estimation: Estimation) => {
-    setSelectedEstimation(estimation);
-    editForm.reset({
-      name: estimation.name,
-      date: new Date(estimation.date),
-      address: estimation.address,
-      clientName: estimation.clientName,
-      clientInformation: estimation.clientInformation || "",
-      techniqueId: estimation.techniqueId,
-    });
-    setShowEditDialog(true);
-  };
-
-  const handleUpdate = (data: EstimationFormData) => {
-    if (!selectedEstimation) return;
-    updateMutation.mutate({ ...data, id: selectedEstimation.id });
-  };
-
-  const handleDelete = (estimation: Estimation) => {
-    setSelectedEstimation(estimation);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = () => {
-    if (!selectedEstimation) return;
-    deleteMutation.mutate(selectedEstimation.id);
-  };
-
-  // Add item mutation
   const addItemMutation = useMutation({
     mutationFn: async (data: { estimationId: number; stockItemId: number; quantity: number }) => {
       const response = await apiRequest("POST", `/api/estimations/${data.estimationId}/items`, {
@@ -228,45 +192,8 @@ export default function EstimationsPage() {
       });
       return response.json();
     },
-    onMutate: async ({ estimationId, stockItemId, quantity }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
-
-      // Snapshot previous value
-      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
-
-      // Get the stock item details
-      const stockItem = stockItems.find(item => item.id === stockItemId);
-      if (!stockItem) return { previousEstimations };
-
-      // Optimistically update the cache
-      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
-        if (!old) return old;
-        return old.map(estimation => {
-          if (estimation.id === estimationId) {
-            const newItem = {
-              id: Date.now(), // Temporary ID
-              quantity,
-              unitCost: stockItem.cost,
-              totalCost: stockItem.cost * quantity,
-              stockItem: {
-                id: stockItem.id,
-                name: stockItem.name,
-                cost: stockItem.cost
-              }
-            };
-            return {
-              ...estimation,
-              items: [...estimation.items, newItem]
-            };
-          }
-          return estimation;
-        });
-      });
-
-      return { previousEstimations };
-    },
     onSuccess: () => {
+      refetch();
       setShowAddItemDialog(false);
       setSelectedStockItem("");
       setItemQuantity(1);
@@ -275,136 +202,60 @@ export default function EstimationsPage() {
         description: "Item added to estimation",
       });
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previousEstimations) {
-        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
-      }
+    onError: (err) => {
       toast({
         title: "Error",
         description: err.message || "Failed to add item",
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Delay refetch to allow optimistic update to be visible
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
-      }, 100);
-    },
   });
 
-  // Remove item mutation
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      await apiRequest("DELETE", `/api/estimations/${selectedEstimation?.id}/items/${itemId}`);
-    },
-    onMutate: async (itemId) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
-
-      // Snapshot previous value
-      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
-
-      // Optimistically update the cache
-      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
-        if (!old) return old;
-        return old.map(estimation => {
-          if (estimation.id === selectedEstimation?.id) {
-            return {
-              ...estimation,
-              items: estimation.items.filter(item => item.id !== itemId)
-            };
-          }
-          return estimation;
-        });
-      });
-
-      return { previousEstimations };
+      const response = await apiRequest("DELETE", `/api/estimations/items/${itemId}`);
+      return response.json();
     },
     onSuccess: () => {
+      refetch();
       toast({
         title: "Success",
         description: "Item removed from estimation",
       });
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previousEstimations) {
-        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
-      }
+    onError: (err) => {
       toast({
         title: "Error",
         description: err.message || "Failed to remove item",
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Delay refetch to allow optimistic update to be visible
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
-      }, 100);
-    },
   });
 
-  // Update item quantity mutation
   const updateItemMutation = useMutation({
     mutationFn: async (data: { itemId: number; quantity: number }) => {
-      const response = await apiRequest("PUT", `/api/estimations/${selectedEstimation?.id}/items/${data.itemId}`, {
+      const response = await apiRequest("PUT", `/api/estimations/items/${data.itemId}`, {
         quantity: data.quantity,
       });
       return response.json();
     },
-    onMutate: async ({ itemId, quantity }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/estimations"] });
-
-      // Snapshot previous value
-      const previousEstimations = queryClient.getQueryData(["/api/estimations"]);
-
-      // Optimistically update the cache
-      queryClient.setQueryData(["/api/estimations"], (old: Estimation[] | undefined) => {
-        if (!old) return old;
-        return old.map(estimation => {
-          if (estimation.id === selectedEstimation?.id) {
-            return {
-              ...estimation,
-              items: estimation.items.map(item => 
-                item.id === itemId 
-                  ? { ...item, quantity, totalCost: item.unitCost * quantity }
-                  : item
-              )
-            };
-          }
-          return estimation;
-        });
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "Success",
+        description: "Item quantity updated",
       });
-
-      return { previousEstimations };
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previousEstimations) {
-        queryClient.setQueryData(["/api/estimations"], context.previousEstimations);
-      }
+    onError: (err) => {
       toast({
         title: "Error",
         description: err.message || "Failed to update item",
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      // Delay refetch to allow optimistic update to be visible
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/estimations"] });
-      }, 100);
-    },
   });
 
-  const formatCurrency = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`;
-  };
-
+  // Handler functions
   const handleAddItem = () => {
     if (!selectedEstimation || !selectedStockItem || itemQuantity <= 0) return;
     
@@ -424,240 +275,238 @@ export default function EstimationsPage() {
     updateItemMutation.mutate({ itemId, quantity: newQuantity });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const handleCreate = (data: EstimationFormData) => {
+    createMutation.mutate(data);
+  };
+
+  const handleEdit = (estimation: Estimation) => {
+    setSelectedEstimation(estimation);
+    editForm.reset({
+      name: estimation.name,
+      date: new Date(estimation.date),
+      address: estimation.address,
+      clientName: estimation.clientName,
+      clientInformation: estimation.clientInformation || "",
+      techniqueId: estimation.techniqueId || undefined,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdate = (data: EstimationFormData) => {
+    if (!selectedEstimation) return;
+    updateMutation.mutate({ ...data, id: selectedEstimation.id });
+  };
+
+  const handleDelete = (estimation: Estimation) => {
+    if (confirm(`Are you sure you want to delete "${estimation.name}"?`)) {
+      deleteMutation.mutate(estimation.id);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading estimations...</p>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading estimations...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Estimations</h1>
-          <p className="text-muted-foreground">
-            Create and manage project estimations with stock items
-          </p>
+          <h1 className="text-3xl font-bold">Estimations</h1>
+          <p className="text-muted-foreground">Create and manage project estimations with stock items</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Estimation
-        </Button>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Estimation
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Create New Estimation</DialogTitle>
+            </DialogHeader>
+            <Form {...createForm}>
+              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
+                <FormField
+                  control={createForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estimation Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter estimation name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createForm.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
+                          onChange={(e) => field.onChange(new Date(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter project address" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createForm.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter client name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createForm.control}
+                  name="techniqueId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Technique (Optional)</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a technique" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No technique selected</SelectItem>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id.toString()}>
+                                {user.username}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createForm.control}
+                  name="clientInformation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client Information (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Creating..." : "Create Estimation"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Estimations Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {estimations.map((estimation) => (
-          <Card key={estimation.id} className="hover:shadow-md transition-shadow">
+          <Card key={estimation.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-1">{estimation.name}</CardTitle>
-                  <CardDescription className="flex items-center mt-1">
-                    <User className="mr-1 h-3 w-3" />
-                    {estimation.clientName}
-                  </CardDescription>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedEstimation(estimation);
-                      setShowItemsDialog(true);
-                    }}
-                  >
-                    <Package className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEdit(estimation)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(estimation)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+              <CardTitle className="text-lg">{estimation.name}</CardTitle>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{estimation.createdBy.username}</span>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <MapPin className="mr-2 h-4 w-4" />
-                <span className="line-clamp-1">{estimation.address}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm">
-                  <Package className="mr-1 h-4 w-4" />
-                  <span className="font-semibold">{estimation.items.length} items</span>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4" />
+                  <span>{estimation.address}</span>
                 </div>
-                <Badge variant="secondary">
-                  {formatDate(estimation.date)}
-                </Badge>
+                <div className="flex items-center gap-2 text-sm">
+                  <Package className="h-4 w-4" />
+                  <span>{estimation.items.length} items</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  <span>{format(new Date(estimation.date), "MMM d, yyyy")}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Created {format(new Date(estimation.createdAt), "MMM d 'at' h:mm a")}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                Created {formatDistanceToNow(new Date(estimation.createdAt), { addSuffix: true })}
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedEstimation(estimation);
+                    setShowAddItemDialog(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(estimation)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(estimation)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {estimations.length === 0 && (
-        <div className="text-center py-12">
-          <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">No estimations yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Create your first estimation to get started
-          </p>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Estimation
-          </Button>
-        </div>
-      )}
-
-      {/* Create Estimation Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Create New Estimation</DialogTitle>
-            <DialogDescription>
-              Create a new estimation. You can add items after creating it.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
-              <FormField
-                control={createForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estimation Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter estimation name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        value={field.value ? field.value.toISOString().split('T')[0] : ''}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="clientName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter client name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter project address" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="techniqueId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Technique (Optional)</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a technique" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No technique selected</SelectItem>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.username}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="clientInformation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client Information (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create Estimation"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Estimation Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Estimation</DialogTitle>
-            <DialogDescription>
-              Update the estimation details.
-            </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-4">
@@ -684,22 +533,9 @@ export default function EstimationsPage() {
                       <Input
                         type="date"
                         {...field}
-                        value={field.value ? field.value.toISOString().split('T')[0] : ''}
+                        value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
                         onChange={(e) => field.onChange(new Date(e.target.value))}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="clientName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter client name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -713,6 +549,19 @@ export default function EstimationsPage() {
                     <FormLabel>Address</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="Enter project address" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="clientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter client name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -769,171 +618,92 @@ export default function EstimationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+      {/* Add Item Dialog */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Delete Estimation</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{selectedEstimation?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Items Dialog */}
-      <Dialog open={showItemsDialog} onOpenChange={setShowItemsDialog}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Estimation Items</DialogTitle>
-            <DialogDescription>
-              Manage items for "{selectedEstimation?.name}"
-            </DialogDescription>
+            <DialogTitle>
+              {selectedEstimation ? `Manage Items - ${selectedEstimation.name}` : "Manage Items"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold">Items</h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedEstimation?.items.length || 0} items in estimation
-                </p>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Label htmlFor="stock-item">Stock Item</Label>
+                <Select value={selectedStockItem} onValueChange={setSelectedStockItem}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a stock item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stockItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id.toString()}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button onClick={() => setShowAddItemDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
+              <div className="w-24">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={itemQuantity}
+                  onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={handleAddItem} disabled={!selectedStockItem || addItemMutation.isPending}>
+                  {addItemMutation.isPending ? "Adding..." : "Add"}
+                </Button>
+              </div>
             </div>
-            
-            {selectedEstimation?.items.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No items added yet</p>
-                <p className="text-sm text-muted-foreground">Click "Add Item" to start building your estimation</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {selectedEstimation?.items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{item.stockItem.name}</h4>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+
+            {selectedEstimation && selectedEstimation.items.length > 0 && (
+              <div className="mt-6">
+                <Label>Current Items</Label>
+                <div className="mt-2 space-y-2">
+                  {selectedEstimation.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium">{item.stockItem.name}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
+                          disabled={item.quantity <= 1 || updateItemMutation.isPending}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="px-2 py-1 bg-muted rounded text-sm font-medium">
-                          {item.quantity}
-                        </span>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+                        <span className="w-8 text-center">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
+                          disabled={updateItemMutation.isPending}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveItem(item.id)}
+                          disabled={removeItemMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowItemsDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Item Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Add Item to Estimation</DialogTitle>
-            <DialogDescription>
-              Select a stock item and quantity to add to "{selectedEstimation?.name}"
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="stockItem">Stock Item</Label>
-              <Select value={selectedStockItem} onValueChange={setSelectedStockItem}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a stock item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stockItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id.toString()}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <div className="flex items-center gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
-                  disabled={itemQuantity <= 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Input 
-                  id="quantity"
-                  type="number"
-                  value={itemQuantity}
-                  onChange={(e) => setItemQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  min="1"
-                  className="w-20 text-center"
-                />
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setItemQuantity(itemQuantity + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            
-
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddItem}
-              disabled={!selectedStockItem || itemQuantity <= 0 || addItemMutation.isPending}
-            >
-              {addItemMutation.isPending ? "Adding..." : "Add Item"}
-            </Button>
+            <Button onClick={() => setShowAddItemDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
