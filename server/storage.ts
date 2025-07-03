@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -115,6 +115,20 @@ interface IStorage {
   // Task history methods
   getTaskHistory(taskId: number): Promise<(TaskHistory & { user: Pick<User, 'id' | 'username'> })[]>;
   createTaskHistoryEntry(entry: InsertTaskHistory & { taskId: number; userId: number }): Promise<TaskHistory>;
+  
+  // Stock management methods
+  getStockItems(): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> })[]>;
+  getStockItem(id: number): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> }) | undefined>;
+  createStockItem(item: InsertStockItem): Promise<StockItem>;
+  updateStockItem(id: number, data: Partial<InsertStockItem>): Promise<StockItem>;
+  deleteStockItem(id: number): Promise<void>;
+  adjustStockQuantity(itemId: number, userId: number, newQuantity: number, reason?: string): Promise<StockItem>;
+  getStockMovements(itemId: number): Promise<(StockMovement & { user: Pick<User, 'id' | 'username'> })[]>;
+  
+  // Stock permissions methods
+  getUserStockPermissions(userId: number): Promise<UserStockPermission | undefined>;
+  setUserStockPermissions(userId: number, permissions: InsertUserStockPermission, grantedById: number): Promise<UserStockPermission>;
+  getUsersWithStockAccess(): Promise<(User & { stockPermissions?: UserStockPermission })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1856,6 +1870,292 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to create task history entry', { error, taskId: entry.taskId });
       throw new DatabaseError(`Failed to create task history entry: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Stock management methods
+  async getStockItems(): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const items = await db
+          .select({
+            id: stockItems.id,
+            name: stockItems.name,
+            description: stockItems.description,
+            cost: stockItems.cost,
+            quantity: stockItems.quantity,
+            assignedUserId: stockItems.assignedUserId,
+            createdAt: stockItems.createdAt,
+            updatedAt: stockItems.updatedAt,
+            assignedUser: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(stockItems)
+          .leftJoin(users, eq(stockItems.assignedUserId, users.id))
+          .orderBy(stockItems.name);
+
+        return items.map(item => ({
+          ...item,
+          assignedUser: item.assignedUser?.id ? item.assignedUser : undefined,
+        }));
+      }, 'Get all stock items');
+    } catch (error) {
+      logger.error('Failed to get stock items', { error });
+      throw new DatabaseError(`Failed to get stock items: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getStockItem(id: number): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> }) | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [item] = await db
+          .select({
+            id: stockItems.id,
+            name: stockItems.name,
+            description: stockItems.description,
+            cost: stockItems.cost,
+            quantity: stockItems.quantity,
+            assignedUserId: stockItems.assignedUserId,
+            createdAt: stockItems.createdAt,
+            updatedAt: stockItems.updatedAt,
+            assignedUser: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(stockItems)
+          .leftJoin(users, eq(stockItems.assignedUserId, users.id))
+          .where(eq(stockItems.id, id));
+
+        if (!item) return undefined;
+
+        return {
+          ...item,
+          assignedUser: item.assignedUser.id ? item.assignedUser : undefined,
+        };
+      }, 'Get stock item by ID');
+    } catch (error) {
+      logger.error(`Failed to get stock item with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to get stock item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createStockItem(item: InsertStockItem): Promise<StockItem> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newItem] = await db
+          .insert(stockItems)
+          .values({
+            ...item,
+            createdAt: new Date(),
+          })
+          .returning();
+
+        return newItem;
+      }, 'Create stock item');
+    } catch (error) {
+      logger.error('Failed to create stock item', { error, itemName: item.name });
+      throw new DatabaseError(`Failed to create stock item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateStockItem(id: number, data: Partial<InsertStockItem>): Promise<StockItem> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedItem] = await db
+          .update(stockItems)
+          .set({
+            ...data,
+            updatedAt: new Date(),
+          })
+          .where(eq(stockItems.id, id))
+          .returning();
+
+        if (!updatedItem) {
+          throw new Error('Stock item not found');
+        }
+
+        return updatedItem;
+      }, 'Update stock item');
+    } catch (error) {
+      logger.error(`Failed to update stock item with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to update stock item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteStockItem(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .delete(stockItems)
+          .where(eq(stockItems.id, id));
+      }, 'Delete stock item');
+    } catch (error) {
+      logger.error(`Failed to delete stock item with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to delete stock item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async adjustStockQuantity(itemId: number, userId: number, newQuantity: number, reason?: string): Promise<StockItem> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get current item to record the previous quantity
+        const currentItem = await this.getStockItem(itemId);
+        if (!currentItem) {
+          throw new Error('Stock item not found');
+        }
+
+        // Update the quantity
+        const [updatedItem] = await db
+          .update(stockItems)
+          .set({
+            quantity: newQuantity,
+            updatedAt: new Date(),
+          })
+          .where(eq(stockItems.id, itemId))
+          .returning();
+
+        if (!updatedItem) {
+          throw new Error('Failed to update stock item');
+        }
+
+        // Record the movement
+        await db
+          .insert(stockMovements)
+          .values({
+            stockItemId: itemId,
+            userId,
+            type: newQuantity > currentItem.quantity ? 'add' : newQuantity < currentItem.quantity ? 'remove' : 'adjust',
+            quantity: newQuantity - currentItem.quantity,
+            previousQuantity: currentItem.quantity,
+            newQuantity,
+            reason,
+            createdAt: new Date(),
+          });
+
+        return updatedItem;
+      }, 'Adjust stock quantity');
+    } catch (error) {
+      logger.error(`Failed to adjust quantity for stock item ${itemId}`, { error });
+      throw new DatabaseError(`Failed to adjust stock quantity: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getStockMovements(itemId: number): Promise<(StockMovement & { user: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const movements = await db
+          .select({
+            id: stockMovements.id,
+            stockItemId: stockMovements.stockItemId,
+            userId: stockMovements.userId,
+            type: stockMovements.type,
+            quantity: stockMovements.quantity,
+            previousQuantity: stockMovements.previousQuantity,
+            newQuantity: stockMovements.newQuantity,
+            reason: stockMovements.reason,
+            createdAt: stockMovements.createdAt,
+            user: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(stockMovements)
+          .innerJoin(users, eq(stockMovements.userId, users.id))
+          .where(eq(stockMovements.stockItemId, itemId))
+          .orderBy(desc(stockMovements.createdAt));
+
+        return movements;
+      }, 'Get stock movements');
+    } catch (error) {
+      logger.error(`Failed to get movements for stock item ${itemId}`, { error });
+      throw new DatabaseError(`Failed to get stock movements: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUserStockPermissions(userId: number): Promise<UserStockPermission | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [permissions] = await db
+          .select()
+          .from(userStockPermissions)
+          .where(eq(userStockPermissions.userId, userId));
+
+        return permissions;
+      }, 'Get user stock permissions');
+    } catch (error) {
+      logger.error(`Failed to get stock permissions for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get user stock permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async setUserStockPermissions(userId: number, permissions: InsertUserStockPermission, grantedById: number): Promise<UserStockPermission> {
+    try {
+      return await executeWithRetry(async () => {
+        // Delete existing permissions for this user
+        await db
+          .delete(userStockPermissions)
+          .where(eq(userStockPermissions.userId, userId));
+
+        // Insert new permissions
+        const [newPermissions] = await db
+          .insert(userStockPermissions)
+          .values({
+            userId,
+            grantedById,
+            ...permissions,
+            createdAt: new Date(),
+          })
+          .returning();
+
+        return newPermissions;
+      }, 'Set user stock permissions');
+    } catch (error) {
+      logger.error(`Failed to set stock permissions for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to set user stock permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUsersWithStockAccess(): Promise<(User & { stockPermissions?: UserStockPermission })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const usersWithAccess = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            password: users.password,
+            email: users.email,
+            notificationPreferences: users.notificationPreferences,
+            stockPermissions: {
+              id: userStockPermissions.id,
+              userId: userStockPermissions.userId,
+              canViewStock: userStockPermissions.canViewStock,
+              canManageStock: userStockPermissions.canManageStock,
+              canAdjustQuantities: userStockPermissions.canAdjustQuantities,
+              grantedById: userStockPermissions.grantedById,
+              createdAt: userStockPermissions.createdAt,
+            },
+          })
+          .from(users)
+          .leftJoin(userStockPermissions, eq(users.id, userStockPermissions.userId))
+          .where(
+            or(
+              eq(users.id, 1), // Admin user always has access
+              eq(userStockPermissions.canViewStock, true)
+            )
+          )
+          .orderBy(users.username);
+
+        return usersWithAccess.map(user => ({
+          ...user,
+          stockPermissions: user.stockPermissions.id ? user.stockPermissions : undefined,
+        }));
+      }, 'Get users with stock access');
+    } catch (error) {
+      logger.error('Failed to get users with stock access', { error });
+      throw new DatabaseError(`Failed to get users with stock access: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

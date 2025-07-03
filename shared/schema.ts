@@ -448,6 +448,77 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
   }),
 }));
 
+// Stock management tables
+export const stockItems = pgTable("stock_items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  cost: integer("cost").notNull(), // cost in cents to avoid floating point issues
+  quantity: integer("quantity").notNull().default(0),
+  assignedUserId: integer("assigned_user_id").references(() => users.id), // user assigned to manage this item
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Stock movements/transactions for tracking quantity changes
+export const stockMovements = pgTable("stock_movements", {
+  id: serial("id").primaryKey(),
+  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(), // who made the change
+  type: text("type").notNull(), // 'add', 'remove', 'adjust'
+  quantity: integer("quantity").notNull(), // positive or negative amount
+  previousQuantity: integer("previous_quantity").notNull(),
+  newQuantity: integer("new_quantity").notNull(),
+  reason: text("reason"), // optional reason for the change
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// User permissions for stock management
+export const userStockPermissions = pgTable("user_stock_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  canViewStock: boolean("can_view_stock").default(false),
+  canManageStock: boolean("can_manage_stock").default(false), // can add/edit items
+  canAdjustQuantities: boolean("can_adjust_quantities").default(false), // can modify quantities
+  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    userUnique: unique().on(table.userId)
+  };
+});
+
+// Stock relations
+export const stockItemsRelations = relations(stockItems, ({ one, many }) => ({
+  assignedUser: one(users, {
+    fields: [stockItems.assignedUserId],
+    references: [users.id],
+  }),
+  movements: many(stockMovements),
+}));
+
+export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
+  stockItem: one(stockItems, {
+    fields: [stockMovements.stockItemId],
+    references: [stockItems.id],
+  }),
+  user: one(users, {
+    fields: [stockMovements.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userStockPermissionsRelations = relations(userStockPermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userStockPermissions.userId],
+    references: [users.id],
+  }),
+  grantedBy: one(users, {
+    fields: [userStockPermissions.grantedById],
+    references: [users.id],
+  }),
+}));
+
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -627,3 +698,33 @@ export type EmailNotification = typeof emailNotifications.$inferSelect;
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertEmailNotification = z.infer<typeof insertEmailNotificationSchema>;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+
+// Stock management schemas and types
+export const insertStockItemSchema = createInsertSchema(stockItems).pick({
+  name: true,
+  description: true,
+  cost: true,
+  quantity: true,
+  assignedUserId: true,
+});
+
+export const insertStockMovementSchema = createInsertSchema(stockMovements).pick({
+  type: true,
+  quantity: true,
+  previousQuantity: true,
+  newQuantity: true,
+  reason: true,
+});
+
+export const insertUserStockPermissionSchema = createInsertSchema(userStockPermissions).pick({
+  canViewStock: true,
+  canManageStock: true,
+  canAdjustQuantities: true,
+});
+
+export type StockItem = typeof stockItems.$inferSelect;
+export type StockMovement = typeof stockMovements.$inferSelect;
+export type UserStockPermission = typeof userStockPermissions.$inferSelect;
+export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
+export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
+export type InsertUserStockPermission = z.infer<typeof insertUserStockPermissionSchema>;

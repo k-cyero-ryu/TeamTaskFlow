@@ -10,6 +10,7 @@ import Workflows from "@/pages/workflows";
 import WorkflowDetail from "@/pages/workflow-detail";
 import Channels from "@/pages/channels";
 import ChannelDetail from "@/pages/channel-detail";
+import Stock from "@/pages/stock";
 import Settings from "@/pages/settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
@@ -176,6 +177,14 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Settings />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/stock">
+          <ProtectedRoute>
+            <Layout>
+              <Stock />
             </Layout>
           </ProtectedRoute>
         </Route>
