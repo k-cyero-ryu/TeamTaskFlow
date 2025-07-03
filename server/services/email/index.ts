@@ -56,9 +56,8 @@ export class EmailService {
    */
   constructor() {
     // Configure the email transporter
-    // In development, we use a test account
-    // In production, we would use real SMTP credentials
-    this.defaultFrom = 'Team Collaborator <noreply@teamcollaborator.com>';
+    // Use company email from environment variable if available
+    this.defaultFrom = process.env.COMPANY_EMAIL_FROM || 'Team Collaborator <noreply@teamcollaborator.com>';
     
     // Create a transporter with the desired configuration
     this.transporter = this.createTransporter();
@@ -115,11 +114,26 @@ export class EmailService {
       });
     }
     
-    // In development or if no SMTP credentials, use nodemailer's test account or JSON transport
+    // In development or if no SMTP credentials, use GoDaddy SMTP if available
     if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
-      logger.info('Using development JSON email transport');
+      // Check if GoDaddy SMTP credentials are available
+      if (process.env.GODADDY_SMTP_USER && process.env.GODADDY_SMTP_PASSWORD) {
+        logger.info('Using GoDaddy SMTP transport');
+        
+        return nodemailer.createTransport({
+          host: 'smtpout.secureserver.net',
+          port: 465,
+          secure: true, // Use SSL
+          auth: {
+            user: process.env.GODADDY_SMTP_USER,
+            pass: process.env.GODADDY_SMTP_PASSWORD
+          }
+        });
+      }
       
-      // Use a "mock" transport that just logs the emails instead of sending them
+      logger.info('Using development JSON email transport (no real emails sent)');
+      
+      // Fallback to JSON transport if no SMTP credentials
       return nodemailer.createTransport({
         jsonTransport: true,
         name: 'team-collaborator-dev'
