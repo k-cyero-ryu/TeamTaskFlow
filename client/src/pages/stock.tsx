@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Package, DollarSign, Users, TrendingUp, Edit, Trash2, User } from "lucide-react";
+import { Plus, Search, Filter, Package, DollarSign, Users, TrendingUp, Edit, Trash2, User, UserPlus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
@@ -69,6 +69,9 @@ export default function StockPage() {
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showGlobalAssignDialog, setShowGlobalAssignDialog] = useState(false);
+  const [globalAssigneeId, setGlobalAssigneeId] = useState<string>("");
 
   // Check user permissions
   const { data: permissions } = useQuery<UserStockPermission>({
@@ -114,6 +117,54 @@ export default function StockPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete stock item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Edit mutation
+  const editMutation = useMutation({
+    mutationFn: async (data: { id: number; name: string; description: string; cost: number; assignedUserId: number | null }) => {
+      const res = await apiRequest("PUT", `/api/stock/items/${data.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stock/items"] });
+      toast({
+        title: "Success",
+        description: "Stock item updated successfully",
+      });
+      setShowEditDialog(false);
+      setSelectedItem(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update stock item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Global assignment mutation
+  const globalAssignMutation = useMutation({
+    mutationFn: async (data: { userId: number | null }) => {
+      const res = await apiRequest("POST", `/api/stock/global-assign`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stock/items"] });
+      toast({
+        title: "Success",
+        description: "All stock items assigned successfully",
+      });
+      setShowGlobalAssignDialog(false);
+      setGlobalAssigneeId("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign stock items",
         variant: "destructive",
       });
     },
@@ -197,15 +248,69 @@ export default function StockPage() {
           </p>
         </div>
         {canManage && (
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <CreateStockItemDialog onClose={() => setShowCreateDialog(false)} />
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <Dialog open={showGlobalAssignDialog} onOpenChange={setShowGlobalAssignDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Assign All
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Assign All Stock Items</DialogTitle>
+                  <DialogDescription>
+                    Assign all stock items to a single user or remove all assignments.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Assign to user:</label>
+                    <Select value={globalAssigneeId} onValueChange={setGlobalAssigneeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select user or unassign all" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassign">Unassign All</SelectItem>
+                        {users.filter(u => u.id && u.username).map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowGlobalAssignDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const userId = globalAssigneeId === "unassign" ? null : 
+                                      globalAssigneeId ? parseInt(globalAssigneeId) : null;
+                        globalAssignMutation.mutate({ userId });
+                      }}
+                      disabled={!globalAssigneeId || globalAssignMutation.isPending}
+                    >
+                      {globalAssignMutation.isPending ? "Assigning..." : "Assign All"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <CreateStockItemDialog onClose={() => setShowCreateDialog(false)} />
+            </Dialog>
+          </div>
         )}
       </div>
 
@@ -291,7 +396,7 @@ export default function StockPage() {
                   <SelectItem value="all">All Items</SelectItem>
                   <SelectItem value="assigned">Assigned</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
+                  {users.filter(u => u.id && u.username).map((user) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.username}
                     </SelectItem>
@@ -382,7 +487,8 @@ export default function StockPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                // TODO: Implement edit dialog
+                                setSelectedItem(item);
+                                setShowEditDialog(true);
                               }}
                             >
                               <Edit className="h-3 w-3" />
@@ -418,6 +524,93 @@ export default function StockPage() {
             setSelectedItem(null);
           }}
         />
+      )}
+
+      {/* Edit Item Dialog */}
+      {selectedItem && (
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Stock Item</DialogTitle>
+              <DialogDescription>
+                Update the stock item details.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name</label>
+                <Input
+                  value={selectedItem?.name || ""}
+                  onChange={(e) => setSelectedItem(prev => prev ? {...prev, name: e.target.value} : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  value={selectedItem?.description || ""}
+                  onChange={(e) => setSelectedItem(prev => prev ? {...prev, description: e.target.value} : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cost (cents)</label>
+                <Input
+                  type="number"
+                  value={selectedItem?.cost || 0}
+                  onChange={(e) => setSelectedItem(prev => prev ? {...prev, cost: parseInt(e.target.value) || 0} : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Assigned User</label>
+                <Select 
+                  value={selectedItem?.assignedUserId?.toString() || "unassigned"} 
+                  onValueChange={(value) => {
+                    const assignedUserId = value === "unassigned" ? null : parseInt(value);
+                    setSelectedItem(prev => prev ? {...prev, assignedUserId} : null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select user or leave unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users.filter(u => u.id && u.username).map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditDialog(false);
+                    setSelectedItem(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (selectedItem) {
+                      editMutation.mutate({
+                        id: selectedItem.id,
+                        name: selectedItem.name,
+                        description: selectedItem.description || "",
+                        cost: selectedItem.cost,
+                        assignedUserId: selectedItem.assignedUserId
+                      });
+                    }
+                  }}
+                  disabled={editMutation.isPending}
+                >
+                  {editMutation.isPending ? "Updating..." : "Update Item"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

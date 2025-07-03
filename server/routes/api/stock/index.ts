@@ -386,4 +386,39 @@ router.post("/permissions/:userId", async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/stock/global-assign
+ * @desc Assign all stock items to a user globally
+ * @access Private (admin only)
+ */
+router.post("/global-assign", async (req, res) => {
+  try {
+    if (!req.isAuthenticated() || req.user.id !== 1) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    
+    const { userId } = req.body;
+    
+    // userId can be null (to unassign all) or a valid user ID
+    if (userId !== null && (typeof userId !== 'number' || userId <= 0)) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    
+    await storage.assignAllStockItems(userId);
+    
+    logger.info('All stock items assigned globally', { 
+      assignedToUserId: userId,
+      adminId: req.user.id 
+    });
+    
+    res.json({ message: "All stock items assigned successfully" });
+  } catch (error) {
+    logger.error('Failed to assign stock items globally', { 
+      error, 
+      adminId: req.user?.id 
+    });
+    res.status(500).json({ error: "Failed to assign stock items" });
+  }
+});
+
 export default router;

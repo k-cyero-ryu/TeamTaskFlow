@@ -124,6 +124,7 @@ interface IStorage {
   deleteStockItem(id: number): Promise<void>;
   adjustStockQuantity(itemId: number, userId: number, newQuantity: number, reason?: string): Promise<StockItem>;
   getStockMovements(itemId: number): Promise<(StockMovement & { user: Pick<User, 'id' | 'username'> })[]>;
+  assignAllStockItems(userId: number | null): Promise<void>;
   
   // Stock permissions methods
   getUserStockPermissions(userId: number): Promise<UserStockPermission | undefined>;
@@ -2156,6 +2157,22 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to get users with stock access', { error });
       throw new DatabaseError(`Failed to get users with stock access: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async assignAllStockItems(userId: number | null): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .update(stockItems)
+          .set({
+            assignedUserId: userId,
+            updatedAt: new Date(),
+          });
+      }, 'Assign all stock items');
+    } catch (error) {
+      logger.error(`Failed to assign all stock items to user ${userId}`, { error });
+      throw new DatabaseError(`Failed to assign all stock items: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
