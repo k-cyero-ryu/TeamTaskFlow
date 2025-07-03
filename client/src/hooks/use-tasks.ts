@@ -133,6 +133,37 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
     }
   });
 
+  // Update task due date mutation
+  const updateTaskDueDate = useMutation({
+    mutationFn: async ({ taskId, dueDate }: { taskId: number; dueDate: Date | null }) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${taskId}/due-date`, { 
+        dueDate: dueDate ? dueDate.toISOString() : null 
+      });
+      const resClone = res.clone();
+      
+      try {
+        return await resClone.json();
+      } catch (error) {
+        console.error("Error parsing task due date update response:", error);
+        throw new Error("Failed to update task due date: Invalid response format");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Task due date updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update due date: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+
   return {
     tasks,
     isLoading,
@@ -142,6 +173,7 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
     getTaskStats,
     updateTaskStatus,
     deleteTask,
-    updateTaskStage
+    updateTaskStage,
+    updateTaskDueDate
   };
 }

@@ -29,6 +29,7 @@ interface IStorage {
   getTask(id: number): Promise<Task | undefined>;
   createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
   updateTaskStatus(id: number, status: string): Promise<Task>;
+  updateTaskDueDate(id: number, dueDate: Date | null): Promise<Task>;
   deleteTask(id: number): Promise<void>;
   getSubtasks(taskId: number): Promise<Subtask[]>;
   getTaskSteps(taskId: number): Promise<TaskStep[]>;
@@ -332,6 +333,27 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update task status for task ${id}`, { error });
       throw new DatabaseError(`Failed to update task status: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateTaskDueDate(id: number, dueDate: Date | null): Promise<Task> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedTask] = await db
+          .update(tasks)
+          .set({ dueDate })
+          .where(eq(tasks.id, id))
+          .returning();
+    
+        if (!updatedTask) {
+          throw new Error("Task not found");
+        }
+    
+        return updatedTask;
+      }, 'Update task due date');
+    } catch (error) {
+      logger.error(`Failed to update task due date for task ${id}`, { error });
+      throw new DatabaseError(`Failed to update task due date: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

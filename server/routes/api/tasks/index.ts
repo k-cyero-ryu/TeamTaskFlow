@@ -264,6 +264,69 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
 });
 
 /**
+ * @route PATCH /api/tasks/:id/due-date
+ * @desc Update a task's due date (only task responsible or creator can update)
+ * @access Private
+ */
+router.patch('/:id/due-date', requireAuth, async (req, res) => {
+  try {
+    const { dueDate } = req.body;
+    const taskId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task ID');
+    }
+
+    // Get the task to check permissions
+    const task = await storage.getTask(taskId);
+    if (!task) {
+      throw new NotFoundError('Task not found');
+    }
+
+    // Check if user is the task responsible person or creator
+    const isResponsible = task.responsibleId === userId;
+    const isCreator = task.creatorId === userId;
+    
+    if (!isResponsible && !isCreator) {
+      return res.status(403).json({
+        error: {
+          type: 'AUTHORIZATION_ERROR',
+          message: 'Only the task responsible person or creator can update the due date'
+        }
+      });
+    }
+
+    // Process the due date
+    let processedDueDate = null;
+    if (dueDate) {
+      processedDueDate = new Date(dueDate);
+      if (isNaN(processedDueDate.getTime())) {
+        throw new ValidationError('Invalid due date format');
+      }
+    }
+
+    const updatedTask = await storage.updateTaskDueDate(taskId, processedDueDate);
+    
+    // Broadcast the due date update to all connected clients
+    broadcastWebSocketMessage({
+      type: "task_due_date_updated",
+      data: updatedTask,
+    });
+    
+    logger.info('Task due date updated successfully', { taskId, dueDate, userId });
+    res.json(updatedTask);
+  } catch (error) {
+    logger.error('Error updating task due date', { 
+      taskId: req.params.id, 
+      error, 
+      userId: req.user?.id 
+    });
+    handleApiError(res, error);
+  }
+});
+
+/**
  * @route DELETE /api/tasks/:id
  * @desc Delete a task
  * @access Private

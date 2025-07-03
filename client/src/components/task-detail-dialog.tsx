@@ -27,13 +27,16 @@ import TaskComments from "./task-comments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useSubtasks, useTaskSteps } from "@/hooks/use-task-items";
+import { useTasks } from "@/hooks/use-tasks";
 import { ExtendedTask } from "@/lib/types";
 import { ErrorBoundary } from "./error-boundary";
 import { handleQueryError } from "@/lib/error-utils";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw, Loader2, CheckCircle2, Calendar, Clipboard, Users } from "lucide-react";
+import { AlertCircle, RefreshCw, Loader2, CheckCircle2, Calendar, Clipboard, Users, Edit2, X, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
 
 // Extended Task is now imported from lib/types
 
@@ -41,6 +44,121 @@ interface TaskDetailDialogProps {
   task: ExtendedTask;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+// Component for editing due date
+function DueDateEditor({ task }: { task: ExtendedTask }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [dateValue, setDateValue] = useState(
+    task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""
+  );
+  const { user } = useAuth();
+  const { updateTaskDueDate } = useTasks();
+  const { toast } = useToast();
+
+  // Check if user can edit due date (task responsible or creator)
+  const canEditDueDate = user && (task.responsibleId === user.id || task.creatorId === user.id);
+
+  const handleSave = async () => {
+    try {
+      const newDueDate = dateValue ? new Date(dateValue) : null;
+      
+      // Validate date if provided
+      if (newDueDate && isNaN(newDueDate.getTime())) {
+        toast({
+          title: "Invalid Date",
+          description: "Please enter a valid date",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await updateTaskDueDate.mutateAsync({
+        taskId: task.id,
+        dueDate: newDueDate,
+      });
+
+      setIsEditing(false);
+    } catch (error) {
+      // Error is already handled by the mutation
+    }
+  };
+
+  const handleCancel = () => {
+    setDateValue(task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "");
+    setIsEditing(false);
+  };
+
+  if (!canEditDueDate) {
+    // Show read-only view for users who can't edit
+    return task.dueDate ? (
+      <div>
+        <h3 className="text-sm font-medium mb-2">Due Date</h3>
+        <p className="text-muted-foreground">
+          {format(new Date(task.dueDate), "PPP")}
+        </p>
+      </div>
+    ) : (
+      <div>
+        <h3 className="text-sm font-medium mb-2">Due Date</h3>
+        <p className="text-muted-foreground">No due date set</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+        Due Date
+        {!isEditing && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+            className="h-6 w-6 p-0"
+          >
+            <Edit2 className="h-3 w-3" />
+          </Button>
+        )}
+      </h3>
+      
+      {isEditing ? (
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={dateValue}
+            onChange={(e) => setDateValue(e.target.value)}
+            className="w-40"
+          />
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={updateTaskDueDate.isPending}
+            className="h-8 w-8 p-0"
+          >
+            {updateTaskDueDate.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Check className="h-3 w-3" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCancel}
+            disabled={updateTaskDueDate.isPending}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ) : (
+        <p className="text-muted-foreground">
+          {task.dueDate ? format(new Date(task.dueDate), "PPP") : "No due date set"}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Wrap the main component with error boundary
@@ -337,14 +455,7 @@ function TaskDetailContent({ task }: { task: ExtendedTask }) {
                 {format(new Date(task.createdAt), "PPP")}
               </p>
             </div>
-            {task.dueDate && (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Due Date</h3>
-                <p className="text-muted-foreground">
-                  {format(new Date(task.dueDate), "PPP")}
-                </p>
-              </div>
-            )}
+            <DueDateEditor task={task} />
           </div>
 
           <Separator />
