@@ -56,6 +56,17 @@ class WebSocketClient {
                 queryKey: [`/api/workflows/${message.data.workflowId}/stages/${message.data.stageId}/tasks`]
               });
               break;
+            case 'task_due_date_updated':
+              // Invalidate tasks cache to show updated due date
+              queryClient.invalidateQueries({
+                queryKey: ['/api/tasks']
+              });
+              if (message.data.workflowId && message.data.stageId) {
+                queryClient.invalidateQueries({
+                  queryKey: [`/api/workflows/${message.data.workflowId}/stages/${message.data.stageId}/tasks`]
+                });
+              }
+              break;
             default:
               console.log("Unknown WebSocket message type:", message.type);
           }
