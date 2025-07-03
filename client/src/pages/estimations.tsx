@@ -38,6 +38,10 @@ type Estimation = {
     id: number;
     username: string;
   };
+  technique?: {
+    id: number;
+    username: string;
+  };
   items: Array<{
     id: number;
     quantity: number;
@@ -450,7 +454,7 @@ export default function EstimationsPage() {
               <CardTitle className="text-lg">{estimation.name}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
-                <span>{estimation.createdBy.username}</span>
+                <span>{estimation.technique?.username || 'No technique assigned'}</span>
               </div>
             </CardHeader>
             <CardContent>

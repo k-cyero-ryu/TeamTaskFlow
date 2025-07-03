@@ -2181,7 +2181,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Estimation methods implementation
-  async getEstimations(): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] })[]> {
+  async getEstimations(): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; technique?: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] })[]> {
     try {
       return await executeWithRetry(async () => {
         const estimationsData = await db
@@ -2206,7 +2206,7 @@ export class DatabaseStorage implements IStorage {
           .innerJoin(users, eq(estimations.createdById, users.id))
           .orderBy(desc(estimations.createdAt));
 
-        // Get items for each estimation
+        // Get items and technique info for each estimation
         const estimationsWithItems = await Promise.all(
           estimationsData.map(async (estimation) => {
             const items = await db
@@ -2228,9 +2228,27 @@ export class DatabaseStorage implements IStorage {
               .innerJoin(stockItems, eq(estimationItems.stockItemId, stockItems.id))
               .where(eq(estimationItems.estimationId, estimation.id));
 
+            // Get technique user if exists
+            let technique: Pick<User, 'id' | 'username'> | undefined;
+            if (estimation.techniqueId) {
+              const techniqueUser = await db
+                .select({
+                  id: users.id,
+                  username: users.username,
+                })
+                .from(users)
+                .where(eq(users.id, estimation.techniqueId))
+                .limit(1);
+              
+              if (techniqueUser.length > 0) {
+                technique = techniqueUser[0];
+              }
+            }
+
             return {
               ...estimation,
               items,
+              technique,
             };
           })
         );
