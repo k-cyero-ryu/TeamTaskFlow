@@ -520,6 +520,8 @@ export const userStockPermissionsRelations = relations(userStockPermissions, ({ 
 }));
 
 
+
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -728,3 +730,74 @@ export type UserStockPermission = typeof userStockPermissions.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type InsertUserStockPermission = z.infer<typeof insertUserStockPermissionSchema>;
+
+// Estimation management tables
+export const estimations = pgTable("estimations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  date: timestamp("date").notNull(),
+  address: text("address").notNull(),
+  clientName: text("client_name").notNull(),
+  clientInformation: text("client_information"),
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
+  totalCost: integer("total_cost").default(0), // calculated field in cents
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Estimation items - linking estimations to stock items with quantities
+export const estimationItems = pgTable("estimation_items", {
+  id: serial("id").primaryKey(),
+  estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
+  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  unitCost: integer("unit_cost").notNull(), // cost per unit at time of estimation
+  totalCost: integer("total_cost").notNull(), // quantity * unitCost
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    estimationItemUnique: unique().on(table.estimationId, table.stockItemId)
+  };
+});
+
+// Estimation management schemas and types
+export const insertEstimationSchema = createInsertSchema(estimations).pick({
+  name: true,
+  date: true,
+  address: true,
+  clientName: true,
+  clientInformation: true,
+});
+
+export const insertEstimationItemSchema = createInsertSchema(estimationItems).pick({
+  estimationId: true,
+  stockItemId: true,
+  quantity: true,
+  unitCost: true,
+  totalCost: true,
+});
+
+export type Estimation = typeof estimations.$inferSelect;
+export type EstimationItem = typeof estimationItems.$inferSelect;
+export type InsertEstimation = z.infer<typeof insertEstimationSchema>;
+export type InsertEstimationItem = z.infer<typeof insertEstimationItemSchema>;
+
+// Estimation relations
+export const estimationsRelations = relations(estimations, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [estimations.createdById],
+    references: [users.id],
+  }),
+  items: many(estimationItems),
+}));
+
+export const estimationItemsRelations = relations(estimationItems, ({ one }) => ({
+  estimation: one(estimations, {
+    fields: [estimationItems.estimationId],
+    references: [estimations.id],
+  }),
+  stockItem: one(stockItems, {
+    fields: [estimationItems.stockItemId],
+    references: [stockItems.id],
+  }),
+}));

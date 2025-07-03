@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -130,6 +130,16 @@ interface IStorage {
   getUserStockPermissions(userId: number): Promise<UserStockPermission | undefined>;
   setUserStockPermissions(userId: number, permissions: InsertUserStockPermission, grantedById: number): Promise<UserStockPermission>;
   getUsersWithStockAccess(): Promise<(User & { stockPermissions?: UserStockPermission })[]>;
+  
+  // Estimation methods
+  getEstimations(): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] })[]>;
+  getEstimation(id: number): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] }) | undefined>;
+  createEstimation(estimation: InsertEstimation, userId: number): Promise<Estimation>;
+  updateEstimation(id: number, estimation: Partial<InsertEstimation>): Promise<Estimation>;
+  deleteEstimation(id: number): Promise<void>;
+  addEstimationItem(estimationId: number, stockItemId: number, quantity: number): Promise<EstimationItem>;
+  updateEstimationItem(id: number, quantity: number): Promise<EstimationItem>;
+  deleteEstimationItem(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2167,6 +2177,310 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to assign all stock items to user ${userId}`, { error });
       throw new DatabaseError(`Failed to assign all stock items: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Estimation methods implementation
+  async getEstimations(): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const estimationsData = await db
+          .select({
+            id: estimations.id,
+            name: estimations.name,
+            date: estimations.date,
+            address: estimations.address,
+            clientName: estimations.clientName,
+            clientInformation: estimations.clientInformation,
+            createdById: estimations.createdById,
+            totalCost: estimations.totalCost,
+            createdAt: estimations.createdAt,
+            updatedAt: estimations.updatedAt,
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(estimations)
+          .innerJoin(users, eq(estimations.createdById, users.id))
+          .orderBy(desc(estimations.createdAt));
+
+        // Get items for each estimation
+        const estimationsWithItems = await Promise.all(
+          estimationsData.map(async (estimation) => {
+            const items = await db
+              .select({
+                id: estimationItems.id,
+                estimationId: estimationItems.estimationId,
+                stockItemId: estimationItems.stockItemId,
+                quantity: estimationItems.quantity,
+                unitCost: estimationItems.unitCost,
+                totalCost: estimationItems.totalCost,
+                createdAt: estimationItems.createdAt,
+                stockItem: {
+                  id: stockItems.id,
+                  name: stockItems.name,
+                  cost: stockItems.cost,
+                },
+              })
+              .from(estimationItems)
+              .innerJoin(stockItems, eq(estimationItems.stockItemId, stockItems.id))
+              .where(eq(estimationItems.estimationId, estimation.id));
+
+            return {
+              ...estimation,
+              items,
+            };
+          })
+        );
+
+        return estimationsWithItems;
+      }, 'Get estimations');
+    } catch (error) {
+      logger.error('Failed to get estimations', { error });
+      throw new DatabaseError(`Failed to get estimations: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getEstimation(id: number): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] }) | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [estimation] = await db
+          .select({
+            id: estimations.id,
+            name: estimations.name,
+            date: estimations.date,
+            address: estimations.address,
+            clientName: estimations.clientName,
+            clientInformation: estimations.clientInformation,
+            createdById: estimations.createdById,
+            totalCost: estimations.totalCost,
+            createdAt: estimations.createdAt,
+            updatedAt: estimations.updatedAt,
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(estimations)
+          .innerJoin(users, eq(estimations.createdById, users.id))
+          .where(eq(estimations.id, id));
+
+        if (!estimation) return undefined;
+
+        const items = await db
+          .select({
+            id: estimationItems.id,
+            estimationId: estimationItems.estimationId,
+            stockItemId: estimationItems.stockItemId,
+            quantity: estimationItems.quantity,
+            unitCost: estimationItems.unitCost,
+            totalCost: estimationItems.totalCost,
+            createdAt: estimationItems.createdAt,
+            stockItem: {
+              id: stockItems.id,
+              name: stockItems.name,
+              cost: stockItems.cost,
+            },
+          })
+          .from(estimationItems)
+          .innerJoin(stockItems, eq(estimationItems.stockItemId, stockItems.id))
+          .where(eq(estimationItems.estimationId, estimation.id));
+
+        return {
+          ...estimation,
+          items,
+        };
+      }, 'Get estimation');
+    } catch (error) {
+      logger.error(`Failed to get estimation ${id}`, { error });
+      throw new DatabaseError(`Failed to get estimation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createEstimation(estimation: InsertEstimation, userId: number): Promise<Estimation> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newEstimation] = await db
+          .insert(estimations)
+          .values({
+            ...estimation,
+            createdById: userId,
+          })
+          .returning();
+
+        return newEstimation;
+      }, 'Create estimation');
+    } catch (error) {
+      logger.error('Failed to create estimation', { error });
+      throw new DatabaseError(`Failed to create estimation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateEstimation(id: number, estimation: Partial<InsertEstimation>): Promise<Estimation> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedEstimation] = await db
+          .update(estimations)
+          .set({
+            ...estimation,
+            updatedAt: new Date(),
+          })
+          .where(eq(estimations.id, id))
+          .returning();
+
+        return updatedEstimation;
+      }, 'Update estimation');
+    } catch (error) {
+      logger.error(`Failed to update estimation ${id}`, { error });
+      throw new DatabaseError(`Failed to update estimation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteEstimation(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        // First delete all estimation items
+        await db
+          .delete(estimationItems)
+          .where(eq(estimationItems.estimationId, id));
+
+        // Then delete the estimation
+        await db
+          .delete(estimations)
+          .where(eq(estimations.id, id));
+      }, 'Delete estimation');
+    } catch (error) {
+      logger.error(`Failed to delete estimation ${id}`, { error });
+      throw new DatabaseError(`Failed to delete estimation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async addEstimationItem(estimationId: number, stockItemId: number, quantity: number): Promise<EstimationItem> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get the current cost of the stock item
+        const [stockItem] = await db
+          .select({ cost: stockItems.cost })
+          .from(stockItems)
+          .where(eq(stockItems.id, stockItemId));
+
+        if (!stockItem) {
+          throw new Error('Stock item not found');
+        }
+
+        const unitCost = stockItem.cost;
+        const totalCost = unitCost * quantity;
+
+        const [newItem] = await db
+          .insert(estimationItems)
+          .values({
+            estimationId,
+            stockItemId,
+            quantity,
+            unitCost,
+            totalCost,
+          })
+          .returning();
+
+        // Update the estimation total cost
+        await this.updateEstimationTotalCost(estimationId);
+
+        return newItem;
+      }, 'Add estimation item');
+    } catch (error) {
+      logger.error('Failed to add estimation item', { error });
+      throw new DatabaseError(`Failed to add estimation item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateEstimationItem(id: number, quantity: number): Promise<EstimationItem> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get the current item to get unit cost and estimation ID
+        const [currentItem] = await db
+          .select({
+            unitCost: estimationItems.unitCost,
+            estimationId: estimationItems.estimationId,
+          })
+          .from(estimationItems)
+          .where(eq(estimationItems.id, id));
+
+        if (!currentItem) {
+          throw new Error('Estimation item not found');
+        }
+
+        const totalCost = currentItem.unitCost * quantity;
+
+        const [updatedItem] = await db
+          .update(estimationItems)
+          .set({
+            quantity,
+            totalCost,
+          })
+          .where(eq(estimationItems.id, id))
+          .returning();
+
+        // Update the estimation total cost
+        await this.updateEstimationTotalCost(currentItem.estimationId);
+
+        return updatedItem;
+      }, 'Update estimation item');
+    } catch (error) {
+      logger.error(`Failed to update estimation item ${id}`, { error });
+      throw new DatabaseError(`Failed to update estimation item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteEstimationItem(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        // Get the estimation ID before deleting
+        const [item] = await db
+          .select({ estimationId: estimationItems.estimationId })
+          .from(estimationItems)
+          .where(eq(estimationItems.id, id));
+
+        if (!item) {
+          throw new Error('Estimation item not found');
+        }
+
+        await db
+          .delete(estimationItems)
+          .where(eq(estimationItems.id, id));
+
+        // Update the estimation total cost
+        await this.updateEstimationTotalCost(item.estimationId);
+      }, 'Delete estimation item');
+    } catch (error) {
+      logger.error(`Failed to delete estimation item ${id}`, { error });
+      throw new DatabaseError(`Failed to delete estimation item: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async updateEstimationTotalCost(estimationId: number): Promise<void> {
+    try {
+      // Calculate the total cost from all items
+      const result = await db
+        .select({
+          totalCost: sql<number>`COALESCE(SUM(${estimationItems.totalCost}), 0)`,
+        })
+        .from(estimationItems)
+        .where(eq(estimationItems.estimationId, estimationId));
+
+      const totalCost = result[0]?.totalCost || 0;
+
+      // Update the estimation total cost
+      await db
+        .update(estimations)
+        .set({
+          totalCost,
+          updatedAt: new Date(),
+        })
+        .where(eq(estimations.id, estimationId));
+    } catch (error) {
+      logger.error(`Failed to update estimation total cost for estimation ${estimationId}`, { error });
+      throw new DatabaseError(`Failed to update estimation total cost: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

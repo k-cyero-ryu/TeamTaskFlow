@@ -98,6 +98,14 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 03, 2025. Implemented comprehensive Estimations management system
+  - Created complete backend schema for estimations and estimation items with database tables and relations
+  - Built full REST API for estimations with CRUD operations for both estimations and their items
+  - Developed frontend Estimations page with creation, editing, deletion, and item management capabilities
+  - Added automatic cost calculation system that updates total costs when items are modified
+  - Integrated with existing stock system to use current stock item prices for estimations
+  - Added navigation link and proper routing for the Estimations feature
+  - Fixed movement history functionality with proper data type handling between frontend and backend
 - July 03, 2025. Completed stock management system with user permissions
   - Fixed critical database errors preventing member management dialog from loading
   - Implemented missing GET endpoint for fetching user stock permissions

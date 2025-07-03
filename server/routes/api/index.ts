@@ -10,6 +10,7 @@ import emailRouter from './email';
 import calendarRouter from './calendar';
 import stagesRouter from './stages';
 import stockRouter from './stock';
+import estimationsRouter from './estimations';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/email', emailRouter);
 router.use('/calendar', calendarRouter);
 router.use('/stages', stagesRouter);
 router.use('/stock', stockRouter);
+router.use('/estimations', estimationsRouter);
 
 export default router;
