@@ -365,20 +365,16 @@ export default function EstimationsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="mr-2 h-4 w-4" />
-                {formatDate(estimation.date)}
-              </div>
-              <div className="flex items-center text-sm text-muted-foreground">
                 <MapPin className="mr-2 h-4 w-4" />
                 <span className="line-clamp-1">{estimation.address}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center text-sm">
-                  <DollarSign className="mr-1 h-4 w-4" />
-                  <span className="font-semibold">{formatCurrency(estimation.totalCost)}</span>
+                  <Package className="mr-1 h-4 w-4" />
+                  <span className="font-semibold">{estimation.items.length} items</span>
                 </div>
                 <Badge variant="secondary">
-                  {estimation.items.length} items
+                  {formatDate(estimation.date)}
                 </Badge>
               </div>
               <div className="text-xs text-muted-foreground">
@@ -625,7 +621,7 @@ export default function EstimationsPage() {
               <div>
                 <h3 className="text-lg font-semibold">Items</h3>
                 <p className="text-sm text-muted-foreground">
-                  Total: {formatCurrency(selectedEstimation?.totalCost || 0)}
+                  {selectedEstimation?.items.length || 0} items in estimation
                 </p>
               </div>
               <Button onClick={() => setShowAddItemDialog(true)}>
@@ -646,9 +642,6 @@ export default function EstimationsPage() {
                   <div key={item.id} className="flex items-center justify-between p-3 border rounded">
                     <div className="flex-1">
                       <h4 className="font-medium">{item.stockItem.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {formatCurrency(item.unitCost)} per unit
-                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
@@ -670,9 +663,6 @@ export default function EstimationsPage() {
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
-                      </div>
-                      <div className="text-sm font-medium">
-                        {formatCurrency(item.totalCost)}
                       </div>
                       <Button 
                         size="sm" 
@@ -750,15 +740,7 @@ export default function EstimationsPage() {
               </div>
             </div>
             
-            {selectedStockItem && (
-              <div className="p-3 bg-muted rounded">
-                <p className="text-sm">
-                  <strong>Total Cost:</strong> {formatCurrency(
-                    (stockItems.find(item => item.id.toString() === selectedStockItem)?.cost || 0) * itemQuantity
-                  )}
-                </p>
-              </div>
-            )}
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
