@@ -57,7 +57,16 @@ class WebSocketClient {
               });
               break;
             case 'task_due_date_updated':
-              // Invalidate tasks cache to show updated due date
+              // Update the task directly in the cache
+              const updatedTask = message.data;
+              queryClient.setQueryData<any[]>(['/api/tasks'], (oldTasks) => {
+                if (!oldTasks) return oldTasks;
+                return oldTasks.map(task => 
+                  task.id === updatedTask.id ? { ...task, dueDate: updatedTask.dueDate } : task
+                );
+              });
+              
+              // Also invalidate to trigger any other queries that might be affected
               queryClient.invalidateQueries({
                 queryKey: ['/api/tasks']
               });

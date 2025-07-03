@@ -56,6 +56,11 @@ function DueDateEditor({ task }: { task: ExtendedTask }) {
   const { updateTaskDueDate } = useTasks();
   const { toast } = useToast();
 
+  // Update local date value when task.dueDate changes (from WebSocket updates)
+  useEffect(() => {
+    setDateValue(task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "");
+  }, [task.dueDate]);
+
   // Check if user can edit due date (task responsible or creator)
   const canEditDueDate = user && (task.responsibleId === user.id || task.creatorId === user.id);
 

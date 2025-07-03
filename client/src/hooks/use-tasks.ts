@@ -148,8 +148,18 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
         throw new Error("Failed to update task due date: Invalid response format");
       }
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
+      // Update the task in the cache directly
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (oldTasks) => {
+        if (!oldTasks) return oldTasks;
+        return oldTasks.map(task => 
+          task.id === updatedTask.id ? updatedTask : task
+        );
+      });
+      
+      // Also invalidate to trigger any other queries
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      
       toast({
         title: "Success",
         description: "Task due date updated successfully",
