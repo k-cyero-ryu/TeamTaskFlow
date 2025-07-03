@@ -72,6 +72,7 @@ export default function StockPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showGlobalAssignDialog, setShowGlobalAssignDialog] = useState(false);
   const [globalAssigneeId, setGlobalAssigneeId] = useState<string>("");
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
 
   // Check user permissions
   const { data: permissions } = useQuery<UserStockPermission>({
@@ -98,6 +99,22 @@ export default function StockPage() {
   const { data: users = [] } = useQuery<{ id: number; username: string }[]>({
     queryKey: ["/api/users"],
     enabled: canView,
+  });
+
+  // Fetch users with stock access for members management
+  const { data: usersWithAccess = [], refetch: refetchUsersWithAccess } = useQuery<
+    Array<{ 
+      id: number; 
+      username: string; 
+      stockPermissions?: {
+        canViewStock: boolean;
+        canManageStock: boolean;
+        canAdjustQuantities: boolean;
+      };
+    }>
+  >({
+    queryKey: ["/api/stock/users"],
+    enabled: showMembersDialog,
   });
 
   // Delete mutation
@@ -165,6 +182,31 @@ export default function StockPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to assign stock items",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating user stock permissions
+  const updatePermissionsMutation = useMutation({
+    mutationFn: async ({ userId, permissions }: { 
+      userId: number; 
+      permissions: { canViewStock: boolean; canManageStock: boolean; canAdjustQuantities: boolean; }
+    }) => {
+      const res = await apiRequest("POST", `/api/stock/permissions/${userId}`, permissions);
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchUsersWithAccess();
+      toast({
+        title: "Success", 
+        description: "Permissions updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update permissions",
         variant: "destructive",
       });
     },
@@ -249,6 +291,111 @@ export default function StockPage() {
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
+            <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Manage Members
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Manage Stock Access</DialogTitle>
+                  <DialogDescription>
+                    Control who can view and manage the stock system.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Grant or revoke access to the stock management system. Only users with permissions can view this page.
+                  </div>
+                  
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {usersWithAccess.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{user.username}</p>
+                          <div className="flex gap-2 mt-1">
+                            {user.stockPermissions?.canViewStock && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">View</span>
+                            )}
+                            {user.stockPermissions?.canManageStock && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manage</span>
+                            )}
+                            {user.stockPermissions?.canAdjustQuantities && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Adjust</span>
+                            )}
+                            {!user.stockPermissions && user.id !== 1 && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">No Access</span>
+                            )}
+                            {user.id === 1 && (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Admin</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {user.id !== 1 && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const currentPermissions = user.stockPermissions || {
+                                  canViewStock: false,
+                                  canManageStock: false,
+                                  canAdjustQuantities: false
+                                };
+                                updatePermissionsMutation.mutate({
+                                  userId: user.id,
+                                  permissions: {
+                                    canViewStock: !currentPermissions.canViewStock,
+                                    canManageStock: currentPermissions.canManageStock,
+                                    canAdjustQuantities: currentPermissions.canAdjustQuantities
+                                  }
+                                });
+                              }}
+                              disabled={updatePermissionsMutation.isPending}
+                            >
+                              {user.stockPermissions?.canViewStock ? "Remove Access" : "Grant Access"}
+                            </Button>
+                            
+                            {user.stockPermissions?.canViewStock && (
+                              <Button
+                                size="sm"
+                                variant={user.stockPermissions?.canManageStock ? "default" : "outline"}
+                                onClick={() => {
+                                  updatePermissionsMutation.mutate({
+                                    userId: user.id,
+                                    permissions: {
+                                      canViewStock: true,
+                                      canManageStock: !user.stockPermissions?.canManageStock,
+                                      canAdjustQuantities: user.stockPermissions?.canAdjustQuantities || false
+                                    }
+                                  });
+                                }}
+                                disabled={updatePermissionsMutation.isPending}
+                              >
+                                {user.stockPermissions?.canManageStock ? "Manager" : "Make Manager"}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowMembersDialog(false)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={showGlobalAssignDialog} onOpenChange={setShowGlobalAssignDialog}>
               <DialogTrigger asChild>
                 <Button variant="outline">

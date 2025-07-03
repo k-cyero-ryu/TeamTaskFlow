@@ -421,4 +421,73 @@ router.post("/global-assign", async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/stock/users
+ * @desc Get all users with their stock permissions
+ * @access Private (requires admin or stock management permission)
+ */
+router.get("/users", checkStockPermissions('manage'), async (req, res) => {
+  try {
+    const users = await storage.getUsersWithStockAccess();
+    
+    logger.info('Users with stock access fetched successfully', { 
+      userCount: users.length,
+      requestedByUserId: req.user!.id 
+    });
+    
+    res.json(users);
+  } catch (error) {
+    logger.error('Failed to fetch users with stock access', { 
+      error, 
+      requestedByUserId: req.user!.id 
+    });
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+/**
+ * @route POST /api/stock/permissions/:userId
+ * @desc Update user stock permissions
+ * @access Private (requires admin or stock management permission)
+ */
+router.post("/permissions/:userId", checkStockPermissions('manage'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { canViewStock, canManageStock, canAdjustQuantities } = req.body;
+    
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    
+    if (userId === 1) {
+      return res.status(400).json({ error: "Cannot modify admin permissions" });
+    }
+    
+    if (typeof canViewStock !== 'boolean' || typeof canManageStock !== 'boolean' || typeof canAdjustQuantities !== 'boolean') {
+      return res.status(400).json({ error: "Invalid permission values" });
+    }
+    
+    const permissions = await storage.setUserStockPermissions(
+      userId,
+      { canViewStock, canManageStock, canAdjustQuantities },
+      req.user!.id
+    );
+    
+    logger.info('User stock permissions updated successfully', { 
+      targetUserId: userId,
+      permissions: { canViewStock, canManageStock, canAdjustQuantities },
+      updatedByUserId: req.user!.id 
+    });
+    
+    res.json(permissions);
+  } catch (error) {
+    logger.error('Failed to update user stock permissions', { 
+      error, 
+      targetUserId: req.params.userId,
+      updatedByUserId: req.user!.id 
+    });
+    res.status(500).json({ error: "Failed to update permissions" });
+  }
+});
+
 export default router;
