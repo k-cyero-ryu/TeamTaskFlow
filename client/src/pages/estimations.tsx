@@ -714,7 +714,7 @@ export default function EstimationsPage() {
                 <SelectContent>
                   {stockItems.map((item) => (
                     <SelectItem key={item.id} value={item.id.toString()}>
-                      {item.name} - {formatCurrency(item.cost)}
+                      {item.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
