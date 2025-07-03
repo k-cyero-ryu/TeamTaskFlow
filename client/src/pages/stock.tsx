@@ -253,7 +253,7 @@ export default function StockPage() {
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Assign All
+                  Assign Manager
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
