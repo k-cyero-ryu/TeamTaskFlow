@@ -59,14 +59,21 @@ class WebSocketClient {
             case 'task_due_date_updated':
               // Update the task directly in the cache
               const updatedTask = message.data;
+              console.log('Updating task due date in cache:', updatedTask);
+              
               queryClient.setQueryData<any[]>(['/api/tasks'], (oldTasks) => {
-                if (!oldTasks) return oldTasks;
-                return oldTasks.map(task => 
+                if (!oldTasks) {
+                  console.log('No old tasks found in cache');
+                  return oldTasks;
+                }
+                const newTasks = oldTasks.map(task => 
                   task.id === updatedTask.id ? { ...task, dueDate: updatedTask.dueDate } : task
                 );
+                console.log('Updated tasks cache with new due date');
+                return newTasks;
               });
               
-              // Also invalidate to trigger any other queries that might be affected
+              // Force a complete refetch to ensure UI updates
               queryClient.invalidateQueries({
                 queryKey: ['/api/tasks']
               });

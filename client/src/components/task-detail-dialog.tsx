@@ -53,13 +53,17 @@ function DueDateEditor({ task }: { task: ExtendedTask }) {
     task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""
   );
   const { user } = useAuth();
-  const { updateTaskDueDate } = useTasks();
+  const { updateTaskDueDate, getTaskById } = useTasks();
   const { toast } = useToast();
+
+  // Get the latest task data from the cache to ensure we have the most up-to-date info
+  const latestTask = getTaskById(task.id) || task;
 
   // Update local date value when task.dueDate changes (from WebSocket updates)
   useEffect(() => {
-    setDateValue(task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "");
-  }, [task.dueDate]);
+    console.log('DueDateEditor: Task due date changed to:', latestTask.dueDate);
+    setDateValue(latestTask.dueDate ? format(new Date(latestTask.dueDate), "yyyy-MM-dd") : "");
+  }, [latestTask.dueDate]);
 
   // Check if user can edit due date (task responsible or creator)
   const canEditDueDate = user && (task.responsibleId === user.id || task.creatorId === user.id);
@@ -96,11 +100,11 @@ function DueDateEditor({ task }: { task: ExtendedTask }) {
 
   if (!canEditDueDate) {
     // Show read-only view for users who can't edit
-    return task.dueDate ? (
+    return latestTask.dueDate ? (
       <div>
         <h3 className="text-sm font-medium mb-2">Due Date</h3>
         <p className="text-muted-foreground">
-          {format(new Date(task.dueDate), "PPP")}
+          {format(new Date(latestTask.dueDate), "PPP")}
         </p>
       </div>
     ) : (
@@ -159,7 +163,7 @@ function DueDateEditor({ task }: { task: ExtendedTask }) {
         </div>
       ) : (
         <p className="text-muted-foreground">
-          {task.dueDate ? format(new Date(task.dueDate), "PPP") : "No due date set"}
+          {latestTask.dueDate ? format(new Date(latestTask.dueDate), "PPP") : "No due date set"}
         </p>
       )}
     </div>
