@@ -25,7 +25,7 @@ export default function Tasks() {
 // Error state for the entire page
 function TasksErrorState() {
   return (
-    <div className="container mx-auto py-8 max-w-none px-4 md:px-6 lg:px-8">
+    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
       <h1 className="text-3xl font-bold mb-8">Tasks</h1>
       
       <Card className="border-destructive/50">
@@ -64,7 +64,7 @@ function TasksErrorState() {
 // Loading state with skeletons
 function TasksLoadingState() {
   return (
-    <div className="container mx-auto py-8 max-w-none px-4 md:px-6 lg:px-8">
+    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-8">
         <Skeleton className="h-9 w-40" />
         <div className="flex gap-4">
@@ -77,8 +77,8 @@ function TasksLoadingState() {
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="grid gap-4">
             <Skeleton className="h-7 w-32" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, j) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              {Array.from({ length: 5 }).map((_, j) => (
                 <Skeleton key={j} className="h-40 w-full" />
               ))}
             </div>
@@ -115,7 +115,7 @@ function TasksContent() {
   const doneTasks = filteredTasks?.filter((t) => t.status === "done") || [];
 
   return (
-    <div className="container mx-auto py-8 max-w-none px-4 md:px-6 lg:px-8">
+    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tasks</h1>
         <div className="flex gap-4 w-full md:w-auto">
