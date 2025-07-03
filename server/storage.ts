@@ -64,7 +64,7 @@ interface IStorage {
   addChannelMember(channelId: number, userId: number, isAdmin?: boolean): Promise<ChannelMember>;
   removeChannelMember(channelId: number, userId: number): Promise<void>;
   getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]>;
-  createGroupMessage(message: InsertGroupMessage & { senderId: number }): Promise<GroupMessage>;
+  createGroupMessage(message: InsertGroupMessage & { senderId: number; channelId: number }): Promise<GroupMessage>;
   
   // File attachment methods
   createFileAttachment(file: InsertFileAttachment & { uploaderId: number }): Promise<FileAttachment>;
@@ -75,7 +75,7 @@ interface IStorage {
     files?: Express.Multer.File[]
   ): Promise<PrivateMessage>;
   createGroupMessageWithAttachments(
-    message: InsertGroupMessage & { senderId: number },
+    message: InsertGroupMessage & { senderId: number; channelId: number },
     files?: Express.Multer.File[]
   ): Promise<GroupMessage>;
   getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
@@ -1073,7 +1073,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createGroupMessage(message: InsertGroupMessage & { senderId: number }): Promise<GroupMessage> {
+  async createGroupMessage(message: InsertGroupMessage & { senderId: number; channelId: number }): Promise<GroupMessage> {
     try {
       return await executeWithRetry(async () => {
         const [newMessage] = await db
@@ -1193,7 +1193,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGroupMessageWithAttachments(
-    message: InsertGroupMessage & { senderId: number },
+    message: InsertGroupMessage & { senderId: number; channelId: number },
     files?: Express.Multer.File[]
   ): Promise<GroupMessage> {
     try {
