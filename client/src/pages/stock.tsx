@@ -124,11 +124,12 @@ export default function StockPage() {
     Array<{
       id: number;
       type: string;
-      quantityChange: number;
-      quantityAfter: number;
+      quantity: number;
+      previousQuantity: number;
+      newQuantity: number;
       reason: string | null;
       createdAt: string;
-      user: { username: string };
+      user?: { username: string };
     }>
   >({
     queryKey: ["/api/stock/items", selectedItemForHistory?.id, "movements"],
@@ -818,7 +819,7 @@ export default function StockPage() {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Change</TableHead>
-                      <TableHead>After</TableHead>
+                      <TableHead>New Qty</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>User</TableHead>
                     </TableRow>
@@ -837,13 +838,13 @@ export default function StockPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className={movement.quantityChange > 0 ? 'text-green-600' : 'text-red-600'}>
-                            {movement.quantityChange > 0 ? '+' : ''}{movement.quantityChange}
+                          <span className={movement.quantity > 0 ? 'text-green-600' : 'text-red-600'}>
+                            {movement.quantity > 0 ? '+' : ''}{movement.quantity}
                           </span>
                         </TableCell>
-                        <TableCell>{movement.quantityAfter}</TableCell>
+                        <TableCell>{movement.newQuantity}</TableCell>
                         <TableCell>{movement.reason || '-'}</TableCell>
-                        <TableCell>{movement.user.username}</TableCell>
+                        <TableCell>{movement.user?.username || 'Unknown'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
