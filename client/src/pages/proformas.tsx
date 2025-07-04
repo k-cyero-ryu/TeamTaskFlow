@@ -504,7 +504,7 @@ export default function ProformasPage() {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="mr-2 h-4 w-4" />
-            Filters
+            {t("filters")}
           </Button>
           {(proformaNumberFilter || dateRange !== "all") && (
             <Button
@@ -518,7 +518,7 @@ export default function ProformasPage() {
               }}
             >
               <X className="mr-2 h-4 w-4" />
-              Clear Filters
+              {t("clearFilters")}
             </Button>
           )}
         </div>
@@ -527,32 +527,32 @@ export default function ProformasPage() {
           <Card className="p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <Label htmlFor="proformaNumberFilter">Filter by Proforma Number</Label>
+                <Label htmlFor="proformaNumberFilter">{t("filterByProformaNumber")}</Label>
                 <Input
                   id="proformaNumberFilter"
-                  placeholder="Search proforma numbers..."
+                  placeholder={t("searchProformaNumbers")}
                   value={proformaNumberFilter}
                   onChange={(e) => setProformaNumberFilter(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="dateRange">Date Range</Label>
+                <Label htmlFor="dateRange">{t("dateRange")}</Label>
                 <Select value={dateRange} onValueChange={setDateRange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select date range" />
+                    <SelectValue placeholder={t("selectDateRange")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="lastWeek">Last Week</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="custom">Custom Range</SelectItem>
+                    <SelectItem value="all">{t("allTime")}</SelectItem>
+                    <SelectItem value="lastWeek">{t("lastWeek")}</SelectItem>
+                    <SelectItem value="lastMonth">{t("lastMonth")}</SelectItem>
+                    <SelectItem value="custom">{t("customRange")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {dateRange === "custom" && (
                 <>
                   <div>
-                    <Label htmlFor="startDate">Start Date</Label>
+                    <Label htmlFor="startDate">{t("startDate")}</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -561,7 +561,7 @@ export default function ProformasPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate">{t("endDate")}</Label>
                     <Input
                       id="endDate"
                       type="date"
@@ -612,14 +612,14 @@ export default function ProformasPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <DollarSign className="h-4 w-4" />
-                  <span>Cost: {formatCurrency(proforma.totalCost)} | Price: {formatCurrency(proforma.totalPrice)} ({proforma.profitPercentage}% profit)</span>
+                  <span>{t("cost")}: {formatCurrency(proforma.totalCost)} | {t("price")}: {formatCurrency(proforma.totalPrice)} ({proforma.profitPercentage}% {t("profit")})</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4" />
                   <span>{format(new Date(proforma.createdAt), "MMM d, yyyy")}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Status: <span className="capitalize">{proforma.status}</span>
+                  {t("status")}: <span className="capitalize">{proforma.status}</span>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -629,7 +629,7 @@ export default function ProformasPage() {
                   onClick={() => handleView(proforma)}
                 >
                   <Eye className="h-4 w-4 mr-1" />
-                  View
+                  {t("view")}
                 </Button>
                 <Button
                   variant="outline"
