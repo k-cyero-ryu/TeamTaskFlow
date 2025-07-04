@@ -80,13 +80,23 @@ export async function apiRequest(
 ): Promise<Response> {
   const config: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: data ? JSON.stringify(data) : undefined,
-    ...options,
+    headers: {},
     credentials: "include",
+    ...options,
   };
+
+  // Handle FormData vs JSON data
+  if (data instanceof FormData) {
+    // Let the browser set the content-type header with boundary for FormData
+    config.body = data;
+  } else if (data) {
+    // For regular JSON data
+    config.headers = {
+      'Content-Type': 'application/json',
+      ...config.headers,
+    };
+    config.body = JSON.stringify(data);
+  }
 
   try {
     const res = await fetch(url, config);
