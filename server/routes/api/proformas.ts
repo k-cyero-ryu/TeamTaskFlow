@@ -3,6 +3,8 @@ import { storage } from "../../storage";
 import { Logger } from "../../utils/logger";
 import { insertProformaSchema } from "@shared/schema";
 import { requireAuth } from "../../middleware";
+import { checkProformaPermissions } from "../../middleware/proforma-permissions";
+import permissionsRouter from "./proformas/permissions";
 
 const router = Router();
 const logger = new Logger('ProformaRoutes');
@@ -12,12 +14,8 @@ const logger = new Logger('ProformaRoutes');
  * @desc Get all proformas
  * @access Private
  */
-router.get("/", async (req, res) => {
+router.get("/", checkProformaPermissions('view'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const proformas = await storage.getProformas();
 
     logger.info('Proformas fetched successfully', {
@@ -37,12 +35,8 @@ router.get("/", async (req, res) => {
  * @desc Get proforma by ID
  * @access Private
  */
-router.get("/:id", async (req, res) => {
+router.get("/:id", checkProformaPermissions('view'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const proformaId = parseInt(req.params.id);
 
     if (isNaN(proformaId)) {
@@ -76,12 +70,8 @@ router.get("/:id", async (req, res) => {
  * @desc Create new proforma
  * @access Private
  */
-router.post("/", async (req, res) => {
+router.post("/", checkProformaPermissions('manage'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const validationResult = insertProformaSchema.safeParse(req.body);
 
     if (!validationResult.success) {
@@ -563,5 +553,8 @@ router.get("/:id/print", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to generate print view" });
   }
 });
+
+// Register permissions sub-routes
+router.use('/permissions', permissionsRouter);
 
 export default router;

@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem } from "@shared/schema";
-import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem, UserProformaPermission, InsertUserProformaPermission } from "@shared/schema";
+import { eq, and, or, desc, inArray, sql, isNotNull } from "drizzle-orm";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems, userProformaPermissions } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -157,6 +157,11 @@ interface IStorage {
   updateProforma(id: number, proforma: Partial<InsertProforma>): Promise<Proforma>;
   deleteProforma(id: number): Promise<void>;
   generateProformaNumber(): Promise<string>;
+
+  // Proforma permissions methods
+  getUserProformaPermissions(userId: number): Promise<UserProformaPermission | undefined>;
+  getUsersWithProformaAccess(): Promise<Array<{ id: number; username: string; proformaPermissions?: UserProformaPermission; }>>;
+  setUserProformaPermissions(userId: number, permissions: InsertUserProformaPermission, grantedById: number): Promise<UserProformaPermission>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2898,6 +2903,79 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to clear default company', { error });
       throw new DatabaseError(`Failed to clear default company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Proforma permissions methods implementation
+  async getUserProformaPermissions(userId: number): Promise<UserProformaPermission | undefined> {
+    try {
+      const [permission] = await db
+        .select()
+        .from(userProformaPermissions)
+        .where(eq(userProformaPermissions.userId, userId));
+      return permission;
+    } catch (error) {
+      logger.error('Error getting user proforma permissions', error);
+      throw new DatabaseError(`Failed to get user proforma permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUsersWithProformaAccess(): Promise<Array<{ id: number; username: string; proformaPermissions?: UserProformaPermission; }>> {
+    try {
+      const usersWithPermissions = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          proformaPermissions: userProformaPermissions
+        })
+        .from(users)
+        .leftJoin(userProformaPermissions, eq(users.id, userProformaPermissions.userId))
+        .where(or(
+          eq(users.id, 1), // Admin always has access
+          isNotNull(userProformaPermissions.userId)
+        ));
+
+      return usersWithPermissions.map(user => ({
+        id: user.id,
+        username: user.username,
+        proformaPermissions: user.proformaPermissions || undefined
+      }));
+    } catch (error) {
+      logger.error('Error getting users with proforma access', error);
+      throw new DatabaseError(`Failed to get users with proforma access: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async setUserProformaPermissions(userId: number, permissions: InsertUserProformaPermission, grantedById: number): Promise<UserProformaPermission> {
+    try {
+      const [existingPermission] = await db
+        .select()
+        .from(userProformaPermissions)
+        .where(eq(userProformaPermissions.userId, userId));
+
+      if (existingPermission) {
+        // Update existing permissions
+        const [updatedPermission] = await db
+          .update(userProformaPermissions)
+          .set(permissions)
+          .where(eq(userProformaPermissions.userId, userId))
+          .returning();
+        return updatedPermission;
+      } else {
+        // Create new permissions
+        const [newPermission] = await db
+          .insert(userProformaPermissions)
+          .values({
+            userId,
+            grantedById,
+            ...permissions
+          })
+          .returning();
+        return newPermission;
+      }
+    } catch (error) {
+      logger.error('Error setting user proforma permissions', error);
+      throw new DatabaseError(`Failed to set user proforma permissions: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

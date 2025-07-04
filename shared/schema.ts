@@ -797,6 +797,22 @@ export const companies = pgTable("companies", {
   updatedAt: timestamp("updated_at"),
 });
 
+// User permissions for proforma management
+export const userProformaPermissions = pgTable("user_proforma_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  canViewProformas: boolean("can_view_proformas").default(false),
+  canManageProformas: boolean("can_manage_proformas").default(false), // can create/edit proformas
+  canDeleteProformas: boolean("can_delete_proformas").default(false), // can delete proformas
+  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    userUnique: unique().on(table.userId)
+  };
+});
+
 // Proforma management tables
 export const proformas = pgTable("proformas", {
   id: serial("id").primaryKey(),
@@ -850,9 +866,18 @@ export const insertProformaSchema = createInsertSchema(proformas).pick({
   validUntil: z.string().transform((str) => new Date(str)).optional(),
 });
 
+export const insertUserProformaPermissionSchema = createInsertSchema(userProformaPermissions).pick({
+  canViewProformas: true,
+  canManageProformas: true,
+  canDeleteProformas: true,
+  canManageAccess: true,
+});
+
 export type Proforma = typeof proformas.$inferSelect;
 export type ProformaItem = typeof proformaItems.$inferSelect;
+export type UserProformaPermission = typeof userProformaPermissions.$inferSelect;
 export type InsertProforma = z.infer<typeof insertProformaSchema>;
+export type InsertUserProformaPermission = z.infer<typeof insertUserProformaPermissionSchema>;
 export type InsertEstimation = z.infer<typeof insertEstimationSchema>;
 export type InsertEstimationItem = z.infer<typeof insertEstimationItemSchema>;
 

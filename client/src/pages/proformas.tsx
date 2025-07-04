@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { FileText, Plus, Edit, Trash2, MapPin, Building, Calendar, DollarSign, Eye, Printer } from "lucide-react";
+import { FileText, Plus, Edit, Trash2, MapPin, Building, Calendar, DollarSign, Eye, Printer, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import ProformaMemberManagement from "@/components/proforma-member-management";
 
 // Types
 type Estimation = {
@@ -94,6 +95,7 @@ export default function ProformasPage() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
 
   // Data fetching
@@ -236,14 +238,19 @@ export default function ProformasPage() {
           <h1 className="text-3xl font-bold">Proformas</h1>
           <p className="text-muted-foreground">Create professional quotes based on estimations</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Proforma
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowMembersDialog(true)}>
+            <Users className="mr-2 h-4 w-4" />
+            Manage Access
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Proforma
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Proforma</DialogTitle>
             </DialogHeader>
@@ -427,6 +434,7 @@ export default function ProformasPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -619,6 +627,16 @@ export default function ProformasPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Member Management Dialog */}
+      <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Manage Proforma Access</DialogTitle>
+          </DialogHeader>
+          <ProformaMemberManagement />
         </DialogContent>
       </Dialog>
     </div>
