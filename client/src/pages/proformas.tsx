@@ -96,7 +96,7 @@ type ProformaFormData = z.infer<typeof proformaFormSchema>;
 export default function ProformasPage() {
   const { toast } = useToast();
   const { canManageAccess } = useProformaPermissions();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
@@ -266,8 +266,8 @@ export default function ProformasPage() {
   };
 
   const handlePrint = (proforma: Proforma) => {
-    // Open print view in new window
-    const printWindow = window.open(`/api/proformas/${proforma.id}/print`, '_blank');
+    // Open print view in new window with current language
+    const printWindow = window.open(`/api/proformas/${proforma.id}/print?lang=${language}`, '_blank');
     if (printWindow) {
       printWindow.focus();
     }
@@ -362,10 +362,10 @@ export default function ProformasPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                       <div>
                         <p><strong>{t("name")}:</strong> {selectedCompany.name}</p>
-                        <p><strong>{t("email")}:</strong> {selectedCompany.email || t("notProvided")}</p>
+                        <p><strong>{t("companyEmail")}:</strong> {selectedCompany.email || t("notProvided")}</p>
                       </div>
                       <div>
-                        <p><strong>{t("phone")}:</strong> {selectedCompany.phone || t("notProvided")}</p>
+                        <p><strong>{t("companyPhone")}:</strong> {selectedCompany.phone || t("notProvided")}</p>
                         <p><strong>{t("address")}:</strong> {selectedCompany.address}</p>
                       </div>
                     </div>
@@ -629,7 +629,7 @@ export default function ProformasPage() {
                   onClick={() => handleView(proforma)}
                 >
                   <Eye className="h-4 w-4 mr-1" />
-                  {t("view")}
+                  {t("viewButton")}
                 </Button>
                 <Button
                   variant="outline"

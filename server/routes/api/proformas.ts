@@ -218,6 +218,7 @@ router.get("/:id/print", requireAuth, async (req, res) => {
   try {
 
     const proformaId = parseInt(req.params.id);
+    const lang = req.query.lang as string || 'en'; // Default to English
 
     if (isNaN(proformaId)) {
       return res.status(400).json({ error: "Invalid proforma ID" });
@@ -228,6 +229,66 @@ router.get("/:id/print", requireAuth, async (req, res) => {
     if (!proforma) {
       return res.status(404).json({ error: "Proforma not found" });
     }
+
+    // Translation mappings for print template
+    const translations: Record<string, Record<string, string>> = {
+      en: {
+        quotation: "QUOTATION",
+        date: "DATE",
+        validUntilLabel: "VALID UNTIL",
+        seller: "SELLER",
+        client: "CLIENT",
+        projectDescription: "PROJECT DESCRIPTION",
+        product: "PRODUCT",
+        quantity: "QUANTITY",
+        price: "PRICE",
+        total: "TOTAL",
+        quotationValidUntil: "Quotation valid until",
+        quotationValidPeriod: "Quotation valid for agreed period",
+        clientSignature: "Client Signature",
+        sellerSignature: "Seller Signature",
+        printButton: "Print",
+        closeButton: "Close",
+      },
+      fr: {
+        quotation: "DEVIS",
+        date: "DATE",
+        validUntilLabel: "VALIDE JUSQU'AU",
+        seller: "VENDEUR",
+        client: "CLIENT",
+        projectDescription: "DESCRIPTION DU PROJET",
+        product: "PRODUIT",
+        quantity: "QUANTITÉ",
+        price: "PRIX",
+        total: "TOTAL",
+        quotationValidUntil: "Devis valide jusqu'au",
+        quotationValidPeriod: "Devis valide pour une période à convenir",
+        clientSignature: "Signature du Client",
+        sellerSignature: "Signature du Vendeur",
+        printButton: "Imprimer",
+        closeButton: "Fermer",
+      },
+      es: {
+        quotation: "COTIZACIÓN",
+        date: "FECHA",
+        validUntilLabel: "VÁLIDO HASTA",
+        seller: "VENDEDOR",
+        client: "CLIENTE",
+        projectDescription: "DESCRIPCIÓN DEL PROYECTO",
+        product: "PRODUCTO",
+        quantity: "CANTIDAD",
+        price: "PRECIO",
+        total: "TOTAL",
+        quotationValidUntil: "Cotización válida hasta",
+        quotationValidPeriod: "Cotización válida por período a acordar",
+        clientSignature: "Firma de Cliente",
+        sellerSignature: "Firma de Vendedor",
+        printButton: "Imprimir",
+        closeButton: "Cerrar",
+      },
+    };
+
+    const t = translations[lang] || translations.en;
 
     // Generate HTML for print view
     const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -469,29 +530,29 @@ router.get("/:id/print", requireAuth, async (req, res) => {
           </div>
         </div>
         <div class="header-right">
-          <h1 class="quotation-title">COTIZACIÓN #${proforma.proformaNumber}</h1>
+          <h1 class="quotation-title">${t.quotation} #${proforma.proformaNumber}</h1>
           <div class="quotation-details">
-            <div>FECHA: ${new Date(proforma.createdAt).toLocaleDateString()}</div>
-            ${proforma.validUntil ? `<div>VÁLIDO HASTA: ${new Date(proforma.validUntil).toLocaleDateString()}</div>` : ''}
-            <div>VENDEDOR: ${proforma.createdBy.username.toUpperCase()}</div>
-            <div>CLIENTE: ${proforma.estimation.clientName}</div>
+            <div>${t.date}: ${new Date(proforma.createdAt).toLocaleDateString()}</div>
+            ${proforma.validUntil ? `<div>${t.validUntilLabel}: ${new Date(proforma.validUntil).toLocaleDateString()}</div>` : ''}
+            <div>${t.seller}: ${proforma.createdBy.username.toUpperCase()}</div>
+            <div>${t.client}: ${proforma.estimation.clientName}</div>
           </div>
         </div>
       </div>
       
       <div class="content">
         <div class="project-section">
-          <h3 class="project-title">DESCRIPCIÓN DEL PROYECTO:</h3>
+          <h3 class="project-title">${t.projectDescription}:</h3>
           <div style="height: 80px; border-bottom: 1px solid #ddd; margin-bottom: 20px;"></div>
         </div>
       
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 50%;">PRODUCTO</th>
-              <th style="width: 15%;" class="text-center">CANTIDAD</th>
-              <th style="width: 17%;" class="text-center">PRECIO</th>
-              <th style="width: 18%;" class="text-center">TOTAL</th>
+              <th style="width: 50%;">${t.product}</th>
+              <th style="width: 15%;" class="text-center">${t.quantity}</th>
+              <th style="width: 17%;" class="text-center">${t.price}</th>
+              <th style="width: 18%;" class="text-center">${t.total}</th>
             </tr>
           </thead>
           <tbody>
@@ -512,29 +573,29 @@ router.get("/:id/print", requireAuth, async (req, res) => {
             <tr><td></td><td></td><td></td><td></td></tr>
             <tr><td></td><td></td><td></td><td></td></tr>
             <tr class="total-row">
-              <td colspan="3" class="text-center"><strong>Total</strong></td>
+              <td colspan="3" class="text-center"><strong>${t.total}</strong></td>
               <td class="text-center"><strong>${formatCurrency(proforma.totalPrice)}</strong></td>
             </tr>
           </tbody>
         </table>
         
         <div class="validity-note">
-          ${proforma.validUntil ? `<p><strong>Cotización válida hasta ${new Date(proforma.validUntil).toLocaleDateString()}*</strong></p>` : '<p><strong>Cotización válida por período a acordar*</strong></p>'}
+          ${proforma.validUntil ? `<p><strong>${t.quotationValidUntil} ${new Date(proforma.validUntil).toLocaleDateString()}*</strong></p>` : `<p><strong>${t.quotationValidPeriod}*</strong></p>`}
         </div>
       
         <div class="signature-section">
           <div class="signature-box">
-            Firma de Cliente
+            ${t.clientSignature}
           </div>
           <div class="signature-box">
-            Firma de Vendedor
+            ${t.sellerSignature}
           </div>
         </div>
       </div>
       
       <div class="no-print" style="margin-top: 20px; text-align: center;">
-        <button onclick="window.print()" style="padding: 10px 20px; margin: 0 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">Print</button>
-        <button onclick="window.close()" style="padding: 10px 20px; margin: 0 10px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+        <button onclick="window.print()" style="padding: 10px 20px; margin: 0 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">${t.printButton}</button>
+        <button onclick="window.close()" style="padding: 10px 20px; margin: 0 10px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">${t.closeButton}</button>
       </div>
     </body>
     </html>
