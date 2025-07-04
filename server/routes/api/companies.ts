@@ -115,7 +115,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
       phone: req.body.phone ? req.body.phone.toString().trim() : null,
       email: req.body.email ? req.body.email.toString().trim() : null,
       isDefault: req.body.isDefault === 'true' || req.body.isDefault === true,
-      logo: req.file ? `/uploads/${req.file.filename}` : null
+      logo: req.file ? req.file.filename : null
     };
 
     logger.info('Parsed form data', { formData });
@@ -175,7 +175,7 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
 
     // Only add logo if a new file was uploaded
     if (req.file) {
-      formData.logo = `/uploads/${req.file.filename}`;
+      formData.logo = req.file.filename;
     }
 
     const validatedData = insertCompanySchema.partial().parse(formData);

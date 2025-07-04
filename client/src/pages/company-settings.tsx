@@ -197,7 +197,9 @@ export default function CompanySettings() {
               <div className="flex items-center space-x-3">
                 {company.logo ? (
                   <img 
-                    src={company.logo} 
+                    src={company.logo.startsWith('/uploads/') 
+                      ? `/api/uploads/file/${company.logo.replace('/uploads/', '')}` 
+                      : `/api/uploads/file/${company.logo}`}
                     alt={`${company.name} logo`}
                     className="h-8 w-8 object-contain"
                   />
@@ -240,7 +242,7 @@ export default function CompanySettings() {
                   size="sm"
                   variant="outline"
                   onClick={() => deleteMutation.mutate(company.id)}
-                  disabled={company.isDefault}
+                  disabled={!!company.isDefault}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
