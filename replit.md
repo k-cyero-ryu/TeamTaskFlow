@@ -98,6 +98,12 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Enhanced Proformas system with company integration and logo display
+  - Fixed company logo assignment to automatically pull logo from selected company profile during proforma creation
+  - Added company logo display in top right corner of proforma cards with fallback placeholder for missing logos
+  - Updated proforma creation form to use company selection dropdown instead of manual company data entry
+  - Fixed logo path construction to properly display company logos in proforma interface
+  - Improved proforma card layout with better spacing and visual hierarchy including company branding
 - July 04, 2025. Implemented comprehensive Company Settings management system
   - Created companies database table with support for company name, contact information, address, and logo storage
   - Built complete company management API with CRUD operations for companies

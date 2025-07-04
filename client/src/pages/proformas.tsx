@@ -444,7 +444,7 @@ export default function ProformasPage() {
                 {proforma.companyLogo && (
                   <div className="flex-shrink-0 ml-4">
                     <img 
-                      src={`/api/uploads/file/${proforma.companyLogo}`}
+                      src={`/api/uploads/file${proforma.companyLogo}`}
                       alt={`${proforma.companyName} logo`}
                       className="w-16 h-12 object-contain rounded border bg-white"
                     />
