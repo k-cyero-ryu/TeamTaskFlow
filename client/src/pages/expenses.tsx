@@ -322,7 +322,7 @@ export default function ExpensesPage() {
                     name="serviceName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Service Name</FormLabel>
+                        <FormLabel>{t('serviceName')}</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Internet, Rent, Insurance" {...field} />
                         </FormControl>
@@ -336,7 +336,7 @@ export default function ExpensesPage() {
                     name="beneficiary"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Beneficiary</FormLabel>
+                        <FormLabel>{t('beneficiary')}</FormLabel>
                         <FormControl>
                           <Input placeholder="Company or person receiving payment" {...field} />
                         </FormControl>
@@ -353,7 +353,7 @@ export default function ExpensesPage() {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Amount ($)</FormLabel>
+                        <FormLabel>{t('amount')} ($)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -373,17 +373,17 @@ export default function ExpensesPage() {
                     name="frequency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Frequency</FormLabel>
+                        <FormLabel>{t('frequency')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
+                              <SelectValue placeholder={t('selectFrequency')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                            <SelectItem value="yearly">Yearly</SelectItem>
+                            <SelectItem value="monthly">{t('monthly')}</SelectItem>
+                            <SelectItem value="quarterly">{t('quarterly')}</SelectItem>
+                            <SelectItem value="yearly">{t('yearly')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

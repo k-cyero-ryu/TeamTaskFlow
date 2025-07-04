@@ -35,6 +35,7 @@ import CreateStockItemDialog from "@/components/create-stock-item-dialog";
 import AdjustQuantityDialog from "@/components/adjust-quantity-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 interface StockItem {
   id: number;
@@ -64,6 +65,7 @@ interface UserStockPermission {
 export default function StockPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [assignedFilter, setAssignedFilter] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
@@ -314,9 +316,9 @@ export default function StockPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Stock Management</h1>
+          <h1 className="text-3xl font-bold">{t("stockTitle")}</h1>
           <p className="text-muted-foreground">
-            Manage inventory items and track quantities
+            {t("stockOverview")}
           </p>
         </div>
         {canManage && (
@@ -325,7 +327,7 @@ export default function StockPage() {
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <Users className="h-4 w-4 mr-2" />
-                  Manage Members
+                  {t("manageMembers")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px]">
