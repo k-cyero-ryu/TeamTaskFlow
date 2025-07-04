@@ -843,10 +843,6 @@ export const insertProformaSchema = createInsertSchema(proformas).pick({
   estimationId: true,
   companyId: true,
   profitPercentage: true,
-  companyName: true,
-  companyAddress: true,
-  companyPhone: true,
-  companyEmail: true,
   notes: true,
   validUntil: true,
 }).extend({
