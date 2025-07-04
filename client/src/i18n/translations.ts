@@ -1,0 +1,580 @@
+export const translations = {
+  en: {
+    // Navigation
+    dashboard: "Dashboard",
+    tasks: "Tasks",
+    workflows: "Workflows",
+    chat: "Chat",
+    channels: "Channels",
+    estimations: "Estimations",
+    proformas: "Proformas",
+    expenses: "Expenses",
+    stock: "Stock",
+    
+    // User Menu
+    userManagement: "User Management",
+    companySettings: "Company Settings",
+    settings: "Settings",
+    logout: "Logout",
+    loggingOut: "Logging out...",
+    
+    // Common Actions
+    create: "Create",
+    edit: "Edit",
+    delete: "Delete",
+    save: "Save",
+    cancel: "Cancel",
+    submit: "Submit",
+    close: "Close",
+    back: "Back",
+    next: "Next",
+    previous: "Previous",
+    search: "Search",
+    filter: "Filter",
+    clearFilters: "Clear Filters",
+    refresh: "Refresh",
+    loading: "Loading...",
+    
+    // Authentication
+    login: "Login",
+    register: "Register",
+    username: "Username",
+    password: "Password",
+    email: "Email",
+    loginFailed: "Login failed",
+    registrationFailed: "Registration failed",
+    notAuthenticated: "Not authenticated",
+    
+    // Expenses
+    expensesTitle: "Expenses Management",
+    createExpense: "Create Expense",
+    editExpense: "Edit Expense",
+    serviceName: "Service Name",
+    beneficiary: "Beneficiary",
+    amount: "Amount",
+    frequency: "Frequency",
+    lastPaidDate: "Last Paid Date",
+    nextPaymentDate: "Next Payment Date",
+    status: "Status",
+    description: "Description",
+    receipts: "Receipts",
+    uploadReceipt: "Upload Receipt",
+    paymentDate: "Payment Date",
+    notes: "Notes",
+    
+    // Expense Status
+    active: "Active",
+    paused: "Paused",
+    cancelled: "Cancelled",
+    
+    // Expense Frequency
+    monthly: "Monthly",
+    quarterly: "Quarterly",
+    yearly: "Yearly",
+    
+    // Form Validation
+    required: "This field is required",
+    serviceNameRequired: "Service name is required",
+    beneficiaryRequired: "Beneficiary is required",
+    amountRequired: "Amount must be greater than 0",
+    paymentDateRequired: "Payment date is required",
+    nextPaymentDateRequired: "Next payment date is required",
+    
+    // Tasks
+    tasksTitle: "Tasks Management",
+    createTask: "Create Task",
+    taskName: "Task Name",
+    assignedTo: "Assigned To",
+    dueDate: "Due Date",
+    priority: "Priority",
+    
+    // Stock
+    stockTitle: "Stock Management",
+    itemName: "Item Name",
+    quantity: "Quantity",
+    unitPrice: "Unit Price",
+    category: "Category",
+    assignedUser: "Assigned User",
+    
+    // Estimations
+    estimationsTitle: "Estimations",
+    createEstimation: "Create Estimation",
+    estimationName: "Estimation Name",
+    technique: "Technique",
+    
+    // Proformas
+    proformasTitle: "Proformas",
+    createProforma: "Create Proforma",
+    proformaNumber: "Proforma Number",
+    company: "Company",
+    client: "Client",
+    
+    // Company Settings
+    companyName: "Company Name",
+    address: "Address",
+    phone: "Phone",
+    website: "Website",
+    logo: "Logo",
+    
+    // Messages & Notifications
+    success: "Success",
+    error: "Error",
+    warning: "Warning",
+    info: "Information",
+    expenseCreated: "Expense created successfully",
+    expenseUpdated: "Expense updated successfully",
+    expenseDeleted: "Expense deleted successfully",
+    receiptUploaded: "Receipt uploaded successfully",
+    
+    // Date & Time
+    today: "Today",
+    yesterday: "Yesterday",
+    thisWeek: "This Week",
+    lastWeek: "Last Week",
+    thisMonth: "This Month",
+    lastMonth: "Last Month",
+    allTime: "All Time",
+    customRange: "Custom Range",
+    
+    // File Management
+    uploadFile: "Upload File",
+    downloadFile: "Download File",
+    deleteFile: "Delete File",
+    openPdf: "Open PDF",
+    fileName: "File Name",
+    fileSize: "File Size",
+    
+    // Error States
+    somethingWentWrong: "Something went wrong",
+    refreshApplication: "Refresh the application",
+    tryAgain: "Try again",
+    errorLoading: "Error loading data",
+    noDataFound: "No data found",
+    
+    // Language
+    language: "Language",
+    selectLanguage: "Select Language",
+    
+    // Empty States
+    noExpenses: "No expenses found",
+    noTasks: "No tasks found",
+    noEstimations: "No estimations found",
+    noProformas: "No proformas found",
+    
+    // Filters
+    filterByName: "Filter by name",
+    filterByDate: "Filter by date",
+    filterByStatus: "Filter by status",
+    filterByUser: "Filter by user",
+    
+    // Receipt Viewer
+    receiptViewer: "Receipt Viewer",
+    moreReceipts: "more receipts",
+    
+    // Common Labels
+    name: "Name",
+    date: "Date",
+    user: "User",
+    cost: "Cost",
+    price: "Price",
+    total: "Total",
+    subtotal: "Subtotal",
+    
+    // Workflow States
+    pending: "Pending",
+    inProgress: "In Progress",
+    completed: "Completed",
+    
+    // Permissions
+    canView: "Can View",
+    canEdit: "Can Edit",
+    canDelete: "Can Delete",
+    canManage: "Can Manage",
+  },
+  
+  fr: {
+    // Navigation
+    dashboard: "Tableau de bord",
+    tasks: "Tâches",
+    workflows: "Flux de travail",
+    chat: "Discussion",
+    channels: "Canaux",
+    estimations: "Devis",
+    proformas: "Factures proforma",
+    expenses: "Dépenses",
+    stock: "Stock",
+    
+    // User Menu
+    userManagement: "Gestion des utilisateurs",
+    companySettings: "Paramètres de l'entreprise",
+    settings: "Paramètres",
+    logout: "Déconnexion",
+    loggingOut: "Déconnexion en cours...",
+    
+    // Common Actions
+    create: "Créer",
+    edit: "Modifier",
+    delete: "Supprimer",
+    save: "Sauvegarder",
+    cancel: "Annuler",
+    submit: "Soumettre",
+    close: "Fermer",
+    back: "Retour",
+    next: "Suivant",
+    previous: "Précédent",
+    search: "Rechercher",
+    filter: "Filtrer",
+    clearFilters: "Effacer les filtres",
+    refresh: "Actualiser",
+    loading: "Chargement...",
+    
+    // Authentication
+    login: "Connexion",
+    register: "S'inscrire",
+    username: "Nom d'utilisateur",
+    password: "Mot de passe",
+    email: "Email",
+    loginFailed: "Échec de la connexion",
+    registrationFailed: "Échec de l'inscription",
+    notAuthenticated: "Non authentifié",
+    
+    // Expenses
+    expensesTitle: "Gestion des dépenses",
+    createExpense: "Créer une dépense",
+    editExpense: "Modifier la dépense",
+    serviceName: "Nom du service",
+    beneficiary: "Bénéficiaire",
+    amount: "Montant",
+    frequency: "Fréquence",
+    lastPaidDate: "Dernière date de paiement",
+    nextPaymentDate: "Prochaine date de paiement",
+    status: "Statut",
+    description: "Description",
+    receipts: "Reçus",
+    uploadReceipt: "Télécharger un reçu",
+    paymentDate: "Date de paiement",
+    notes: "Notes",
+    
+    // Expense Status
+    active: "Actif",
+    paused: "En pause",
+    cancelled: "Annulé",
+    
+    // Expense Frequency
+    monthly: "Mensuel",
+    quarterly: "Trimestriel",
+    yearly: "Annuel",
+    
+    // Form Validation
+    required: "Ce champ est requis",
+    serviceNameRequired: "Le nom du service est requis",
+    beneficiaryRequired: "Le bénéficiaire est requis",
+    amountRequired: "Le montant doit être supérieur à 0",
+    paymentDateRequired: "La date de paiement est requise",
+    nextPaymentDateRequired: "La prochaine date de paiement est requise",
+    
+    // Tasks
+    tasksTitle: "Gestion des tâches",
+    createTask: "Créer une tâche",
+    taskName: "Nom de la tâche",
+    assignedTo: "Assigné à",
+    dueDate: "Date d'échéance",
+    priority: "Priorité",
+    
+    // Stock
+    stockTitle: "Gestion du stock",
+    itemName: "Nom de l'article",
+    quantity: "Quantité",
+    unitPrice: "Prix unitaire",
+    category: "Catégorie",
+    assignedUser: "Utilisateur assigné",
+    
+    // Estimations
+    estimationsTitle: "Devis",
+    createEstimation: "Créer un devis",
+    estimationName: "Nom du devis",
+    technique: "Technique",
+    
+    // Proformas
+    proformasTitle: "Factures proforma",
+    createProforma: "Créer une facture proforma",
+    proformaNumber: "Numéro de facture proforma",
+    company: "Entreprise",
+    client: "Client",
+    
+    // Company Settings
+    companyName: "Nom de l'entreprise",
+    address: "Adresse",
+    phone: "Téléphone",
+    website: "Site web",
+    logo: "Logo",
+    
+    // Messages & Notifications
+    success: "Succès",
+    error: "Erreur",
+    warning: "Avertissement",
+    info: "Information",
+    expenseCreated: "Dépense créée avec succès",
+    expenseUpdated: "Dépense mise à jour avec succès",
+    expenseDeleted: "Dépense supprimée avec succès",
+    receiptUploaded: "Reçu téléchargé avec succès",
+    
+    // Date & Time
+    today: "Aujourd'hui",
+    yesterday: "Hier",
+    thisWeek: "Cette semaine",
+    lastWeek: "La semaine dernière",
+    thisMonth: "Ce mois-ci",
+    lastMonth: "Le mois dernier",
+    allTime: "Tout le temps",
+    customRange: "Plage personnalisée",
+    
+    // File Management
+    uploadFile: "Télécharger un fichier",
+    downloadFile: "Télécharger le fichier",
+    deleteFile: "Supprimer le fichier",
+    openPdf: "Ouvrir le PDF",
+    fileName: "Nom du fichier",
+    fileSize: "Taille du fichier",
+    
+    // Error States
+    somethingWentWrong: "Quelque chose s'est mal passé",
+    refreshApplication: "Actualiser l'application",
+    tryAgain: "Réessayer",
+    errorLoading: "Erreur lors du chargement des données",
+    noDataFound: "Aucune donnée trouvée",
+    
+    // Language
+    language: "Langue",
+    selectLanguage: "Sélectionner la langue",
+    
+    // Empty States
+    noExpenses: "Aucune dépense trouvée",
+    noTasks: "Aucune tâche trouvée",
+    noEstimations: "Aucun devis trouvé",
+    noProformas: "Aucune facture proforma trouvée",
+    
+    // Filters
+    filterByName: "Filtrer par nom",
+    filterByDate: "Filtrer par date",
+    filterByStatus: "Filtrer par statut",
+    filterByUser: "Filtrer par utilisateur",
+    
+    // Receipt Viewer
+    receiptViewer: "Visionneuse de reçus",
+    moreReceipts: "plus de reçus",
+    
+    // Common Labels
+    name: "Nom",
+    date: "Date",
+    user: "Utilisateur",
+    cost: "Coût",
+    price: "Prix",
+    total: "Total",
+    subtotal: "Sous-total",
+    
+    // Workflow States
+    pending: "En attente",
+    inProgress: "En cours",
+    completed: "Terminé",
+    
+    // Permissions
+    canView: "Peut voir",
+    canEdit: "Peut modifier",
+    canDelete: "Peut supprimer",
+    canManage: "Peut gérer",
+  },
+  
+  es: {
+    // Navigation
+    dashboard: "Tablero",
+    tasks: "Tareas",
+    workflows: "Flujos de trabajo",
+    chat: "Chat",
+    channels: "Canales",
+    estimations: "Estimaciones",
+    proformas: "Proformas",
+    expenses: "Gastos",
+    stock: "Inventario",
+    
+    // User Menu
+    userManagement: "Gestión de usuarios",
+    companySettings: "Configuración de empresa",
+    settings: "Configuración",
+    logout: "Cerrar sesión",
+    loggingOut: "Cerrando sesión...",
+    
+    // Common Actions
+    create: "Crear",
+    edit: "Editar",
+    delete: "Eliminar",
+    save: "Guardar",
+    cancel: "Cancelar",
+    submit: "Enviar",
+    close: "Cerrar",
+    back: "Atrás",
+    next: "Siguiente",
+    previous: "Anterior",
+    search: "Buscar",
+    filter: "Filtrar",
+    clearFilters: "Limpiar filtros",
+    refresh: "Actualizar",
+    loading: "Cargando...",
+    
+    // Authentication
+    login: "Iniciar sesión",
+    register: "Registrarse",
+    username: "Nombre de usuario",
+    password: "Contraseña",
+    email: "Correo electrónico",
+    loginFailed: "Error al iniciar sesión",
+    registrationFailed: "Error al registrarse",
+    notAuthenticated: "No autenticado",
+    
+    // Expenses
+    expensesTitle: "Gestión de gastos",
+    createExpense: "Crear gasto",
+    editExpense: "Editar gasto",
+    serviceName: "Nombre del servicio",
+    beneficiary: "Beneficiario",
+    amount: "Cantidad",
+    frequency: "Frecuencia",
+    lastPaidDate: "Última fecha de pago",
+    nextPaymentDate: "Próxima fecha de pago",
+    status: "Estado",
+    description: "Descripción",
+    receipts: "Recibos",
+    uploadReceipt: "Subir recibo",
+    paymentDate: "Fecha de pago",
+    notes: "Notas",
+    
+    // Expense Status
+    active: "Activo",
+    paused: "Pausado",
+    cancelled: "Cancelado",
+    
+    // Expense Frequency
+    monthly: "Mensual",
+    quarterly: "Trimestral",
+    yearly: "Anual",
+    
+    // Form Validation
+    required: "Este campo es obligatorio",
+    serviceNameRequired: "El nombre del servicio es obligatorio",
+    beneficiaryRequired: "El beneficiario es obligatorio",
+    amountRequired: "La cantidad debe ser mayor que 0",
+    paymentDateRequired: "La fecha de pago es obligatoria",
+    nextPaymentDateRequired: "La próxima fecha de pago es obligatoria",
+    
+    // Tasks
+    tasksTitle: "Gestión de tareas",
+    createTask: "Crear tarea",
+    taskName: "Nombre de la tarea",
+    assignedTo: "Asignado a",
+    dueDate: "Fecha de vencimiento",
+    priority: "Prioridad",
+    
+    // Stock
+    stockTitle: "Gestión de inventario",
+    itemName: "Nombre del artículo",
+    quantity: "Cantidad",
+    unitPrice: "Precio unitario",
+    category: "Categoría",
+    assignedUser: "Usuario asignado",
+    
+    // Estimations
+    estimationsTitle: "Estimaciones",
+    createEstimation: "Crear estimación",
+    estimationName: "Nombre de la estimación",
+    technique: "Técnica",
+    
+    // Proformas
+    proformasTitle: "Proformas",
+    createProforma: "Crear proforma",
+    proformaNumber: "Número de proforma",
+    company: "Empresa",
+    client: "Cliente",
+    
+    // Company Settings
+    companyName: "Nombre de la empresa",
+    address: "Dirección",
+    phone: "Teléfono",
+    website: "Sitio web",
+    logo: "Logo",
+    
+    // Messages & Notifications
+    success: "Éxito",
+    error: "Error",
+    warning: "Advertencia",
+    info: "Información",
+    expenseCreated: "Gasto creado exitosamente",
+    expenseUpdated: "Gasto actualizado exitosamente",
+    expenseDeleted: "Gasto eliminado exitosamente",
+    receiptUploaded: "Recibo subido exitosamente",
+    
+    // Date & Time
+    today: "Hoy",
+    yesterday: "Ayer",
+    thisWeek: "Esta semana",
+    lastWeek: "La semana pasada",
+    thisMonth: "Este mes",
+    lastMonth: "El mes pasado",
+    allTime: "Todo el tiempo",
+    customRange: "Rango personalizado",
+    
+    // File Management
+    uploadFile: "Subir archivo",
+    downloadFile: "Descargar archivo",
+    deleteFile: "Eliminar archivo",
+    openPdf: "Abrir PDF",
+    fileName: "Nombre del archivo",
+    fileSize: "Tamaño del archivo",
+    
+    // Error States
+    somethingWentWrong: "Algo salió mal",
+    refreshApplication: "Actualizar la aplicación",
+    tryAgain: "Intentar de nuevo",
+    errorLoading: "Error al cargar los datos",
+    noDataFound: "No se encontraron datos",
+    
+    // Language
+    language: "Idioma",
+    selectLanguage: "Seleccionar idioma",
+    
+    // Empty States
+    noExpenses: "No se encontraron gastos",
+    noTasks: "No se encontraron tareas",
+    noEstimations: "No se encontraron estimaciones",
+    noProformas: "No se encontraron proformas",
+    
+    // Filters
+    filterByName: "Filtrar por nombre",
+    filterByDate: "Filtrar por fecha",
+    filterByStatus: "Filtrar por estado",
+    filterByUser: "Filtrar por usuario",
+    
+    // Receipt Viewer
+    receiptViewer: "Visor de recibos",
+    moreReceipts: "más recibos",
+    
+    // Common Labels
+    name: "Nombre",
+    date: "Fecha",
+    user: "Usuario",
+    cost: "Costo",
+    price: "Precio",
+    total: "Total",
+    subtotal: "Subtotal",
+    
+    // Workflow States
+    pending: "Pendiente",
+    inProgress: "En progreso",
+    completed: "Completado",
+    
+    // Permissions
+    canView: "Puede ver",
+    canEdit: "Puede editar",
+    canDelete: "Puede eliminar",
+    canManage: "Puede gestionar",
+  }
+};

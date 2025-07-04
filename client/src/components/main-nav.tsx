@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useProformaPermissions } from "@/hooks/use-proforma-permissions";
+import { useI18n } from "@/i18n";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -20,11 +21,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users, Package, Calculator, FileText, Building2, Receipt } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { NotificationsDropdown } from "./notifications-dropdown";
+import { LanguageSelector } from "./language-selector";
 
 export function MainNav() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
   const { hasProformaAccess } = useProformaPermissions();
+  const { t } = useI18n();
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["/api/messages/unread"],
@@ -43,7 +46,7 @@ export function MainNav() {
                 onClick={() => setLocation("/")}
               >
                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                Dashboard
+                {t('dashboard')}
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
@@ -53,7 +56,7 @@ export function MainNav() {
                 onClick={() => setLocation("/tasks")}
               >
                 <CheckSquare className="mr-2 h-4 w-4" />
-                Tasks
+                {t('tasks')}
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
@@ -63,7 +66,7 @@ export function MainNav() {
                 onClick={() => setLocation("/workflows")}
               >
                 <GitFork className="mr-2 h-4 w-4" />
-                Workflows
+                {t('workflows')}
               </NavigationMenuLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
@@ -74,7 +77,7 @@ export function MainNav() {
               >
                 <div className="flex items-center">
                   <MessageCircle className="mr-2 h-4 w-4" />
-                  Chat
+                  {t('chat')}
                   {unreadCount > 0 && (
                     <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
                       {unreadCount}
@@ -91,7 +94,7 @@ export function MainNav() {
               >
                 <div className="flex items-center">
                   <Users className="mr-2 h-4 w-4" />
-                  Channels
+                  {t('channels')}
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>
@@ -103,7 +106,7 @@ export function MainNav() {
               >
                 <div className="flex items-center">
                   <Calculator className="mr-2 h-4 w-4" />
-                  Estimations
+                  {t('estimations')}
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>
@@ -116,7 +119,7 @@ export function MainNav() {
                 >
                   <div className="flex items-center">
                     <FileText className="mr-2 h-4 w-4" />
-                    Proformas
+                    {t('proformas')}
                   </div>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -129,7 +132,7 @@ export function MainNav() {
               >
                 <div className="flex items-center">
                   <Receipt className="mr-2 h-4 w-4" />
-                  Expenses
+                  {t('expenses')}
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>
@@ -141,7 +144,7 @@ export function MainNav() {
               >
                 <div className="flex items-center">
                   <Package className="mr-2 h-4 w-4" />
-                  Stock
+                  {t('stock')}
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>
@@ -150,6 +153,7 @@ export function MainNav() {
 
         <div className="ml-auto flex items-center space-x-4">
           <NotificationsDropdown />
+          <LanguageSelector />
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
@@ -165,20 +169,20 @@ export function MainNav() {
                 className="cursor-pointer"
                 onClick={() => setLocation("/users")}
               >
-                User Management
+                {t('userManagement')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer"
                 onClick={() => setLocation("/company-settings")}
               >
                 <Building2 className="mr-2 h-4 w-4" />
-                Company Settings
+                {t('companySettings')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer"
                 onClick={() => setLocation("/settings")}
               >
-                Settings
+                {t('settings')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -186,7 +190,7 @@ export function MainNav() {
                 onClick={() => logoutMutation.mutate()}
                 disabled={logoutMutation.isPending}
               >
-                {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                {logoutMutation.isPending ? t('loggingOut') : t('logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

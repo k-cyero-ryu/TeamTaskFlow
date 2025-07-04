@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 import { 
   Plus, 
   Filter, 
@@ -91,6 +92,7 @@ type ExpenseFormData = z.infer<typeof expenseFormSchema>;
 type ReceiptFormData = z.infer<typeof receiptFormSchema>;
 
 export default function ExpensesPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
@@ -287,7 +289,7 @@ export default function ExpensesPage() {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-64">
-          <div className="text-lg">Loading expenses...</div>
+          <div className="text-lg">{t('loading')}...</div>
         </div>
       </div>
     );
@@ -297,19 +299,19 @@ export default function ExpensesPage() {
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Expenses</h1>
-          <p className="text-muted-foreground">Track company fixed expenses and payment history</p>
+          <h1 className="text-3xl font-bold">{t('expenses')}</h1>
+          <p className="text-muted-foreground">{t('expenseDescription')}</p>
         </div>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Expense
+              {t('newExpense')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Expense</DialogTitle>
+              <DialogTitle>{t('createNewExpense')}</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(handleCreateExpense)} className="space-y-6">
