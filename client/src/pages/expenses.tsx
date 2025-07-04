@@ -94,7 +94,9 @@ export default function ExpensesPage() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // Filter state
@@ -305,111 +307,121 @@ export default function ExpensesPage() {
               New Expense
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create New Expense</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateExpense)} className="space-y-4">
-                <FormField
-                  control={createForm.control}
-                  name="serviceName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Internet, Rent, Insurance" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={createForm.control}
-                  name="beneficiary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Beneficiary</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Company or person receiving payment" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="frequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Frequency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <form onSubmit={createForm.handleSubmit(handleCreateExpense)} className="space-y-6">
+                {/* First row - Service Name and Beneficiary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={createForm.control}
+                    name="serviceName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Service Name</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., Internet, Rent, Insurance" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                          <SelectItem value="yearly">Yearly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={createForm.control}
+                    name="beneficiary"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Beneficiary</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Company or person receiving payment" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                <FormField
-                  control={createForm.control}
-                  name="nextPaymentDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Next Payment Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Second row - Amount and Frequency */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={createForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount ($)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={createForm.control}
-                  name="lastPaidDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Paid Date (Optional)</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={createForm.control}
+                    name="frequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Frequency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                            <SelectItem value="yearly">Yearly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
+                {/* Third row - Payment dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={createForm.control}
+                    name="nextPaymentDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Next Payment Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createForm.control}
+                    name="lastPaidDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Paid Date (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Description - full width */}
                 <FormField
                   control={createForm.control}
                   name="description"
@@ -578,7 +590,14 @@ export default function ExpensesPage() {
                 {expense.receipts.length > 0 && (
                   <div className="space-y-1">
                     {expense.receipts.slice(0, 3).map((receipt) => (
-                      <div key={receipt.id} className="flex items-center justify-between text-xs bg-muted p-2 rounded">
+                      <div 
+                        key={receipt.id} 
+                        className="flex items-center justify-between text-xs bg-muted p-2 rounded cursor-pointer hover:bg-muted/80 transition-colors"
+                        onClick={() => {
+                          setSelectedReceipt(receipt);
+                          setShowReceiptViewer(true);
+                        }}
+                      >
                         <div className="flex items-center gap-2">
                           <FileText className="h-3 w-3" />
                           <span className="truncate max-w-[120px]">{receipt.fileName}</span>
@@ -592,7 +611,13 @@ export default function ExpensesPage() {
                       </div>
                     ))}
                     {expense.receipts.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center py-1">
+                      <div 
+                        className="text-xs text-muted-foreground text-center py-1 cursor-pointer hover:text-foreground transition-colors"
+                        onClick={() => {
+                          setSelectedExpense(expense);
+                          setShowReceiptViewer(true);
+                        }}
+                      >
                         +{expense.receipts.length - 3} more receipts
                       </div>
                     )}
@@ -694,6 +719,88 @@ export default function ExpensesPage() {
               </Button>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Viewer Dialog */}
+      <Dialog open={showReceiptViewer} onOpenChange={setShowReceiptViewer}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Receipt Viewer</DialogTitle>
+            {selectedReceipt && (
+              <p className="text-sm text-muted-foreground">
+                {selectedReceipt.fileName} - ${formatAmount(selectedReceipt.amount)} on {format(parseISO(selectedReceipt.paymentDate), "MMM dd, yyyy")}
+              </p>
+            )}
+            {selectedExpense && !selectedReceipt && (
+              <p className="text-sm text-muted-foreground">
+                All receipts for {selectedExpense.serviceName}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {selectedReceipt ? (
+              // Single receipt view
+              <div className="space-y-4">
+                {selectedReceipt.mimeType.startsWith('image/') ? (
+                  <div className="flex justify-center">
+                    <img 
+                      src={`/uploads/${selectedReceipt.filePath}`} 
+                      alt={selectedReceipt.fileName}
+                      className="max-w-full max-h-[60vh] object-contain border rounded"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
+                    <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-lg font-medium">{selectedReceipt.fileName}</p>
+                    <p className="text-sm text-muted-foreground mb-4">PDF File</p>
+                    <Button
+                      onClick={() => window.open(`/uploads/${selectedReceipt.filePath}`, '_blank')}
+                      variant="outline"
+                    >
+                      Open PDF
+                    </Button>
+                  </div>
+                )}
+                {selectedReceipt.notes && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium mb-2">Notes:</h4>
+                    <p className="text-sm">{selectedReceipt.notes}</p>
+                  </div>
+                )}
+              </div>
+            ) : selectedExpense ? (
+              // All receipts view
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {selectedExpense.receipts.map((receipt) => (
+                  <div 
+                    key={receipt.id}
+                    className="border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedReceipt(receipt)}
+                  >
+                    <div className="aspect-square mb-2 border rounded overflow-hidden">
+                      {receipt.mimeType.startsWith('image/') ? (
+                        <img 
+                          src={`/uploads/${receipt.filePath}`} 
+                          alt={receipt.fileName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium truncate">{receipt.fileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ${formatAmount(receipt.amount)} - {format(parseISO(receipt.paymentDate), "MMM dd")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
