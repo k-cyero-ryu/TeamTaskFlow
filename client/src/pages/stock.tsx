@@ -35,7 +35,7 @@ import CreateStockItemDialog from "@/components/create-stock-item-dialog";
 import AdjustQuantityDialog from "@/components/adjust-quantity-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "react-i18next";
+import { useI18n } from "@/i18n";
 
 interface StockItem {
   id: number;
@@ -65,7 +65,7 @@ interface UserStockPermission {
 export default function StockPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [assignedFilter, setAssignedFilter] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
