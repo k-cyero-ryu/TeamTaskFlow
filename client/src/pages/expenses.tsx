@@ -745,7 +745,7 @@ export default function ExpensesPage() {
                 {selectedReceipt.mimeType.startsWith('image/') ? (
                   <div className="flex justify-center">
                     <img 
-                      src={`/uploads/${selectedReceipt.filePath}`} 
+                      src={`/api/uploads/file/${selectedReceipt.filePath}`} 
                       alt={selectedReceipt.fileName}
                       className="max-w-full max-h-[60vh] object-contain border rounded"
                     />
@@ -756,7 +756,7 @@ export default function ExpensesPage() {
                     <p className="text-lg font-medium">{selectedReceipt.fileName}</p>
                     <p className="text-sm text-muted-foreground mb-4">PDF File</p>
                     <Button
-                      onClick={() => window.open(`/uploads/${selectedReceipt.filePath}`, '_blank')}
+                      onClick={() => window.open(`/api/uploads/file/${selectedReceipt.filePath}`, '_blank')}
                       variant="outline"
                     >
                       Open PDF
@@ -782,7 +782,7 @@ export default function ExpensesPage() {
                     <div className="aspect-square mb-2 border rounded overflow-hidden">
                       {receipt.mimeType.startsWith('image/') ? (
                         <img 
-                          src={`/uploads/${receipt.filePath}`} 
+                          src={`/api/uploads/file/${receipt.filePath}`} 
                           alt={receipt.fileName}
                           className="w-full h-full object-cover"
                         />
