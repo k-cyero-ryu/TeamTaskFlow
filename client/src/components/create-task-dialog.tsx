@@ -237,9 +237,9 @@ function CreateTaskDialogContent() {
         aria-describedby="create-task-description"
       >
         <DialogHeader>
-          <DialogTitle id="create-task-title">Create New Task</DialogTitle>
+          <DialogTitle id="create-task-title">{t("createNewTask")}</DialogTitle>
           <p id="create-task-description" className="text-sm text-muted-foreground">
-            Fill out the form below to create a new task with details, subtasks, steps and workflow assignment.
+            {t("createTaskDescription")}
           </p>
         </DialogHeader>
         <Form {...form}>
@@ -249,7 +249,7 @@ function CreateTaskDialogContent() {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>{t("title")}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -262,7 +262,7 @@ function CreateTaskDialogContent() {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{t("description")}</FormLabel>
                   <FormControl>
                     <Textarea {...field} value={field.value || ""} />
                   </FormControl>
@@ -276,20 +276,20 @@ function CreateTaskDialogContent() {
                 name="priority"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Priority</FormLabel>
+                    <FormLabel>{t("priority")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
+                          <SelectValue placeholder={t("selectPriority")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="low">{t("low")}</SelectItem>
+                        <SelectItem value="medium">{t("medium")}</SelectItem>
+                        <SelectItem value="high">{t("high")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -301,7 +301,7 @@ function CreateTaskDialogContent() {
                 name="dueDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Due Date</FormLabel>
+                    <FormLabel>{t("dueDate")}</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -314,7 +314,7 @@ function CreateTaskDialogContent() {
                             {field.value ? (
                               format(new Date(field.value), "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>{t("pickDate")}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -344,7 +344,7 @@ function CreateTaskDialogContent() {
               name="participantIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Participants</FormLabel>
+                  <FormLabel>{t("participants")}</FormLabel>
                   <Select
                     onValueChange={(value) => {
                       const id = parseInt(value);
@@ -357,7 +357,7 @@ function CreateTaskDialogContent() {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Add participants" />
+                        <SelectValue placeholder={t("addParticipants")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -385,7 +385,7 @@ function CreateTaskDialogContent() {
                             onClick={() =>
                               field.onChange(field.value?.filter((v) => v !== id))
                             }
-                            aria-label={`Remove participant ${user?.username || ''}`}
+                            aria-label={t("removeParticipant", { username: user?.username || '' })}
                           >
                             <X className="h-3 w-3" aria-hidden="true" />
                           </Button>
@@ -400,16 +400,16 @@ function CreateTaskDialogContent() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <FormLabel>Subtasks</FormLabel>
+                <FormLabel>{t("subtasks")}</FormLabel>
                 <Button 
                   type="button" 
                   variant="outline" 
                   size="sm" 
                   onClick={addSubtask}
-                  aria-label="Add a new subtask"
+                  aria-label={t("addSubtask")}
                 >
                   <Plus className="h-4 w-4 mr-2" aria-hidden="true" /> 
-                  <span>Add Subtask</span>
+                  <span>{t("addSubtask")}</span>
                 </Button>
               </div>
               {form.watch("subtasks")?.map((subtask, index) => (
@@ -420,7 +420,7 @@ function CreateTaskDialogContent() {
                     render={({ field }) => (
                       <FormItem className="flex-1">
                         <FormControl>
-                          <Input {...field} placeholder="Subtask title" />
+                          <Input {...field} placeholder={t("subtaskTitle")} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -431,7 +431,7 @@ function CreateTaskDialogContent() {
                     variant="ghost"
                     size="icon"
                     onClick={() => removeSubtask(index)}
-                    aria-label={`Remove subtask ${index + 1}`}
+                    aria-label={t("removeSubtask", { index: index + 1 })}
                   >
                     <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -441,16 +441,16 @@ function CreateTaskDialogContent() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <FormLabel>Steps</FormLabel>
+                <FormLabel>{t("steps")}</FormLabel>
                 <Button 
                   type="button" 
                   variant="outline" 
                   size="sm" 
                   onClick={addStep}
-                  aria-label="Add a new step"
+                  aria-label={t("addStep")}
                 >
                   <Plus className="h-4 w-4 mr-2" aria-hidden="true" /> 
-                  <span>Add Step</span>
+                  <span>{t("addStep")}</span>
                 </Button>
               </div>
               {form.watch("steps")?.map((step, index) => (
@@ -462,7 +462,7 @@ function CreateTaskDialogContent() {
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormControl>
-                            <Input {...field} placeholder="Step title" />
+                            <Input {...field} placeholder={t("stepTitle")} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -473,7 +473,7 @@ function CreateTaskDialogContent() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeStep(index)}
-                      aria-label={`Remove step ${index + 1}`}
+                      aria-label={t("removeStep", { index: index + 1 })}
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </Button>
@@ -486,7 +486,7 @@ function CreateTaskDialogContent() {
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder="Step description"
+                            placeholder={t("stepDescription")}
                             value={field.value || ""}
                           />
                         </FormControl>
@@ -503,14 +503,14 @@ function CreateTaskDialogContent() {
               name="responsibleId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Responsible Person</FormLabel>
+                  <FormLabel>{t("responsiblePerson")}</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(parseInt(value))}
                     value={field.value?.toString()}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select responsible person" />
+                        <SelectValue placeholder={t("selectResponsiblePerson")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -532,7 +532,7 @@ function CreateTaskDialogContent() {
               name="workflowId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Workflow</FormLabel>
+                  <FormLabel>{t("workflow")}</FormLabel>
                   <Select
                     onValueChange={(value) => {
                       const id = parseInt(value);
@@ -545,7 +545,7 @@ function CreateTaskDialogContent() {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select workflow" />
+                        <SelectValue placeholder={t("selectWorkflow")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -568,14 +568,14 @@ function CreateTaskDialogContent() {
                 name="stageId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stage</FormLabel>
+                    <FormLabel>{t("stage")}</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select stage" />
+                          <SelectValue placeholder={t("selectStage")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -612,15 +612,15 @@ function CreateTaskDialogContent() {
               className="w-full"
               disabled={createTaskMutation.isPending}
               aria-busy={createTaskMutation.isPending}
-              aria-label={createTaskMutation.isPending ? "Creating task, please wait..." : "Create task"}
+              aria-label={createTaskMutation.isPending ? t("creatingTaskWait") : t("createTask")}
             >
               {createTaskMutation.isPending ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  <span>Creating Task...</span>
+                  <span>{t("creatingTask")}</span>
                 </span>
               ) : (
-                "Create Task"
+                t("createTask")
               )}
             </Button>
           </form>
