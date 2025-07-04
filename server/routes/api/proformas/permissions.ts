@@ -20,11 +20,25 @@ router.get('/', checkProformaPermissions('access'), async (req, res) => {
 });
 
 // Get specific user's proforma permissions
-router.get('/:userId', checkProformaPermissions('access'), async (req, res) => {
+router.get('/:userId', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Users can only fetch their own permissions, unless they have access management permissions
+    const requesterId = req.user.id;
+    if (requesterId !== userId && requesterId !== 1) {
+      // Check if the requester has access management permissions
+      const requesterPermissions = await storage.getUserProformaPermissions(requesterId);
+      if (!requesterPermissions?.canManageAccess) {
+        return res.status(403).json({ error: 'Access denied. You can only view your own permissions.' });
+      }
     }
 
     const permissions = await storage.getUserProformaPermissions(userId);
