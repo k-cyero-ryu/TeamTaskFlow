@@ -432,7 +432,7 @@ export default function StockPage() {
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Assign Manager
+                  {t("assignManager")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
@@ -484,7 +484,7 @@ export default function StockPage() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Item
+                  {t("addItem")}
                 </Button>
               </DialogTrigger>
               <CreateStockItemDialog onClose={() => setShowCreateDialog(false)} />
@@ -497,52 +497,52 @@ export default function StockPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalItems")}</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalItems}</div>
             <p className="text-xs text-muted-foreground">
-              Active stock items
+              {t("activeStockItems")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalValue")}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
             <p className="text-xs text-muted-foreground">
-              Current inventory value
+              {t("currentInventoryValue")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("lowStock")}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{lowStockItems}</div>
             <p className="text-xs text-muted-foreground">
-              Items below 10 units
+              {t("itemsBelow10Units")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assigned Items</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("assignedItems")}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{assignedItems}</div>
             <p className="text-xs text-muted-foreground">
-              Items with assigned users
+              {t("itemsWithAssignedUsers")}
             </p>
           </CardContent>
         </Card>
@@ -551,7 +551,7 @@ export default function StockPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardTitle className="text-lg">{t("filters")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -559,7 +559,7 @@ export default function StockPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search items..."
+                  placeholder={t("searchItems")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8"
@@ -569,12 +569,12 @@ export default function StockPage() {
             <div className="w-full md:w-48">
               <Select value={assignedFilter} onValueChange={setAssignedFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by assignment" />
+                  <SelectValue placeholder={t("filterByAssignment")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Items</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  <SelectItem value="all">{t("allItems")}</SelectItem>
+                  <SelectItem value="assigned">{t("assigned")}</SelectItem>
+                  <SelectItem value="unassigned">{t("unassigned")}</SelectItem>
                   {users.filter(u => u.id && u.username).map((user) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.username}
@@ -590,29 +590,29 @@ export default function StockPage() {
       {/* Stock Items Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Stock Items ({filteredItems.length})</CardTitle>
+          <CardTitle>{t("stockItems")} ({filteredItems.length})</CardTitle>
           <CardDescription>
-            Manage your inventory items and quantities
+            {t("manageInventoryItems")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Assigned To</TableHead>
-                <TableHead>Total Value</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("name")}</TableHead>
+                <TableHead>{t("description")}</TableHead>
+                <TableHead>{t("cost")}</TableHead>
+                <TableHead>{t("quantity")}</TableHead>
+                <TableHead>{t("assignedTo")}</TableHead>
+                <TableHead>{t("totalValue")}</TableHead>
+                <TableHead>{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No stock items found
+                    {t("noStockItemsFound")}
                   </TableCell>
                 </TableRow>
               ) : (
