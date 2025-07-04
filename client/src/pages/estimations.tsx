@@ -397,9 +397,9 @@ export default function EstimationsPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Estimation Name</FormLabel>
+                      <FormLabel>{t("estimationName")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter estimation name" />
+                        <Input {...field} placeholder={t("enterEstimationName")} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -410,7 +410,7 @@ export default function EstimationsPage() {
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>{t("date")}</FormLabel>
                       <FormControl>
                         <Input
                           type="date"
@@ -428,9 +428,9 @@ export default function EstimationsPage() {
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>{t("address")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter project address" />
+                        <Input {...field} placeholder={t("enterProjectAddress")} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -441,9 +441,9 @@ export default function EstimationsPage() {
                   name="clientName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client Name</FormLabel>
+                      <FormLabel>{t("clientName")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter client name" />
+                        <Input {...field} placeholder={t("enterClientName")} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -454,14 +454,14 @@ export default function EstimationsPage() {
                   name="techniqueId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Technique (Optional)</FormLabel>
+                      <FormLabel>{t("techniqueOptional")}</FormLabel>
                       <FormControl>
                         <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a technique" />
+                            <SelectValue placeholder={t("selectTechnique")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No technique selected</SelectItem>
+                            <SelectItem value="none">{t("noTechniqueSelected")}</SelectItem>
                             {users.map((user) => (
                               <SelectItem key={user.id} value={user.id.toString()}>
                                 {user.username}
@@ -479,9 +479,9 @@ export default function EstimationsPage() {
                   name="clientInformation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client Information (Optional)</FormLabel>
+                      <FormLabel>{t("clientInformationOptional")}</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
+                        <Textarea {...field} value={field.value || ""} placeholder={t("additionalClientInfo")} rows={3} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -489,10 +489,10 @@ export default function EstimationsPage() {
                 />
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    Cancel
+                    {t("cancel")}
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Creating..." : "Create Estimation"}
+                    {createMutation.isPending ? t("creating") : t("createNewEstimation")}
                   </Button>
                 </DialogFooter>
               </form>
