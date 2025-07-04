@@ -217,14 +217,25 @@ router.post('/group-message/:channelId', requireAuth, upload.array('files', 5), 
 });
 
 /**
- * @route GET /api/uploads/file/:filename
- * @desc Download a file by filename
+ * @route GET /api/uploads/file/*
+ * @desc Download a file by full path or filename
  * @access Private
  */
-router.get('/file/:filename', requireAuth, async (req, res) => {
+router.get('/file/*', requireAuth, async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const filePath = path.join(uploadDir, filename);
+    // Get the full path after /file/
+    const requestedPath = req.params[0];
+    
+    // If path starts with uploads/, it's a full path, otherwise just a filename
+    let filePath;
+    if (requestedPath.startsWith('uploads/')) {
+      // Full path from root - remove leading uploads/ since uploadDir already points to uploads
+      const relativePath = requestedPath.substring('uploads/'.length);
+      filePath = path.join(uploadDir, relativePath);
+    } else {
+      // Just a filename
+      filePath = path.join(uploadDir, requestedPath);
+    }
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
@@ -234,7 +245,7 @@ router.get('/file/:filename', requireAuth, async (req, res) => {
     res.sendFile(filePath);
   } catch (error) {
     logger.error('Error downloading file', { 
-      filename: req.params.filename, 
+      requestedPath: req.params[0], 
       error, 
       userId: req.user?.id 
     });
