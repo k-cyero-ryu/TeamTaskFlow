@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Proforma, InsertProforma, ProformaItem } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, proformas, proformaItems } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -140,6 +140,15 @@ interface IStorage {
   addEstimationItem(estimationId: number, stockItemId: number, quantity: number): Promise<EstimationItem>;
   updateEstimationItem(id: number, quantity: number): Promise<EstimationItem>;
   deleteEstimationItem(id: number): Promise<void>;
+
+  // Company methods
+  getCompanies(): Promise<Company[]>;
+  getCompany(id: number): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  deleteCompany(id: number): Promise<boolean>;
+  getDefaultCompany(): Promise<Company | undefined>;
+  clearDefaultCompany(): Promise<void>;
 
   // Proforma methods
   getProformas(): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] })[]>;
@@ -2809,6 +2818,99 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to generate proforma number', { error });
       throw new DatabaseError(`Failed to generate proforma number: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Company methods
+  async getCompanies(): Promise<Company[]> {
+    try {
+      return await executeWithRetry(async () => {
+        return await db.select().from(companies).orderBy(companies.name);
+      }, 'Get companies');
+    } catch (error) {
+      logger.error('Failed to get companies', { error });
+      throw new DatabaseError(`Failed to get companies: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getCompany(id: number): Promise<Company | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [company] = await db.select().from(companies).where(eq(companies.id, id));
+        return company || undefined;
+      }, 'Get company');
+    } catch (error) {
+      logger.error('Failed to get company', { error, companyId: id });
+      throw new DatabaseError(`Failed to get company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    try {
+      return await executeWithRetry(async () => {
+        const [created] = await db
+          .insert(companies)
+          .values(company)
+          .returning();
+        return created;
+      }, 'Create company');
+    } catch (error) {
+      logger.error('Failed to create company', { error, company });
+      throw new DatabaseError(`Failed to create company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateCompany(id: number, companyData: Partial<InsertCompany>): Promise<Company | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updated] = await db
+          .update(companies)
+          .set({ ...companyData, updatedAt: new Date() })
+          .where(eq(companies.id, id))
+          .returning();
+        return updated || undefined;
+      }, 'Update company');
+    } catch (error) {
+      logger.error('Failed to update company', { error, companyId: id, companyData });
+      throw new DatabaseError(`Failed to update company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteCompany(id: number): Promise<boolean> {
+    try {
+      return await executeWithRetry(async () => {
+        const result = await db.delete(companies).where(eq(companies.id, id));
+        return result.rowCount > 0;
+      }, 'Delete company');
+    } catch (error) {
+      logger.error('Failed to delete company', { error, companyId: id });
+      throw new DatabaseError(`Failed to delete company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getDefaultCompany(): Promise<Company | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [company] = await db.select().from(companies).where(eq(companies.isDefault, true));
+        return company || undefined;
+      }, 'Get default company');
+    } catch (error) {
+      logger.error('Failed to get default company', { error });
+      throw new DatabaseError(`Failed to get default company: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async clearDefaultCompany(): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        await db
+          .update(companies)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(eq(companies.isDefault, true));
+      }, 'Clear default company');
+    } catch (error) {
+      logger.error('Failed to clear default company', { error });
+      throw new DatabaseError(`Failed to clear default company: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

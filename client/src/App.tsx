@@ -14,6 +14,7 @@ import Stock from "@/pages/stock";
 import Estimations from "@/pages/estimations";
 import Proformas from "@/pages/proformas";
 import Settings from "@/pages/settings";
+import CompanySettings from "@/pages/company-settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -179,6 +180,14 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Settings />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/company-settings">
+          <ProtectedRoute>
+            <Layout>
+              <CompanySettings />
             </Layout>
           </ProtectedRoute>
         </Route>

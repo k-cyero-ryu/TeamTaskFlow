@@ -98,6 +98,13 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Implemented comprehensive Company Settings management system
+  - Created companies database table with support for company name, contact information, address, and logo storage
+  - Built complete company management API with CRUD operations for companies
+  - Developed Company Settings page with creation, editing, deletion, and logo upload capabilities
+  - Added company selection to proforma system allowing users to select which company profile to use per quote
+  - Integrated company management navigation link in user dropdown menu with Building2 icon
+  - Added default company functionality to streamline proforma creation workflow
 - July 04, 2025. Enhanced Proformas system with cost display and print functionality
   - Added comprehensive cost information display in proforma cards showing both costs and selling prices
   - Expanded proforma dialog width to 800px with better spacing and organized form sections

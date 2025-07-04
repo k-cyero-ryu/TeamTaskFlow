@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users, Package, Calculator, FileText } from "lucide-react";
+import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users, Package, Calculator, FileText, Building2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { NotificationsDropdown } from "./notifications-dropdown";
 
@@ -150,6 +150,13 @@ export function MainNav() {
                 onClick={() => setLocation("/users")}
               >
                 User Management
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="cursor-pointer"
+                onClick={() => setLocation("/company-settings")}
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Company Settings
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer"

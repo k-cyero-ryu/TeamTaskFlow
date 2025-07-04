@@ -784,20 +784,33 @@ export const insertEstimationItemSchema = createInsertSchema(estimationItems).pi
 export type Estimation = typeof estimations.$inferSelect;
 export type EstimationItem = typeof estimationItems.$inferSelect;
 
+// Companies table for managing multiple company profiles
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  logo: text("logo"), // path to logo file
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
 // Proforma management tables
 export const proformas = pgTable("proformas", {
   id: serial("id").primaryKey(),
   estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
+  companyId: integer("company_id").references(() => companies.id).notNull(),
   proformaNumber: text("proforma_number").notNull().unique(), // e.g., PRF-2025-001
   profitPercentage: integer("profit_percentage").notNull(), // profit margin as percentage (e.g., 25 for 25%)
   totalCost: integer("total_cost").notNull(), // total cost from estimation in cents
   totalPrice: integer("total_price").notNull(), // total selling price (cost + profit) in cents
-  // Company information
+  // Client information (from estimation)
   companyName: text("company_name").notNull(),
   companyAddress: text("company_address").notNull(),
   companyPhone: text("company_phone"),
   companyEmail: text("company_email"),
-  companyLogo: text("company_logo"), // path to logo file
   // Status and metadata
   status: text("status").default("draft"), // draft, sent, accepted, rejected
   notes: text("notes"), // internal notes
@@ -828,12 +841,12 @@ export const proformaItems = pgTable("proforma_items", {
 // Proforma management schemas and types
 export const insertProformaSchema = createInsertSchema(proformas).pick({
   estimationId: true,
+  companyId: true,
   profitPercentage: true,
   companyName: true,
   companyAddress: true,
   companyPhone: true,
   companyEmail: true,
-  companyLogo: true,
   notes: true,
   validUntil: true,
 }).extend({
@@ -898,3 +911,38 @@ export const proformaItemsRelations = relations(proformaItems, ({ one }) => ({
     references: [stockItems.id],
   }),
 }));
+
+// Company relations
+export const companiesRelations = relations(companies, ({ many }) => ({
+  proformas: many(proformas),
+}));
+
+// Update proforma relations to include company
+export const proformasRelationsWithCompany = relations(proformas, ({ one, many }) => ({
+  estimation: one(estimations, {
+    fields: [proformas.estimationId],
+    references: [estimations.id],
+  }),
+  company: one(companies, {
+    fields: [proformas.companyId],
+    references: [companies.id],
+  }),
+  createdBy: one(users, {
+    fields: [proformas.createdById],
+    references: [users.id],
+  }),
+  items: many(proformaItems),
+}));
+
+// Company management schemas and types
+export const insertCompanySchema = createInsertSchema(companies).pick({
+  name: true,
+  address: true,
+  phone: true,
+  email: true,
+  logo: true,
+  isDefault: true,
+});
+
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
