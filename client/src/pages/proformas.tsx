@@ -442,14 +442,14 @@ export default function ProformasPage() {
                   />
 
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Additional Information</h3>
+                    <h3 className="text-lg font-medium mb-4">{t("additionalInformation")}</h3>
                     <div className="space-y-4">
                       <FormField
                         control={createForm.control}
                         name="validUntil"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Valid Until (Optional)</FormLabel>
+                            <FormLabel>{t("validUntilOptional")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="date"
@@ -468,9 +468,9 @@ export default function ProformasPage() {
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes (Optional)</FormLabel>
+                            <FormLabel>{t("notesOptional")}</FormLabel>
                             <FormControl>
-                              <Textarea {...field} placeholder="Internal notes" rows={4} />
+                              <Textarea {...field} placeholder={t("internalNotes")} rows={4} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -482,10 +482,10 @@ export default function ProformasPage() {
 
                 <DialogFooter className="mt-8 pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    Cancel
+                    {t("cancel")}
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Creating..." : "Create Proforma"}
+                    {createMutation.isPending ? t("creatingProforma") : t("createProforma")}
                   </Button>
                 </DialogFooter>
               </form>
