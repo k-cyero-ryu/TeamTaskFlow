@@ -217,18 +217,152 @@ router.get("/:id/print", async (req, res) => {
     <head>
       <title>Proforma ${proforma.proformaNumber}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .company-info { margin-bottom: 20px; }
-        .proforma-info { margin-bottom: 20px; }
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .items-table th { background-color: #f2f2f2; }
-        .total { font-weight: bold; font-size: 1.2em; }
-        .footer { margin-top: 30px; font-size: 0.9em; color: #666; }
+        @page {
+          size: A4;
+          margin: 20mm;
+        }
+        
+        body { 
+          font-family: Arial, sans-serif; 
+          margin: 0;
+          padding: 0;
+          line-height: 1.4;
+          font-size: 12px;
+          color: #333;
+        }
+        
+        .header { 
+          text-align: center; 
+          margin-bottom: 25px; 
+          padding-bottom: 15px;
+          border-bottom: 2px solid #333;
+        }
+        
+        .header h1 {
+          margin: 0 0 5px 0;
+          font-size: 24px;
+          font-weight: bold;
+          color: #333;
+        }
+        
+        .header h2 {
+          margin: 0;
+          font-size: 18px;
+          color: #666;
+        }
+        
+        .info-section {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 25px;
+        }
+        
+        .company-info, .proforma-info {
+          width: 48%;
+        }
+        
+        .company-info h3 {
+          margin: 0 0 10px 0;
+          font-size: 14px;
+          font-weight: bold;
+          color: #333;
+        }
+        
+        .company-info p, .proforma-info p {
+          margin: 2px 0;
+          font-size: 12px;
+        }
+        
+        .items-table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin-bottom: 20px;
+          page-break-inside: avoid;
+        }
+        
+        .items-table th {
+          background-color: #f5f5f5;
+          border: 1px solid #ddd;
+          padding: 10px 8px;
+          text-align: left;
+          font-weight: bold;
+          font-size: 11px;
+        }
+        
+        .items-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+          font-size: 11px;
+        }
+        
+        .items-table tbody tr:nth-child(even) {
+          background-color: #fafafa;
+        }
+        
+        .items-table .text-right {
+          text-align: right;
+        }
+        
+        .total { 
+          text-align: right;
+          margin-top: 20px;
+          padding-top: 15px;
+          border-top: 2px solid #333;
+        }
+        
+        .total p {
+          margin: 5px 0;
+          font-size: 16px;
+          font-weight: bold;
+        }
+        
+        .footer { 
+          margin-top: 30px; 
+          font-size: 10px; 
+          color: #666;
+          text-align: center;
+        }
+        
+        /* Pagination styles */
+        .page-break {
+          page-break-before: always;
+        }
+        
+        .keep-together {
+          page-break-inside: avoid;
+        }
+        
         @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
+          body { 
+            margin: 0;
+            padding: 0;
+          }
+          .no-print { 
+            display: none !important; 
+          }
+          .items-table {
+            page-break-inside: auto;
+          }
+          .items-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          .items-table thead {
+            display: table-header-group;
+          }
+          .total {
+            page-break-inside: avoid;
+          }
+        }
+        
+        @media screen {
+          body {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
         }
       </style>
     </head>
@@ -238,49 +372,54 @@ router.get("/:id/print", async (req, res) => {
         <h2>${proforma.proformaNumber}</h2>
       </div>
       
-      <div class="company-info">
-        <h3>Bill To:</h3>
-        <p><strong>${proforma.companyName}</strong></p>
-        <p>${proforma.companyEmail}</p>
-        <p>${proforma.companyAddress}</p>
-        ${proforma.companyPhone ? `<p>${proforma.companyPhone}</p>` : ''}
-      </div>
-      
-      <div class="proforma-info">
-        <p><strong>Date:</strong> ${new Date(proforma.createdAt).toLocaleDateString()}</p>
-        ${proforma.validUntil ? `<p><strong>Valid Until:</strong> ${new Date(proforma.validUntil).toLocaleDateString()}</p>` : ''}
+      <div class="info-section">
+        <div class="company-info">
+          <h3>Bill To:</h3>
+          <p><strong>${proforma.companyName}</strong></p>
+          <p>${proforma.companyEmail}</p>
+          <p>${proforma.companyAddress}</p>
+          ${proforma.companyPhone ? `<p>${proforma.companyPhone}</p>` : ''}
+        </div>
+        
+        <div class="proforma-info">
+          <p><strong>Date:</strong> ${new Date(proforma.createdAt).toLocaleDateString()}</p>
+          ${proforma.validUntil ? `<p><strong>Valid Until:</strong> ${new Date(proforma.validUntil).toLocaleDateString()}</p>` : ''}
+        </div>
       </div>
       
       <table class="items-table">
         <thead>
           <tr>
-            <th>Item</th>
-            <th>Quantity</th>
-            <th>Unit Price</th>
-            <th>Total Price</th>
+            <th style="width: 45%;">Item</th>
+            <th style="width: 15%;" class="text-right">Quantity</th>
+            <th style="width: 20%;" class="text-right">Unit Price</th>
+            <th style="width: 20%;" class="text-right">Total Price</th>
           </tr>
         </thead>
         <tbody>
           ${proforma.items.map(item => `
             <tr>
               <td>${item.stockItemName}</td>
-              <td>${item.quantity}</td>
-              <td>${formatCurrency(item.unitPrice)}</td>
-              <td>${formatCurrency(item.totalPrice)}</td>
+              <td class="text-right">${item.quantity}</td>
+              <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+              <td class="text-right">${formatCurrency(item.totalPrice)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
       
-      <div class="total">
+      <div class="total keep-together">
         <p><strong>Total Amount: ${formatCurrency(proforma.totalPrice)}</strong></p>
       </div>
       
-
+      <div class="footer">
+        <p>Thank you for your business!</p>
+        <p>This quotation is valid until ${proforma.validUntil ? new Date(proforma.validUntil).toLocaleDateString() : 'further notice'}</p>
+      </div>
       
-      <div class="no-print" style="margin-top: 20px;">
-        <button onclick="window.print()">Print</button>
-        <button onclick="window.close()">Close</button>
+      <div class="no-print" style="margin-top: 20px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; margin: 0 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">Print</button>
+        <button onclick="window.close()" style="padding: 10px 20px; margin: 0 10px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
       </div>
     </body>
     </html>
