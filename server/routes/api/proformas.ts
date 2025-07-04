@@ -219,7 +219,7 @@ router.get("/:id/print", async (req, res) => {
       <style>
         @page {
           size: A4;
-          margin: 20mm;
+          margin: 0;
         }
         
         body { 
@@ -229,99 +229,142 @@ router.get("/:id/print", async (req, res) => {
           line-height: 1.4;
           font-size: 12px;
           color: #333;
+          background-color: #f5f5f5;
         }
         
         .header { 
-          text-align: center; 
-          margin-bottom: 25px; 
-          padding-bottom: 15px;
-          border-bottom: 2px solid #333;
-        }
-        
-        .header h1 {
-          margin: 0 0 5px 0;
-          font-size: 24px;
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .header h2 {
-          margin: 0;
-          font-size: 18px;
-          color: #666;
-        }
-        
-        .info-section {
+          background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+          color: white;
+          padding: 30px;
           display: flex;
           justify-content: space-between;
-          margin-bottom: 25px;
+          align-items: center;
+          margin-bottom: 0;
         }
         
-        .company-info, .proforma-info {
-          width: 48%;
+        .header-left {
+          display: flex;
+          align-items: center;
         }
         
-        .company-info h3 {
-          margin: 0 0 10px 0;
+        .logo {
+          background: rgba(255, 255, 255, 0.2);
+          padding: 10px 15px;
+          border-radius: 8px;
+          margin-right: 20px;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        
+        .company-address {
+          font-size: 13px;
+          line-height: 1.4;
+        }
+        
+        .header-right {
+          text-align: right;
+        }
+        
+        .quotation-title {
+          font-size: 28px;
+          font-weight: bold;
+          margin: 0;
+          letter-spacing: 1px;
+        }
+        
+        .quotation-details {
+          margin-top: 15px;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        
+        .content {
+          background: white;
+          padding: 30px;
+          margin: 0;
+        }
+        
+        .project-section {
+          margin-bottom: 30px;
+        }
+        
+        .project-title {
           font-size: 14px;
           font-weight: bold;
           color: #333;
-        }
-        
-        .company-info p, .proforma-info p {
-          margin: 2px 0;
-          font-size: 12px;
+          margin: 0 0 15px 0;
+          padding-bottom: 8px;
+          border-bottom: 2px solid #ddd;
         }
         
         .items-table { 
           width: 100%; 
           border-collapse: collapse; 
           margin-bottom: 20px;
-          page-break-inside: avoid;
+          font-size: 11px;
         }
         
         .items-table th {
-          background-color: #f5f5f5;
-          border: 1px solid #ddd;
-          padding: 10px 8px;
-          text-align: left;
+          background-color: #4a90e2;
+          color: white;
+          border: 1px solid #357abd;
+          padding: 12px 8px;
+          text-align: center;
           font-weight: bold;
           font-size: 11px;
         }
         
         .items-table td {
-          border: 1px solid #ddd;
-          padding: 8px;
+          border: 1px solid #ccc;
+          padding: 10px 8px;
           text-align: left;
-          font-size: 11px;
+          background-color: white;
         }
         
-        .items-table tbody tr:nth-child(even) {
-          background-color: #fafafa;
+        .items-table tbody tr:nth-child(even) td {
+          background-color: #f9f9f9;
+        }
+        
+        .items-table .text-center {
+          text-align: center;
         }
         
         .items-table .text-right {
           text-align: right;
         }
         
-        .total { 
-          text-align: right;
-          margin-top: 20px;
-          padding-top: 15px;
-          border-top: 2px solid #333;
+        .total-row {
+          background-color: #4a90e2 !important;
+          color: white !important;
         }
         
-        .total p {
-          margin: 5px 0;
-          font-size: 16px;
+        .total-row td {
+          background-color: #4a90e2 !important;
+          color: white !important;
           font-weight: bold;
+          padding: 12px 8px;
         }
         
-        .footer { 
-          margin-top: 30px; 
-          font-size: 10px; 
+        .validity-note {
+          margin-top: 20px;
+          font-size: 11px;
           color: #666;
+        }
+        
+        .signature-section {
+          margin-top: 60px;
+          display: flex;
+          justify-content: space-between;
+        }
+        
+        .signature-box {
+          width: 45%;
+          border-bottom: 2px solid #333;
+          padding-bottom: 5px;
           text-align: center;
+          font-size: 11px;
+          font-weight: bold;
+          color: #333;
         }
         
         /* Pagination styles */
@@ -337,6 +380,7 @@ router.get("/:id/print", async (req, res) => {
           body { 
             margin: 0;
             padding: 0;
+            background-color: white;
           }
           .no-print { 
             display: none !important; 
@@ -351,7 +395,7 @@ router.get("/:id/print", async (req, res) => {
           .items-table thead {
             display: table-header-group;
           }
-          .total {
+          .total-row {
             page-break-inside: avoid;
           }
         }
@@ -360,61 +404,81 @@ router.get("/:id/print", async (req, res) => {
           body {
             max-width: 210mm;
             margin: 0 auto;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
           }
         }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>QUOTATION</h1>
-        <h2>${proforma.proformaNumber}</h2>
-      </div>
-      
-      <div class="info-section">
-        <div class="company-info">
-          <h3>Bill To:</h3>
-          <p><strong>${proforma.companyName}</strong></p>
-          <p>${proforma.companyEmail}</p>
-          <p>${proforma.companyAddress}</p>
-          ${proforma.companyPhone ? `<p>${proforma.companyPhone}</p>` : ''}
+        <div class="header-left">
+          <div class="logo">TU LOGO</div>
+          <div class="company-address">
+            CALLE CUALQUIERA 123,<br>
+            CUALQUIER LUGAR, CP: 12345
+          </div>
         </div>
-        
-        <div class="proforma-info">
-          <p><strong>Date:</strong> ${new Date(proforma.createdAt).toLocaleDateString()}</p>
-          ${proforma.validUntil ? `<p><strong>Valid Until:</strong> ${new Date(proforma.validUntil).toLocaleDateString()}</p>` : ''}
+        <div class="header-right">
+          <h1 class="quotation-title">COTIZACIÓN #${proforma.proformaNumber}</h1>
+          <div class="quotation-details">
+            <div>FECHA: ${new Date(proforma.createdAt).toLocaleDateString()}</div>
+            <div>VENDEDOR: ADMIN</div>
+            <div>CLIENTE: ${proforma.companyName}</div>
+          </div>
         </div>
       </div>
       
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th style="width: 45%;">Item</th>
-            <th style="width: 15%;" class="text-right">Quantity</th>
-            <th style="width: 20%;" class="text-right">Unit Price</th>
-            <th style="width: 20%;" class="text-right">Total Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${proforma.items.map(item => `
+      <div class="content">
+        <div class="project-section">
+          <h3 class="project-title">DESCRIPCIÓN DEL PROYECTO:</h3>
+          <div style="height: 80px; border-bottom: 1px solid #ddd; margin-bottom: 20px;"></div>
+        </div>
+      
+        <table class="items-table">
+          <thead>
             <tr>
-              <td>${item.stockItemName}</td>
-              <td class="text-right">${item.quantity}</td>
-              <td class="text-right">${formatCurrency(item.unitPrice)}</td>
-              <td class="text-right">${formatCurrency(item.totalPrice)}</td>
+              <th style="width: 50%;">PRODUCTO</th>
+              <th style="width: 15%;" class="text-center">CANTIDAD</th>
+              <th style="width: 17%;" class="text-center">PRECIO</th>
+              <th style="width: 18%;" class="text-center">TOTAL</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${proforma.items.map(item => `
+              <tr>
+                <td>${item.stockItemName}</td>
+                <td class="text-center">${item.quantity.toString().padStart(3, '0')}</td>
+                <td class="text-center">${formatCurrency(item.unitPrice)}</td>
+                <td class="text-center">${formatCurrency(item.totalPrice)}</td>
+              </tr>
+            `).join('')}
+            <!-- Empty rows for spacing -->
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr><td></td><td></td><td></td><td></td></tr>
+            <tr class="total-row">
+              <td colspan="3" class="text-center"><strong>Total</strong></td>
+              <td class="text-center"><strong>${formatCurrency(proforma.totalPrice)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="validity-note">
+          <p><strong>Cotización válida por 30 días*</strong></p>
+        </div>
       
-      <div class="total keep-together">
-        <p><strong>Total Amount: ${formatCurrency(proforma.totalPrice)}</strong></p>
-      </div>
-      
-      <div class="footer">
-        <p>Thank you for your business!</p>
-        <p>This quotation is valid until ${proforma.validUntil ? new Date(proforma.validUntil).toLocaleDateString() : 'further notice'}</p>
+        <div class="signature-section">
+          <div class="signature-box">
+            Firma de Cliente
+          </div>
+          <div class="signature-box">
+            Firma de Vendedor
+          </div>
+        </div>
       </div>
       
       <div class="no-print" style="margin-top: 20px; text-align: center;">
