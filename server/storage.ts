@@ -2584,6 +2584,7 @@ export class DatabaseStorage implements IStorage {
           .select({
             id: proformas.id,
             estimationId: proformas.estimationId,
+            companyId: proformas.companyId,
             proformaNumber: proformas.proformaNumber,
             profitPercentage: proformas.profitPercentage,
             totalCost: proformas.totalCost,
@@ -2592,7 +2593,7 @@ export class DatabaseStorage implements IStorage {
             companyAddress: proformas.companyAddress,
             companyPhone: proformas.companyPhone,
             companyEmail: proformas.companyEmail,
-
+            companyLogo: proformas.companyLogo,
             status: proformas.status,
             notes: proformas.notes,
             validUntil: proformas.validUntil,
@@ -2688,6 +2689,7 @@ export class DatabaseStorage implements IStorage {
             companyAddress: company.address,
             companyPhone: company.phone,
             companyEmail: company.email,
+            companyLogo: company.logo,
             notes: proforma.notes,
             validUntil: proforma.validUntil,
             proformaNumber,

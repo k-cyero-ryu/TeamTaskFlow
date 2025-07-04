@@ -806,11 +806,12 @@ export const proformas = pgTable("proformas", {
   profitPercentage: integer("profit_percentage").notNull(), // profit margin as percentage (e.g., 25 for 25%)
   totalCost: integer("total_cost").notNull(), // total cost from estimation in cents
   totalPrice: integer("total_price").notNull(), // total selling price (cost + profit) in cents
-  // Client information (from estimation)
+  // Company information (from selected company)
   companyName: text("company_name").notNull(),
   companyAddress: text("company_address").notNull(),
   companyPhone: text("company_phone"),
   companyEmail: text("company_email"),
+  companyLogo: text("company_logo"), // company logo path
   // Status and metadata
   status: text("status").default("draft"), // draft, sent, accepted, rejected
   notes: text("notes"), // internal notes

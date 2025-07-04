@@ -431,12 +431,30 @@ export default function ProformasPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {proformas.map((proforma) => (
-          <Card key={proforma.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card key={proforma.id} className="cursor-pointer hover:shadow-lg transition-shadow relative">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{proforma.proformaNumber}</CardTitle>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Building className="h-4 w-4" />
-                <span>{proforma.estimation.clientName}</span>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <CardTitle className="text-lg">{proforma.proformaNumber}</CardTitle>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Building className="h-4 w-4" />
+                    <span>{proforma.estimation.clientName}</span>
+                  </div>
+                </div>
+                {proforma.companyLogo && (
+                  <div className="flex-shrink-0 ml-4">
+                    <img 
+                      src={`/api/uploads/file/${proforma.companyLogo}`}
+                      alt={`${proforma.companyName} logo`}
+                      className="w-16 h-12 object-contain rounded border bg-white"
+                    />
+                  </div>
+                )}
+                {!proforma.companyLogo && (
+                  <div className="flex-shrink-0 ml-4 w-16 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
+                    LOGO
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent>
