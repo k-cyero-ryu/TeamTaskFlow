@@ -10,7 +10,7 @@ import { ExtendedTask } from "@/lib/types";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useTranslation } from "react-i18next";
+import { useI18n } from "@/i18n";
 
 export default function Dashboard() {
   return (
@@ -22,7 +22,7 @@ export default function Dashboard() {
 
 // Error fallback component
 function DashboardErrorState() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   
   return (
     <div className="container mx-auto py-8 space-y-8">
@@ -61,7 +61,7 @@ function DashboardErrorState() {
 
 // Main content component
 function DashboardContent() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   
   // Use custom hooks for data fetching
   const { 
@@ -183,7 +183,7 @@ function DashboardContent() {
         <CardContent>
           <Progress value={progressPercentage} className="h-2" />
           <p className="text-sm text-muted-foreground mt-2">
-            {t("tasksCompleted", { completed: completedTasks, total: totalTasks })}
+            {t("tasksCompleted", { completed: String(completedTasks), total: String(totalTasks) })}
           </p>
         </CardContent>
       </Card>
