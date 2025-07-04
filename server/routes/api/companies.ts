@@ -1,10 +1,36 @@
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
 import { storage } from '../../storage';
 import { insertCompanySchema } from '@shared/schema';
 import { Logger } from '../../utils/logger';
 
 const router = Router();
 const logger = new Logger('CompanyRoutes');
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, 'company-logo-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Get all companies
 router.get('/', async (req, res) => {
@@ -29,9 +55,19 @@ router.get('/', async (req, res) => {
 });
 
 // Create a new company
-router.post('/', async (req, res) => {
+router.post('/', upload.single('logo'), async (req, res) => {
   try {
-    const validatedData = insertCompanySchema.parse(req.body);
+    // Parse form data
+    const formData = {
+      name: req.body.name,
+      address: req.body.address,
+      phone: req.body.phone || null,
+      email: req.body.email || null,
+      isDefault: req.body.isDefault === 'true',
+      logo: req.file ? `/uploads/${req.file.filename}` : null
+    };
+
+    const validatedData = insertCompanySchema.parse(formData);
     const company = await storage.createCompany(validatedData);
     
     logger.info('Company created successfully', {
@@ -61,14 +97,28 @@ router.post('/', async (req, res) => {
 });
 
 // Update a company
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
     const companyId = parseInt(req.params.id);
     if (isNaN(companyId)) {
       return res.status(400).json({ error: 'Invalid company ID' });
     }
 
-    const validatedData = insertCompanySchema.parse(req.body);
+    // Parse form data
+    const formData: any = {
+      name: req.body.name,
+      address: req.body.address,
+      phone: req.body.phone || null,
+      email: req.body.email || null,
+      isDefault: req.body.isDefault === 'true'
+    };
+
+    // Only add logo if a new file was uploaded
+    if (req.file) {
+      formData.logo = `/uploads/${req.file.filename}`;
+    }
+
+    const validatedData = insertCompanySchema.partial().parse(formData);
     const company = await storage.updateCompany(companyId, validatedData);
     
     if (!company) {
