@@ -2522,70 +2522,49 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Proforma methods implementation
-  async getProformas(): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] })[]> {
+  async getProformas(): Promise<any[]> {
     try {
       return await executeWithRetry(async () => {
         const proformasData = await db
-          .select({
-            id: proformas.id,
-            estimationId: proformas.estimationId,
-            proformaNumber: proformas.proformaNumber,
-            profitPercentage: proformas.profitPercentage,
-            totalCost: proformas.totalCost,
-            totalPrice: proformas.totalPrice,
-            companyName: proformas.companyName,
-            companyAddress: proformas.companyAddress,
-            companyPhone: proformas.companyPhone,
-            companyEmail: proformas.companyEmail,
-            companyLogo: proformas.companyLogo,
-            status: proformas.status,
-            notes: proformas.notes,
-            validUntil: proformas.validUntil,
-            createdById: proformas.createdById,
-            createdAt: proformas.createdAt,
-            updatedAt: proformas.updatedAt,
-            estimation: {
-              id: estimations.id,
-              name: estimations.name,
-              clientName: estimations.clientName,
-            },
-            createdBy: {
-              id: users.id,
-              username: users.username,
-            },
-          })
+          .select()
           .from(proformas)
           .innerJoin(estimations, eq(proformas.estimationId, estimations.id))
           .innerJoin(users, eq(proformas.createdById, users.id))
+          .leftJoin(companies, eq(proformas.companyId, companies.id))
           .orderBy(desc(proformas.createdAt));
 
         // Get items for each proforma
         const proformasWithItems = await Promise.all(
-          proformasData.map(async (proforma) => {
+          proformasData.map(async (row) => {
             const items = await db
-              .select({
-                id: proformaItems.id,
-                proformaId: proformaItems.proformaId,
-                estimationItemId: proformaItems.estimationItemId,
-                stockItemId: proformaItems.stockItemId,
-                stockItemName: proformaItems.stockItemName,
-                quantity: proformaItems.quantity,
-                unitCost: proformaItems.unitCost,
-                unitPrice: proformaItems.unitPrice,
-                totalPrice: proformaItems.totalPrice,
-                createdAt: proformaItems.createdAt,
-                stockItem: {
-                  id: stockItems.id,
-                  name: stockItems.name,
-                },
-              })
+              .select()
               .from(proformaItems)
               .innerJoin(stockItems, eq(proformaItems.stockItemId, stockItems.id))
-              .where(eq(proformaItems.proformaId, proforma.id));
+              .where(eq(proformaItems.proformaId, row.proformas.id));
 
             return {
-              ...proforma,
-              items,
+              ...row.proformas,
+              estimation: {
+                id: row.estimations.id,
+                name: row.estimations.name,
+                clientName: row.estimations.clientName,
+              },
+              createdBy: {
+                id: row.users.id,
+                username: row.users.username,
+              },
+              company: row.companies ? {
+                id: row.companies.id,
+                name: row.companies.name,
+                logo: row.companies.logo,
+              } : null,
+              items: items.map(itemRow => ({
+                ...itemRow.proforma_items,
+                stockItem: {
+                  id: itemRow.stock_items.id,
+                  name: itemRow.stock_items.name,
+                }
+              })),
             };
           })
         );
@@ -2613,7 +2592,7 @@ export class DatabaseStorage implements IStorage {
             companyAddress: proformas.companyAddress,
             companyPhone: proformas.companyPhone,
             companyEmail: proformas.companyEmail,
-            companyLogo: proformas.companyLogo,
+
             status: proformas.status,
             notes: proformas.notes,
             validUntil: proformas.validUntil,
@@ -2702,7 +2681,7 @@ export class DatabaseStorage implements IStorage {
             companyAddress: proforma.companyAddress,
             companyPhone: proforma.companyPhone,
             companyEmail: proforma.companyEmail,
-            companyLogo: proforma.companyLogo,
+
             notes: proforma.notes,
             validUntil: proforma.validUntil,
             proformaNumber,
