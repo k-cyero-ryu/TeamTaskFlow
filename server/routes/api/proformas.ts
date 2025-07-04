@@ -185,4 +185,126 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/proformas/:id/print
+ * @desc Get proforma print view
+ * @access Private
+ */
+router.get("/:id/print", async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const proformaId = parseInt(req.params.id);
+
+    if (isNaN(proformaId)) {
+      return res.status(400).json({ error: "Invalid proforma ID" });
+    }
+
+    const proforma = await storage.getProforma(proformaId);
+
+    if (!proforma) {
+      return res.status(404).json({ error: "Proforma not found" });
+    }
+
+    // Generate HTML for print view
+    const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+    const printHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Proforma ${proforma.proformaNumber}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .company-info { margin-bottom: 20px; }
+        .proforma-info { margin-bottom: 20px; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .items-table th { background-color: #f2f2f2; }
+        .total { font-weight: bold; font-size: 1.2em; }
+        .footer { margin-top: 30px; font-size: 0.9em; color: #666; }
+        @media print {
+          body { margin: 0; }
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>PROFORMA INVOICE</h1>
+        <h2>${proforma.proformaNumber}</h2>
+      </div>
+      
+      <div class="company-info">
+        <h3>Bill To:</h3>
+        <p><strong>${proforma.companyName}</strong></p>
+        <p>${proforma.companyEmail}</p>
+        <p>${proforma.companyAddress}</p>
+        ${proforma.companyPhone ? `<p>${proforma.companyPhone}</p>` : ''}
+      </div>
+      
+      <div class="proforma-info">
+        <p><strong>Date:</strong> ${new Date(proforma.createdAt).toLocaleDateString()}</p>
+        ${proforma.validUntil ? `<p><strong>Valid Until:</strong> ${new Date(proforma.validUntil).toLocaleDateString()}</p>` : ''}
+      </div>
+      
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Quantity</th>
+            <th>Unit Cost</th>
+            <th>Unit Price</th>
+            <th>Total Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${proforma.items.map(item => `
+            <tr>
+              <td>${item.stockItemName}</td>
+              <td>${item.quantity}</td>
+              <td>${formatCurrency(item.unitCost)}</td>
+              <td>${formatCurrency(item.unitPrice)}</td>
+              <td>${formatCurrency(item.totalPrice)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      
+      <div class="total">
+        <p>Total Cost: ${formatCurrency(proforma.totalCost)}</p>
+        <p>Total Profit: ${formatCurrency(proforma.totalPrice - proforma.totalCost)}</p>
+        <p><strong>Total Price: ${formatCurrency(proforma.totalPrice)}</strong></p>
+      </div>
+      
+      ${proforma.notes ? `<div class="footer"><p><strong>Notes:</strong> ${proforma.notes}</p></div>` : ''}
+      
+      <div class="no-print" style="margin-top: 20px;">
+        <button onclick="window.print()">Print</button>
+        <button onclick="window.close()">Close</button>
+      </div>
+    </body>
+    </html>
+    `;
+
+    logger.info('Proforma print view generated', {
+      proformaId,
+      userId: req.user.id,
+    });
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(printHTML);
+  } catch (error) {
+    logger.error('Failed to generate proforma print view', { 
+      error, 
+      proformaId: req.params.id, 
+      userId: req.user?.id 
+    });
+    res.status(500).json({ error: "Failed to generate print view" });
+  }
+});
+
 export default router;

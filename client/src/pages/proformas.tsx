@@ -70,6 +70,7 @@ type Proforma = {
     id: number;
     stockItemName: string;
     quantity: number;
+    unitCost: number;
     unitPrice: number;
     totalPrice: number;
     stockItem: {
@@ -539,8 +540,9 @@ export default function ProformasPage() {
                       <tr>
                         <th className="text-left p-3">Item</th>
                         <th className="text-right p-3">Qty</th>
+                        <th className="text-right p-3">Unit Cost</th>
                         <th className="text-right p-3">Unit Price</th>
-                        <th className="text-right p-3">Total</th>
+                        <th className="text-right p-3">Total Price</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,15 +550,27 @@ export default function ProformasPage() {
                         <tr key={item.id} className="border-t">
                           <td className="p-3">{item.stockItemName}</td>
                           <td className="text-right p-3">{item.quantity}</td>
+                          <td className="text-right p-3 text-muted-foreground">{formatCurrency(item.unitCost)}</td>
                           <td className="text-right p-3">{formatCurrency(item.unitPrice)}</td>
-                          <td className="text-right p-3">{formatCurrency(item.totalPrice)}</td>
+                          <td className="text-right p-3 font-medium">{formatCurrency(item.totalPrice)}</td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-muted font-semibold">
+                    <tfoot className="bg-muted">
                       <tr>
-                        <td colSpan={3} className="text-right p-3">Total Amount:</td>
-                        <td className="text-right p-3">{formatCurrency(selectedProforma.totalPrice)}</td>
+                        <td colSpan={3} className="text-right p-3 font-medium">Total Cost:</td>
+                        <td className="text-right p-3 font-medium text-muted-foreground">{formatCurrency(selectedProforma.totalCost)}</td>
+                        <td className="text-right p-3"></td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} className="text-right p-3 font-medium">Total Profit:</td>
+                        <td className="text-right p-3 font-medium text-green-600">{formatCurrency(selectedProforma.totalPrice - selectedProforma.totalCost)}</td>
+                        <td className="text-right p-3"></td>
+                      </tr>
+                      <tr className="border-t-2">
+                        <td colSpan={3} className="text-right p-3 font-semibold">Total Amount:</td>
+                        <td className="text-right p-3"></td>
+                        <td className="text-right p-3 font-semibold text-lg">{formatCurrency(selectedProforma.totalPrice)}</td>
                       </tr>
                     </tfoot>
                   </table>
