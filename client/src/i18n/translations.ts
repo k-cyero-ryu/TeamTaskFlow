@@ -11,6 +11,15 @@ export const translations = {
     expenses: "Expenses",
     stock: "Stock",
     
+    // Dashboard
+    totalTasks: "Total Tasks",
+    overallProgress: "Overall Progress",
+    workflowTasks: "Workflow Tasks",
+    recentTasks: "Recent Tasks",
+    tasksCompleted: "{{completed}} of {{total}} tasks completed",
+    newTask: "New Task",
+    showingTasks: "Showing {{count}} of {{total}}",
+    
     // User Menu
     userManagement: "User Management",
     companySettings: "Company Settings",
@@ -229,6 +238,15 @@ export const translations = {
     expenses: "Dépenses",
     stock: "Stock",
     
+    // Dashboard
+    totalTasks: "Total des tâches",
+    overallProgress: "Progrès global",
+    workflowTasks: "Tâches de flux de travail",
+    recentTasks: "Tâches récentes",
+    tasksCompleted: "{{completed}} sur {{total}} tâches terminées",
+    newTask: "Nouvelle tâche",
+    showingTasks: "Affichage de {{count}} sur {{total}}",
+    
     // User Menu
     userManagement: "Gestion des utilisateurs",
     companySettings: "Paramètres de l'entreprise",
@@ -446,6 +464,15 @@ export const translations = {
     proformas: "Proformas",
     expenses: "Gastos",
     stock: "Inventario",
+    
+    // Dashboard
+    totalTasks: "Total de tareas",
+    overallProgress: "Progreso general",
+    workflowTasks: "Tareas de flujo de trabajo",
+    recentTasks: "Tareas recientes",
+    tasksCompleted: "{{completed}} de {{total}} tareas completadas",
+    newTask: "Nueva tarea",
+    showingTasks: "Mostrando {{count}} de {{total}}",
     
     // User Menu
     userManagement: "Gestión de usuarios",
