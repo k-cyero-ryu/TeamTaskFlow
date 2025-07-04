@@ -27,7 +27,8 @@ import {
   Upload,
   FileText,
   Download,
-  Trash2
+  Trash2,
+  CheckCircle
 } from "lucide-react";
 import { format, parseISO, startOfWeek, startOfMonth, isWithinInterval } from "date-fns";
 
@@ -245,6 +246,27 @@ export default function ExpensesPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to upload receipt",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (expenseId: number) => {
+      const response = await apiRequest("POST", `/api/expenses/${expenseId}/mark-paid`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      toast({
+        title: t('markedAsPaidSuccess'),
+        variant: "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -576,17 +598,28 @@ export default function ExpensesPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Receipts ({expense.receipts.length})</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedExpense(expense);
-                      setShowReceiptDialog(true);
-                    }}
-                  >
-                    <Upload className="mr-1 h-3 w-3" />
-                    Add
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => markAsPaidMutation.mutate(expense.id)}
+                      disabled={markAsPaidMutation.isPending}
+                    >
+                      <CheckCircle className="mr-1 h-3 w-3" />
+                      {markAsPaidMutation.isPending ? t('markingAsPaid') : t('markAsPaid')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedExpense(expense);
+                        setShowReceiptDialog(true);
+                      }}
+                    >
+                      <Upload className="mr-1 h-3 w-3" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
                 
                 {expense.receipts.length > 0 && (

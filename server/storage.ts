@@ -169,6 +169,7 @@ interface IStorage {
   createExpense(expense: InsertExpense, userId: number): Promise<Expense>;
   updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense>;
   deleteExpense(id: number): Promise<void>;
+  markExpenseAsPaid(id: number): Promise<Expense>;
   
   // Expense receipt methods
   getExpenseReceipts(expenseId: number): Promise<(ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[]>;
@@ -3121,6 +3122,56 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Error deleting expense with ID ${id}`, error);
       throw new DatabaseError(`Failed to delete expense: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async markExpenseAsPaid(id: number): Promise<Expense> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get current expense to calculate next payment date
+        const currentExpense = await db
+          .select()
+          .from(expenses)
+          .where(eq(expenses.id, id))
+          .limit(1);
+
+        if (currentExpense.length === 0) {
+          throw new Error('Expense not found');
+        }
+
+        const expense = currentExpense[0];
+        const today = new Date();
+        let nextPaymentDate = new Date(expense.nextPaymentDate);
+
+        // Calculate next payment date based on frequency
+        switch (expense.frequency) {
+          case 'monthly':
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
+            break;
+          case 'yearly':
+            nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+            break;
+        }
+
+        // Update the expense with new dates
+        const [updatedExpense] = await db
+          .update(expenses)
+          .set({
+            lastPaidDate: today,
+            nextPaymentDate: nextPaymentDate,
+            updatedAt: new Date(),
+          })
+          .where(eq(expenses.id, id))
+          .returning();
+
+        return updatedExpense;
+      }, 'Mark expense as paid');
+    } catch (error) {
+      logger.error(`Error marking expense as paid with ID ${id}`, error);
+      throw new DatabaseError(`Failed to mark expense as paid: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

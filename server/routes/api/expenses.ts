@@ -105,6 +105,22 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Mark an expense as paid
+router.post("/:id/mark-paid", async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const id = parseInt(req.params.id);
+    const expense = await storage.markExpenseAsPaid(id);
+    res.json(expense);
+  } catch (error) {
+    console.error("Error marking expense as paid:", error);
+    res.status(500).json({ message: "Failed to mark expense as paid" });
+  }
+});
+
 // Delete an expense
 router.delete("/:id", async (req, res) => {
   try {
