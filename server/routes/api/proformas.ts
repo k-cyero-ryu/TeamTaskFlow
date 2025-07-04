@@ -191,8 +191,8 @@ router.delete("/:id", async (req, res) => {
  */
 const getImageAsBase64 = async (logoPath: string): Promise<string> => {
   try {
-    const fs = require('fs');
-    const path = require('path');
+    const fs = await import('fs');
+    const path = await import('path');
     
     // Handle both full paths and relative paths
     let filePath;
@@ -297,6 +297,16 @@ router.get("/:id/print", requireAuth, async (req, res) => {
           max-height: 40px;
           max-width: 120px;
           object-fit: contain;
+        }
+        
+        .company-info {
+          margin-left: 20px;
+        }
+        
+        .company-name {
+          font-size: 16px;
+          font-weight: bold;
+          margin-bottom: 5px;
         }
         
         .company-address {
@@ -458,16 +468,20 @@ router.get("/:id/print", requireAuth, async (req, res) => {
           <div class="logo">
             ${logoHtml}
           </div>
-          <div class="company-address">
-            ${proforma.companyAddress.replace(/\n/g, '<br>')}
+          <div class="company-info">
+            <div class="company-name">${proforma.companyName}</div>
+            <div class="company-address">
+              ${proforma.companyAddress.replace(/\n/g, '<br>')}
+            </div>
           </div>
         </div>
         <div class="header-right">
           <h1 class="quotation-title">COTIZACIÓN #${proforma.proformaNumber}</h1>
           <div class="quotation-details">
             <div>FECHA: ${new Date(proforma.createdAt).toLocaleDateString()}</div>
-            <div>VENDEDOR: ADMIN</div>
-            <div>CLIENTE: ${proforma.companyName}</div>
+            ${proforma.validUntil ? `<div>VÁLIDO HASTA: ${new Date(proforma.validUntil).toLocaleDateString()}</div>` : ''}
+            <div>VENDEDOR: ${proforma.createdBy.username.toUpperCase()}</div>
+            <div>CLIENTE: ${proforma.estimation.clientName}</div>
           </div>
         </div>
       </div>
