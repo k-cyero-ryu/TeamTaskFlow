@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Proforma, InsertProforma, ProformaItem } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, proformas, proformaItems } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -140,6 +140,14 @@ interface IStorage {
   addEstimationItem(estimationId: number, stockItemId: number, quantity: number): Promise<EstimationItem>;
   updateEstimationItem(id: number, quantity: number): Promise<EstimationItem>;
   deleteEstimationItem(id: number): Promise<void>;
+
+  // Proforma methods
+  getProformas(): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] })[]>;
+  getProforma(id: number): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName' | 'clientInformation' | 'address'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] }) | undefined>;
+  createProforma(proforma: InsertProforma, userId: number): Promise<Proforma>;
+  updateProforma(id: number, proforma: Partial<InsertProforma>): Promise<Proforma>;
+  deleteProforma(id: number): Promise<void>;
+  generateProformaNumber(): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2501,6 +2509,306 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update estimation total cost for estimation ${estimationId}`, { error });
       throw new DatabaseError(`Failed to update estimation total cost: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Proforma methods implementation
+  async getProformas(): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const proformasData = await db
+          .select({
+            id: proformas.id,
+            estimationId: proformas.estimationId,
+            proformaNumber: proformas.proformaNumber,
+            profitPercentage: proformas.profitPercentage,
+            totalCost: proformas.totalCost,
+            totalPrice: proformas.totalPrice,
+            companyName: proformas.companyName,
+            companyAddress: proformas.companyAddress,
+            companyPhone: proformas.companyPhone,
+            companyEmail: proformas.companyEmail,
+            companyLogo: proformas.companyLogo,
+            status: proformas.status,
+            notes: proformas.notes,
+            validUntil: proformas.validUntil,
+            createdById: proformas.createdById,
+            createdAt: proformas.createdAt,
+            updatedAt: proformas.updatedAt,
+            estimation: {
+              id: estimations.id,
+              name: estimations.name,
+              clientName: estimations.clientName,
+            },
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(proformas)
+          .innerJoin(estimations, eq(proformas.estimationId, estimations.id))
+          .innerJoin(users, eq(proformas.createdById, users.id))
+          .orderBy(desc(proformas.createdAt));
+
+        // Get items for each proforma
+        const proformasWithItems = await Promise.all(
+          proformasData.map(async (proforma) => {
+            const items = await db
+              .select({
+                id: proformaItems.id,
+                proformaId: proformaItems.proformaId,
+                estimationItemId: proformaItems.estimationItemId,
+                stockItemId: proformaItems.stockItemId,
+                stockItemName: proformaItems.stockItemName,
+                quantity: proformaItems.quantity,
+                unitCost: proformaItems.unitCost,
+                unitPrice: proformaItems.unitPrice,
+                totalPrice: proformaItems.totalPrice,
+                createdAt: proformaItems.createdAt,
+                stockItem: {
+                  id: stockItems.id,
+                  name: stockItems.name,
+                },
+              })
+              .from(proformaItems)
+              .innerJoin(stockItems, eq(proformaItems.stockItemId, stockItems.id))
+              .where(eq(proformaItems.proformaId, proforma.id));
+
+            return {
+              ...proforma,
+              items,
+            };
+          })
+        );
+
+        return proformasWithItems;
+      }, 'Get proformas');
+    } catch (error) {
+      logger.error('Failed to get proformas', { error });
+      throw new DatabaseError(`Failed to get proformas: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getProforma(id: number): Promise<(Proforma & { estimation: Pick<Estimation, 'id' | 'name' | 'clientName' | 'clientInformation' | 'address'>; createdBy: Pick<User, 'id' | 'username'>; items: (ProformaItem & { stockItem: Pick<StockItem, 'id' | 'name'> })[] }) | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [proformaData] = await db
+          .select({
+            id: proformas.id,
+            estimationId: proformas.estimationId,
+            proformaNumber: proformas.proformaNumber,
+            profitPercentage: proformas.profitPercentage,
+            totalCost: proformas.totalCost,
+            totalPrice: proformas.totalPrice,
+            companyName: proformas.companyName,
+            companyAddress: proformas.companyAddress,
+            companyPhone: proformas.companyPhone,
+            companyEmail: proformas.companyEmail,
+            companyLogo: proformas.companyLogo,
+            status: proformas.status,
+            notes: proformas.notes,
+            validUntil: proformas.validUntil,
+            createdById: proformas.createdById,
+            createdAt: proformas.createdAt,
+            updatedAt: proformas.updatedAt,
+            estimation: {
+              id: estimations.id,
+              name: estimations.name,
+              clientName: estimations.clientName,
+              clientInformation: estimations.clientInformation,
+              address: estimations.address,
+            },
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(proformas)
+          .innerJoin(estimations, eq(proformas.estimationId, estimations.id))
+          .innerJoin(users, eq(proformas.createdById, users.id))
+          .where(eq(proformas.id, id));
+
+        if (!proformaData) {
+          return undefined;
+        }
+
+        // Get items for the proforma
+        const items = await db
+          .select({
+            id: proformaItems.id,
+            proformaId: proformaItems.proformaId,
+            estimationItemId: proformaItems.estimationItemId,
+            stockItemId: proformaItems.stockItemId,
+            stockItemName: proformaItems.stockItemName,
+            quantity: proformaItems.quantity,
+            unitCost: proformaItems.unitCost,
+            unitPrice: proformaItems.unitPrice,
+            totalPrice: proformaItems.totalPrice,
+            createdAt: proformaItems.createdAt,
+            stockItem: {
+              id: stockItems.id,
+              name: stockItems.name,
+            },
+          })
+          .from(proformaItems)
+          .innerJoin(stockItems, eq(proformaItems.stockItemId, stockItems.id))
+          .where(eq(proformaItems.proformaId, id));
+
+        return {
+          ...proformaData,
+          items,
+        };
+      }, 'Get proforma');
+    } catch (error) {
+      logger.error(`Failed to get proforma ${id}`, { error });
+      throw new DatabaseError(`Failed to get proforma: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createProforma(proforma: InsertProforma, userId: number): Promise<Proforma> {
+    try {
+      return await executeWithRetry(async () => {
+        // Get estimation with items
+        const estimation = await this.getEstimation(proforma.estimationId);
+        if (!estimation) {
+          throw new Error('Estimation not found');
+        }
+
+        // Ensure totalCost is not null
+        const totalCost = estimation.totalCost || 0;
+
+        // Generate proforma number
+        const proformaNumber = await this.generateProformaNumber();
+
+        // Calculate total price based on profit percentage
+        const totalPrice = Math.round(totalCost * (1 + proforma.profitPercentage / 100));
+
+        // Create the proforma
+        const [newProforma] = await db
+          .insert(proformas)
+          .values({
+            estimationId: proforma.estimationId,
+            profitPercentage: proforma.profitPercentage,
+            companyName: proforma.companyName,
+            companyAddress: proforma.companyAddress,
+            companyPhone: proforma.companyPhone,
+            companyEmail: proforma.companyEmail,
+            companyLogo: proforma.companyLogo,
+            notes: proforma.notes,
+            validUntil: proforma.validUntil,
+            proformaNumber,
+            totalCost,
+            totalPrice,
+            createdById: userId,
+          })
+          .returning();
+
+        // Create proforma items based on estimation items
+        const proformaItemsData = estimation.items.map(item => {
+          const unitPrice = Math.round(item.unitCost * (1 + proforma.profitPercentage / 100));
+          return {
+            proformaId: newProforma.id,
+            estimationItemId: item.id,
+            stockItemId: item.stockItemId,
+            stockItemName: item.stockItem.name,
+            quantity: item.quantity,
+            unitCost: item.unitCost,
+            unitPrice,
+            totalPrice: unitPrice * item.quantity,
+          };
+        });
+
+        await db.insert(proformaItems).values(proformaItemsData);
+
+        return newProforma;
+      }, 'Create proforma');
+    } catch (error) {
+      logger.error('Failed to create proforma', { error, userId });
+      throw new DatabaseError(`Failed to create proforma: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateProforma(id: number, proforma: Partial<InsertProforma>): Promise<Proforma> {
+    try {
+      return await executeWithRetry(async () => {
+        const updateData: any = { ...proforma, updatedAt: new Date() };
+
+        // If profit percentage is being updated, recalculate prices
+        if (proforma.profitPercentage !== undefined) {
+          const existingProforma = await this.getProforma(id);
+          if (!existingProforma) {
+            throw new Error('Proforma not found');
+          }
+
+          // Recalculate total price
+          const totalPrice = Math.round(existingProforma.totalCost * (1 + proforma.profitPercentage / 100));
+          updateData.totalPrice = totalPrice;
+
+          // Update proforma items prices
+          for (const item of existingProforma.items) {
+            const unitPrice = Math.round(item.unitCost * (1 + proforma.profitPercentage / 100));
+            await db
+              .update(proformaItems)
+              .set({
+                unitPrice,
+                totalPrice: unitPrice * item.quantity,
+              })
+              .where(eq(proformaItems.id, item.id));
+          }
+        }
+
+        const [updatedProforma] = await db
+          .update(proformas)
+          .set(updateData)
+          .where(eq(proformas.id, id))
+          .returning();
+
+        if (!updatedProforma) {
+          throw new Error('Proforma not found');
+        }
+
+        return updatedProforma;
+      }, 'Update proforma');
+    } catch (error) {
+      logger.error(`Failed to update proforma ${id}`, { error });
+      throw new DatabaseError(`Failed to update proforma: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteProforma(id: number): Promise<void> {
+    try {
+      await executeWithRetry(async () => {
+        // Delete proforma items first
+        await db.delete(proformaItems).where(eq(proformaItems.proformaId, id));
+        
+        // Delete the proforma
+        await db.delete(proformas).where(eq(proformas.id, id));
+      }, 'Delete proforma');
+    } catch (error) {
+      logger.error(`Failed to delete proforma ${id}`, { error });
+      throw new DatabaseError(`Failed to delete proforma: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async generateProformaNumber(): Promise<string> {
+    try {
+      return await executeWithRetry(async () => {
+        const year = new Date().getFullYear();
+        
+        // Get the highest number for this year
+        const result = await db
+          .select({
+            maxNumber: sql<number>`MAX(CAST(SUBSTRING(${proformas.proformaNumber} FROM '[0-9]+$') AS INTEGER))`,
+          })
+          .from(proformas)
+          .where(sql`${proformas.proformaNumber} LIKE ${`PRF-${year}-%`}`);
+
+        const nextNumber = (result[0]?.maxNumber || 0) + 1;
+        return `PRF-${year}-${nextNumber.toString().padStart(3, '0')}`;
+      }, 'Generate proforma number');
+    } catch (error) {
+      logger.error('Failed to generate proforma number', { error });
+      throw new DatabaseError(`Failed to generate proforma number: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

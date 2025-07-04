@@ -12,6 +12,7 @@ import Channels from "@/pages/channels";
 import ChannelDetail from "@/pages/channel-detail";
 import Stock from "@/pages/stock";
 import Estimations from "@/pages/estimations";
+import Proformas from "@/pages/proformas";
 import Settings from "@/pages/settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { MainNav } from "./components/main-nav";
@@ -186,6 +187,14 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Estimations />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/proformas">
+          <ProtectedRoute>
+            <Layout>
+              <Proformas />
             </Layout>
           </ProtectedRoute>
         </Route>

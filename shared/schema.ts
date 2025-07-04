@@ -783,6 +783,66 @@ export const insertEstimationItemSchema = createInsertSchema(estimationItems).pi
 
 export type Estimation = typeof estimations.$inferSelect;
 export type EstimationItem = typeof estimationItems.$inferSelect;
+
+// Proforma management tables
+export const proformas = pgTable("proformas", {
+  id: serial("id").primaryKey(),
+  estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
+  proformaNumber: text("proforma_number").notNull().unique(), // e.g., PRF-2025-001
+  profitPercentage: integer("profit_percentage").notNull(), // profit margin as percentage (e.g., 25 for 25%)
+  totalCost: integer("total_cost").notNull(), // total cost from estimation in cents
+  totalPrice: integer("total_price").notNull(), // total selling price (cost + profit) in cents
+  // Company information
+  companyName: text("company_name").notNull(),
+  companyAddress: text("company_address").notNull(),
+  companyPhone: text("company_phone"),
+  companyEmail: text("company_email"),
+  companyLogo: text("company_logo"), // path to logo file
+  // Status and metadata
+  status: text("status").default("draft"), // draft, sent, accepted, rejected
+  notes: text("notes"), // internal notes
+  validUntil: timestamp("valid_until"), // quote expiration date
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Proforma items - calculated prices from estimation items + profit
+export const proformaItems = pgTable("proforma_items", {
+  id: serial("id").primaryKey(),
+  proformaId: integer("proforma_id").references(() => proformas.id).notNull(),
+  estimationItemId: integer("estimation_item_id").references(() => estimationItems.id).notNull(),
+  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+  stockItemName: text("stock_item_name").notNull(), // cached at time of proforma creation
+  quantity: integer("quantity").notNull(),
+  unitCost: integer("unit_cost").notNull(), // original cost per unit in cents
+  unitPrice: integer("unit_price").notNull(), // selling price per unit (cost + profit) in cents
+  totalPrice: integer("total_price").notNull(), // quantity * unitPrice in cents
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    proformaItemUnique: unique().on(table.proformaId, table.estimationItemId)
+  };
+});
+
+// Proforma management schemas and types
+export const insertProformaSchema = createInsertSchema(proformas).pick({
+  estimationId: true,
+  profitPercentage: true,
+  companyName: true,
+  companyAddress: true,
+  companyPhone: true,
+  companyEmail: true,
+  companyLogo: true,
+  notes: true,
+  validUntil: true,
+}).extend({
+  validUntil: z.string().transform((str) => new Date(str)).optional(),
+});
+
+export type Proforma = typeof proformas.$inferSelect;
+export type ProformaItem = typeof proformaItems.$inferSelect;
+export type InsertProforma = z.infer<typeof insertProformaSchema>;
 export type InsertEstimation = z.infer<typeof insertEstimationSchema>;
 export type InsertEstimationItem = z.infer<typeof insertEstimationItemSchema>;
 
@@ -799,13 +859,42 @@ export const estimationsRelations = relations(estimations, ({ one, many }) => ({
   items: many(estimationItems),
 }));
 
-export const estimationItemsRelations = relations(estimationItems, ({ one }) => ({
+export const estimationItemsRelations = relations(estimationItems, ({ one, many }) => ({
   estimation: one(estimations, {
     fields: [estimationItems.estimationId],
     references: [estimations.id],
   }),
   stockItem: one(stockItems, {
     fields: [estimationItems.stockItemId],
+    references: [stockItems.id],
+  }),
+  proformaItems: many(proformaItems),
+}));
+
+// Proforma relations
+export const proformasRelations = relations(proformas, ({ one, many }) => ({
+  estimation: one(estimations, {
+    fields: [proformas.estimationId],
+    references: [estimations.id],
+  }),
+  createdBy: one(users, {
+    fields: [proformas.createdById],
+    references: [users.id],
+  }),
+  items: many(proformaItems),
+}));
+
+export const proformaItemsRelations = relations(proformaItems, ({ one }) => ({
+  proforma: one(proformas, {
+    fields: [proformaItems.proformaId],
+    references: [proformas.id],
+  }),
+  estimationItem: one(estimationItems, {
+    fields: [proformaItems.estimationItemId],
+    references: [estimationItems.id],
+  }),
+  stockItem: one(stockItems, {
+    fields: [proformaItems.stockItemId],
     references: [stockItems.id],
   }),
 }));

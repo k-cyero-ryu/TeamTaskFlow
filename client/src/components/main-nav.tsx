@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users, Package, Calculator } from "lucide-react";
+import { MessageCircle, LayoutDashboard, CheckSquare, ChevronDown, GitFork, Users, Package, Calculator, FileText } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { NotificationsDropdown } from "./notifications-dropdown";
 
@@ -102,6 +102,18 @@ export function MainNav() {
                 <div className="flex items-center">
                   <Calculator className="mr-2 h-4 w-4" />
                   Estimations
+                </div>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                className={navigationMenuTriggerStyle()}
+                active={location.startsWith("/proformas")}
+                onClick={() => setLocation("/proformas")}
+              >
+                <div className="flex items-center">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Proformas
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>

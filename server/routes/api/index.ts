@@ -11,6 +11,7 @@ import calendarRouter from './calendar';
 import stagesRouter from './stages';
 import stockRouter from './stock';
 import estimationsRouter from './estimations';
+import proformasRouter from './proformas';
 
 const router = Router();
 
@@ -27,5 +28,6 @@ router.use('/calendar', calendarRouter);
 router.use('/stages', stagesRouter);
 router.use('/stock', stockRouter);
 router.use('/estimations', estimationsRouter);
+router.use('/proformas', proformasRouter);
 
 export default router;
