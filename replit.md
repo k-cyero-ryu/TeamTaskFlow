@@ -98,6 +98,13 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Created comprehensive project documentation including GitHub README and multilingual user manuals
+  - Developed professional GitHub README with complete feature overview, installation instructions, and technical specifications
+  - Created detailed English user manual covering all application features and functionality
+  - Developed complete French user manual (Manuel d'Utilisation) with full feature coverage and navigation guidance
+  - Added technical documentation for developers including architecture, API endpoints, and deployment guidelines
+  - Created installation guide with step-by-step setup instructions and troubleshooting section
+  - Organized all documentation in /docs directory for easy access and maintenance
 - July 04, 2025. Completed comprehensive multilingual implementation for Estimations page with full language support
   - Successfully resolved critical duplicate translation key errors that prevented application startup
   - Implemented complete Estimations page translation across English, French, and Spanish languages
