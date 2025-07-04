@@ -234,7 +234,7 @@ router.get("/:id/print", async (req, res) => {
     </head>
     <body>
       <div class="header">
-        <h1>PROFORMA INVOICE</h1>
+        <h1>QUOTATION</h1>
         <h2>${proforma.proformaNumber}</h2>
       </div>
       
@@ -256,7 +256,6 @@ router.get("/:id/print", async (req, res) => {
           <tr>
             <th>Item</th>
             <th>Quantity</th>
-            <th>Unit Cost</th>
             <th>Unit Price</th>
             <th>Total Price</th>
           </tr>
@@ -266,7 +265,6 @@ router.get("/:id/print", async (req, res) => {
             <tr>
               <td>${item.stockItemName}</td>
               <td>${item.quantity}</td>
-              <td>${formatCurrency(item.unitCost)}</td>
               <td>${formatCurrency(item.unitPrice)}</td>
               <td>${formatCurrency(item.totalPrice)}</td>
             </tr>
@@ -275,12 +273,10 @@ router.get("/:id/print", async (req, res) => {
       </table>
       
       <div class="total">
-        <p>Total Cost: ${formatCurrency(proforma.totalCost)}</p>
-        <p>Total Profit: ${formatCurrency(proforma.totalPrice - proforma.totalCost)}</p>
-        <p><strong>Total Price: ${formatCurrency(proforma.totalPrice)}</strong></p>
+        <p><strong>Total Amount: ${formatCurrency(proforma.totalPrice)}</strong></p>
       </div>
       
-      ${proforma.notes ? `<div class="footer"><p><strong>Notes:</strong> ${proforma.notes}</p></div>` : ''}
+
       
       <div class="no-print" style="margin-top: 20px;">
         <button onclick="window.print()">Print</button>
