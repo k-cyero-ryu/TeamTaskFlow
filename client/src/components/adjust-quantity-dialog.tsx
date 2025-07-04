@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, TrendingUp, TrendingDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 const adjustQuantitySchema = z.object({
   quantity: z.number().min(0, "Quantity must be positive"),
@@ -62,6 +63,7 @@ export default function AdjustQuantityDialog({
   onClose 
 }: AdjustQuantityDialogProps) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [adjustmentType, setAdjustmentType] = useState<"set" | "add" | "remove">("set");
 
   const form = useForm<AdjustQuantityForm>({
@@ -137,9 +139,9 @@ export default function AdjustQuantityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Adjust Stock Quantity</DialogTitle>
+          <DialogTitle>{t("adjustStockQuantity")}</DialogTitle>
           <DialogDescription>
-            Modify the quantity for "{item.name}"
+            {t("modifyQuantityFor")} "{item.name}"
           </DialogDescription>
         </DialogHeader>
 
@@ -155,18 +157,18 @@ export default function AdjustQuantityDialog({
               )}
             </div>
             <div className="text-sm text-muted-foreground">
-              Current quantity: <span className="font-medium">{item.quantity}</span>
+              {t("currentQuantity")}: <span className="font-medium">{item.quantity}</span>
             </div>
             {item.assignedUser && (
               <div className="text-sm text-muted-foreground">
-                Assigned to: <span className="font-medium">{item.assignedUser.username}</span>
+                {t("assignedTo")}: <span className="font-medium">{item.assignedUser.username}</span>
               </div>
             )}
           </div>
 
           {/* Adjustment Type Selector */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Adjustment Type</label>
+            <label className="text-sm font-medium">{t("adjustmentType")}</label>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -176,7 +178,7 @@ export default function AdjustQuantityDialog({
                 className="flex-1"
               >
                 <Package className="h-3 w-3 mr-1" />
-                Set To
+                {t("setTo")}
               </Button>
               <Button
                 type="button"
@@ -186,7 +188,7 @@ export default function AdjustQuantityDialog({
                 className="flex-1"
               >
                 <TrendingUp className="h-3 w-3 mr-1" />
-                Add
+                {t("add")}
               </Button>
               <Button
                 type="button"
@@ -196,7 +198,7 @@ export default function AdjustQuantityDialog({
                 className="flex-1"
               >
                 <TrendingDown className="h-3 w-3 mr-1" />
-                Remove
+                {t("remove")}
               </Button>
             </div>
           </div>
@@ -209,9 +211,9 @@ export default function AdjustQuantityDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {adjustmentType === "set" ? "New Quantity" : 
-                       adjustmentType === "add" ? "Quantity to Add" : 
-                       "Quantity to Remove"}
+                      {adjustmentType === "set" ? t("newQuantity") : 
+                       adjustmentType === "add" ? t("quantity") + " to " + t("add") : 
+                       t("quantity") + " to " + t("remove")}
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -230,7 +232,7 @@ export default function AdjustQuantityDialog({
               {/* Preview */}
               <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Final quantity will be: </span>
+                  <span className="text-muted-foreground">{t("finalQuantityWillBe")}: </span>
                   <span className="font-bold text-blue-600 dark:text-blue-400">
                     {calculateFinalQuantity()}
                   </span>
@@ -246,10 +248,10 @@ export default function AdjustQuantityDialog({
                 name="reason"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reason (Optional)</FormLabel>
+                    <FormLabel>{t("reasonOptional")}</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Enter reason for quantity adjustment..."
+                        placeholder={t("enterReasonForAdjustment")}
                         rows={3}
                         {...field}
                       />
@@ -261,7 +263,7 @@ export default function AdjustQuantityDialog({
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button 
                   type="submit" 
@@ -273,7 +275,7 @@ export default function AdjustQuantityDialog({
                       Adjusting...
                     </>
                   ) : (
-                    "Adjust Quantity"
+                    t("adjustQuantity")
                   )}
                 </Button>
               </div>
