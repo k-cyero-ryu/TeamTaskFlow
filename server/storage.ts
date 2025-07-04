@@ -2662,6 +2662,12 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Estimation not found');
         }
 
+        // Get company information from database
+        const company = await this.getCompany(proforma.companyId);
+        if (!company) {
+          throw new Error('Company not found');
+        }
+
         // Ensure totalCost is not null
         const totalCost = estimation.totalCost || 0;
 
@@ -2671,17 +2677,17 @@ export class DatabaseStorage implements IStorage {
         // Calculate total price based on profit percentage
         const totalPrice = Math.round(totalCost * (1 + proforma.profitPercentage / 100));
 
-        // Create the proforma
+        // Create the proforma using company data from database
         const [newProforma] = await db
           .insert(proformas)
           .values({
             estimationId: proforma.estimationId,
+            companyId: proforma.companyId,
             profitPercentage: proforma.profitPercentage,
-            companyName: proforma.companyName,
-            companyAddress: proforma.companyAddress,
-            companyPhone: proforma.companyPhone,
-            companyEmail: proforma.companyEmail,
-
+            companyName: company.name,
+            companyAddress: company.address,
+            companyPhone: company.phone,
+            companyEmail: company.email,
             notes: proforma.notes,
             validUntil: proforma.validUntil,
             proformaNumber,

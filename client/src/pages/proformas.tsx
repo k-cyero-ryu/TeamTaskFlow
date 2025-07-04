@@ -82,12 +82,8 @@ type Proforma = {
 
 const proformaFormSchema = z.object({
   estimationId: z.number().min(1, "Please select an estimation"),
+  companyId: z.number().min(1, "Please select a company"),
   profitPercentage: z.number().min(0, "Profit percentage must be 0 or greater").max(1000, "Profit percentage cannot exceed 1000%"),
-  companyName: z.string().min(1, "Company name is required"),
-  companyAddress: z.string().min(1, "Company address is required"),
-  companyPhone: z.string().optional(),
-  companyEmail: z.string().email("Invalid email format").optional().or(z.literal("")),
-  companyLogo: z.string().optional(),
   notes: z.string().optional(),
   validUntil: z.date().optional(),
 });
@@ -109,26 +105,39 @@ export default function ProformasPage() {
     queryKey: ["/api/estimations"],
   });
 
+  const { data: companies = [] } = useQuery<Array<{
+    id: number;
+    name: string;
+    address: string;
+    phone: string | null;
+    email: string | null;
+    logo: string | null;
+    isDefault: boolean | null;
+  }>>({
+    queryKey: ["/api/companies"],
+  });
+
+  // Find default company or use first company
+  const defaultCompany = companies.find(c => c.isDefault) || companies[0];
+
   // Create proforma form
   const createForm = useForm<ProformaFormData>({
     resolver: zodResolver(proformaFormSchema),
     defaultValues: {
       estimationId: 0,
+      companyId: defaultCompany?.id || 0,
       profitPercentage: 25,
-      companyName: "",
-      companyAddress: "",
-      companyPhone: "",
-      companyEmail: "",
-      companyLogo: "",
       notes: "",
       validUntil: undefined,
     },
   });
 
-  // Watch estimation selection to calculate preview
+  // Watch estimation and company selection to calculate preview
   const selectedEstimationId = createForm.watch("estimationId");
+  const selectedCompanyId = createForm.watch("companyId");
   const profitPercentage = createForm.watch("profitPercentage");
   const selectedEstimation = estimations.find(e => e.id === selectedEstimationId);
+  const selectedCompany = companies.find(c => c.id === selectedCompanyId);
 
   // Calculate preview totals
   const previewData = selectedEstimation ? {
@@ -282,6 +291,22 @@ export default function ProformasPage() {
                   </div>
                 )}
 
+                {selectedCompany && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium mb-3">Selected Company</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                      <div>
+                        <p><strong>Name:</strong> {selectedCompany.name}</p>
+                        <p><strong>Email:</strong> {selectedCompany.email || "Not provided"}</p>
+                      </div>
+                      <div>
+                        <p><strong>Phone:</strong> {selectedCompany.phone || "Not provided"}</p>
+                        <p><strong>Address:</strong> {selectedCompany.address}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <FormField
                   control={createForm.control}
                   name="profitPercentage"
@@ -325,67 +350,31 @@ export default function ProformasPage() {
                 )}
 
                 <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Company Information</h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={createForm.control}
-                          name="companyName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Company Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Enter company name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={createForm.control}
-                          name="companyEmail"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Company Email</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="email" placeholder="company@example.com" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={createForm.control}
-                        name="companyAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Address</FormLabel>
-                            <FormControl>
-                              <Textarea {...field} placeholder="Enter company address" rows={3} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={createForm.control}
-                        name="companyPhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Phone (Optional)</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Enter company phone" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  <FormField
+                    control={createForm.control}
+                    name="companyId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company</FormLabel>
+                        <FormControl>
+                          <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString() || "0"}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a company" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0" disabled>Select a company</SelectItem>
+                              {companies.map((company) => (
+                                <SelectItem key={company.id} value={company.id.toString()}>
+                                  {company.name} {company.isDefault && "(Default)"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div>
                     <h3 className="text-lg font-medium mb-4">Additional Information</h3>
