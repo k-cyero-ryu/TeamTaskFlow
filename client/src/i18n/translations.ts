@@ -291,6 +291,23 @@ export const translations = {
     adjustPermissions: "Adjust Permissions",
     noItems: "No items found",
     noPermissions: "You don't have permission to access the stock system",
+    
+    // Estimations
+    estimationsTitle: "Estimations",
+    estimationsDescription: "Create and manage project estimations with stock items",
+    newEstimation: "New Estimation",
+    createNewEstimation: "Create New Estimation",
+    filterByName: "Filter by Name",
+    searchEstimations: "Search estimations...",
+    dateRange: "Date Range",
+    selectDateRange: "Select date range",
+    allTime: "All Time",
+    lastWeek: "Last Week",
+    lastMonth: "Last Month",
+    customRange: "Custom Range",
+    startDate: "Start Date",
+    endDate: "End Date",
+    addItem: "Add Item",
   },
   
   fr: {
@@ -585,6 +602,23 @@ export const translations = {
     adjustPermissions: "Ajuster les permissions",
     noItems: "Aucun article trouvé",
     noPermissions: "Vous n'avez pas la permission d'accéder au système de stock",
+    
+    // Estimations
+    estimationsTitle: "Estimations",
+    estimationsDescription: "Créer et gérer les estimations de projet avec les articles de stock",
+    newEstimation: "Nouvelle estimation",
+    createNewEstimation: "Créer une nouvelle estimation",
+    filterByName: "Filtrer par nom",
+    searchEstimations: "Rechercher des estimations...",
+    dateRange: "Plage de dates",
+    selectDateRange: "Sélectionner la plage de dates",
+    allTime: "Toute période",
+    lastWeek: "Semaine dernière",
+    lastMonth: "Mois dernier",
+    customRange: "Plage personnalisée",
+    startDate: "Date de début",
+    endDate: "Date de fin",
+    addItem: "Ajouter un article",
   },
   
   es: {
@@ -879,5 +913,22 @@ export const translations = {
     adjustPermissions: "Ajustar permisos",
     noItems: "No se encontraron artículos",
     noPermissions: "No tienes permisos para acceder al sistema de inventario",
+    
+    // Estimations
+    estimationsTitle: "Estimaciones",
+    estimationsDescription: "Crear y gestionar estimaciones de proyecto con artículos de inventario",
+    newEstimation: "Nueva estimación",
+    createNewEstimation: "Crear nueva estimación",
+    filterByName: "Filtrar por nombre",
+    searchEstimations: "Buscar estimaciones...",
+    dateRange: "Rango de fechas",
+    selectDateRange: "Seleccionar rango de fechas",
+    allTime: "Todo el tiempo",
+    lastWeek: "Última semana",
+    lastMonth: "Último mes",
+    customRange: "Rango personalizado",
+    startDate: "Fecha de inicio",
+    endDate: "Fecha de fin",
+    addItem: "Agregar artículo",
   }
 };

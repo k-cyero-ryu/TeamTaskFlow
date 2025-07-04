@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 // Types
 type StockItem = {
@@ -73,6 +74,7 @@ type EstimationFormData = z.infer<typeof estimationFormSchema>;
 
 export default function EstimationsPage() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
@@ -374,19 +376,19 @@ export default function EstimationsPage() {
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Estimations</h1>
-          <p className="text-muted-foreground">Create and manage project estimations with stock items</p>
+          <h1 className="text-3xl font-bold">{t("estimationsTitle")}</h1>
+          <p className="text-muted-foreground">{t("estimationsDescription")}</p>
         </div>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Estimation
+              {t("newEstimation")}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Estimation</DialogTitle>
+              <DialogTitle>{t("createNewEstimation")}</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
@@ -508,7 +510,7 @@ export default function EstimationsPage() {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="mr-2 h-4 w-4" />
-            Filters
+            {t("filters")}
           </Button>
           {(nameFilter || dateRange !== "all") && (
             <Button
@@ -522,7 +524,7 @@ export default function EstimationsPage() {
               }}
             >
               <X className="mr-2 h-4 w-4" />
-              Clear Filters
+              {t("clearFilters")}
             </Button>
           )}
         </div>
@@ -531,32 +533,32 @@ export default function EstimationsPage() {
           <Card className="p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <Label htmlFor="nameFilter">Filter by Name</Label>
+                <Label htmlFor="nameFilter">{t("filterByName")}</Label>
                 <Input
                   id="nameFilter"
-                  placeholder="Search estimations..."
+                  placeholder={t("searchEstimations")}
                   value={nameFilter}
                   onChange={(e) => setNameFilter(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="dateRange">Date Range</Label>
+                <Label htmlFor="dateRange">{t("dateRange")}</Label>
                 <Select value={dateRange} onValueChange={setDateRange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select date range" />
+                    <SelectValue placeholder={t("selectDateRange")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="lastWeek">Last Week</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="custom">Custom Range</SelectItem>
+                    <SelectItem value="all">{t("allTime")}</SelectItem>
+                    <SelectItem value="lastWeek">{t("lastWeek")}</SelectItem>
+                    <SelectItem value="lastMonth">{t("lastMonth")}</SelectItem>
+                    <SelectItem value="custom">{t("customRange")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {dateRange === "custom" && (
                 <>
                   <div>
-                    <Label htmlFor="startDate">Start Date</Label>
+                    <Label htmlFor="startDate">{t("startDate")}</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -565,7 +567,7 @@ export default function EstimationsPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate">{t("endDate")}</Label>
                     <Input
                       id="endDate"
                       type="date"
@@ -618,7 +620,7 @@ export default function EstimationsPage() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add Item
+                  {t("addItem")}
                 </Button>
                 <Button
                   variant="outline"
