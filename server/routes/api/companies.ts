@@ -32,6 +32,35 @@ const upload = multer({
   }
 });
 
+// Test endpoint to check multer (without authentication)
+router.post('/test', (req, res) => {
+  logger.info('Test endpoint called (no auth)', {
+    body: req.body,
+    contentType: req.get('content-type'),
+    user: req.user
+  });
+  res.json({ 
+    message: 'Test successful', 
+    body: req.body,
+    authenticated: !!req.user
+  });
+});
+
+// Test endpoint to check multer (with auth)
+router.post('/test-auth', upload.single('logo'), (req, res) => {
+  logger.info('Test endpoint called (with auth)', {
+    body: req.body,
+    file: req.file,
+    contentType: req.get('content-type'),
+    user: req.user
+  });
+  res.json({ 
+    message: 'Test successful', 
+    body: req.body, 
+    file: req.file ? 'File received' : 'No file'
+  });
+});
+
 // Get all companies
 router.get('/', async (req, res) => {
   try {
@@ -57,15 +86,39 @@ router.get('/', async (req, res) => {
 // Create a new company
 router.post('/', upload.single('logo'), async (req, res) => {
   try {
-    // Parse form data
+    // Debug logging
+    logger.info('Create company request received', {
+      body: req.body,
+      file: req.file ? { filename: req.file.filename, mimetype: req.file.mimetype } : null,
+      userId: req.user?.id,
+      contentType: req.get('content-type'),
+      headers: req.headers
+    });
+
+    // Validate that we have the required fields
+    if (!req.body.name || !req.body.address) {
+      logger.error('Missing required fields', {
+        hasName: !!req.body.name,
+        hasAddress: !!req.body.address,
+        body: req.body
+      });
+      return res.status(400).json({ 
+        error: 'Missing required fields', 
+        details: 'Name and address are required' 
+      });
+    }
+
+    // Parse form data - ensure we handle string values properly
     const formData = {
-      name: req.body.name,
-      address: req.body.address,
-      phone: req.body.phone || null,
-      email: req.body.email || null,
-      isDefault: req.body.isDefault === 'true',
+      name: req.body.name.toString().trim(),
+      address: req.body.address.toString().trim(),
+      phone: req.body.phone ? req.body.phone.toString().trim() : null,
+      email: req.body.email ? req.body.email.toString().trim() : null,
+      isDefault: req.body.isDefault === 'true' || req.body.isDefault === true,
       logo: req.file ? `/uploads/${req.file.filename}` : null
     };
+
+    logger.info('Parsed form data', { formData });
 
     const validatedData = insertCompanySchema.parse(formData);
     const company = await storage.createCompany(validatedData);
@@ -85,7 +138,14 @@ router.post('/', upload.single('logo'), async (req, res) => {
         stack: error.stack
       },
       userId: req.user?.id,
-      requestBody: req.body
+      requestBody: req.body,
+      parsedData: req.body ? {
+        name: req.body.name,
+        address: req.body.address,
+        phone: req.body.phone,
+        email: req.body.email,
+        isDefault: req.body.isDefault
+      } : null
     });
     
     if (error.name === 'ZodError') {
