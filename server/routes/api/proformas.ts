@@ -526,7 +526,7 @@ router.get("/:id/print", requireAuth, async (req, res) => {
         </table>
         
         <div class="validity-note">
-          <p><strong>Cotización válida por 30 días*</strong></p>
+          ${proforma.validUntil ? `<p><strong>Cotización válida hasta ${new Date(proforma.validUntil).toLocaleDateString()}*</strong></p>` : '<p><strong>Cotización válida por período a acordar*</strong></p>'}
         </div>
       
         <div class="signature-section">
