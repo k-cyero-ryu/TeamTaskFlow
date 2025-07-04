@@ -30,6 +30,9 @@ router.get("/", checkProformaPermissions('view'), async (req, res) => {
   }
 });
 
+// Register permissions sub-routes BEFORE parameterized routes
+router.use('/permissions', permissionsRouter);
+
 /**
  * @route GET /api/proformas/:id
  * @desc Get proforma by ID
@@ -553,8 +556,5 @@ router.get("/:id/print", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to generate print view" });
   }
 });
-
-// Register permissions sub-routes
-router.use('/permissions', permissionsRouter);
 
 export default router;
