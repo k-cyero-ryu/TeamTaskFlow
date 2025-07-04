@@ -10,7 +10,7 @@ export const translations = {
     proformas: "Proformas",
     expenses: "Expenses",
     stock: "Stock",
-    
+
     // Dashboard
     totalTasks: "Total Tasks",
     overallProgress: "Overall Progress",
@@ -19,10 +19,11 @@ export const translations = {
     tasksCompleted: "{{completed}} of {{total}} tasks completed",
     newTask: "New Task",
     showingTasks: "Showing {{count}} of {{total}}",
-    
+
     // Create Task Dialog
     createNewTask: "Create New Task",
-    createTaskDescription: "Complete the form below to create a new task with details, subtasks, steps, and workflow assignment.",
+    createTaskDescription:
+      "Complete the form below to create a new task with details, subtasks, steps, and workflow assignment.",
     taskTitle: "Task Title",
     taskDescription: "Task Description",
     participants: "Participants",
@@ -43,7 +44,7 @@ export const translations = {
     low: "Low",
     medium: "Medium",
     high: "High",
-    
+
     // Common Actions
     create: "Create",
     edit: "Edit",
@@ -58,7 +59,7 @@ export const translations = {
     loading: "Loading...",
     filters: "Filters",
     clearFilters: "Clear Filters",
-    
+
     // Common Labels
     name: "Name",
     date: "Date",
@@ -74,18 +75,18 @@ export const translations = {
     dueDate: "Due Date",
     createdAt: "Created At",
     updatedAt: "Updated At",
-    
+
     // Workflow States
     pending: "Pending",
     inProgress: "In Progress",
     completed: "Completed",
-    
+
     // Permissions
     canView: "Can View",
     canEdit: "Can Edit",
     canDelete: "Can Delete",
     canManage: "Can Manage",
-    
+
     // Stock Management
     stockTitle: "Stock Management",
     createItem: "Create Item",
@@ -109,10 +110,11 @@ export const translations = {
     adjustPermissions: "Adjust Permissions",
     noItems: "No items found",
     noPermissions: "You don't have permission to access the stock system",
-    
+
     // Estimations
     estimationsTitle: "Estimations",
-    estimationsDescription: "Create and manage project estimations with stock items",
+    estimationsDescription:
+      "Create and manage project estimations with stock items",
     newEstimation: "New Estimation",
     createNewEstimation: "Create New Estimation",
     filterByName: "Filter by Name",
@@ -132,14 +134,75 @@ export const translations = {
     enterProjectAddress: "Enter project address",
     clientName: "Client Name",
     enterClientName: "Enter client name",
-    techniqueOptional: "Technique (Optional)",
+    techniqueOptional: "Technician (Optional)",
     selectTechnique: "Select a technique",
     noTechniqueSelected: "No technique selected",
     clientInformationOptional: "Client Information (Optional)",
     additionalClientInfo: "Additional client information",
     creating: "Creating...",
+    
+    // Proformas
+    proformasTitle: "Proformas",
+    proformasDescription: "Create professional quotes based on estimations",
+    newProforma: "New Proforma",
+    manageAccess: "Manage Access",
+    createNewProforma: "Create New Proforma",
+    selectEstimation: "Select Estimation",
+    chooseAnEstimation: "Choose an estimation",
+    selectAnEstimation: "Select an estimation",
+    estimationDetails: "Estimation Details",
+    client: "Client",
+    items: "Items",
+    totalCost: "Total Cost",
+    selectedCompany: "Selected Company",
+    name: "Name",
+    email: "Email", 
+    phone: "Phone",
+    notProvided: "Not provided",
+    profitPercentage: "Profit Percentage (%)",
+    enterProfitPercentage: "Enter profit percentage",
+    pricePreview: "Price Preview",
+    cost: "Cost",
+    profit: "Profit",
+    sellingPrice: "Selling Price",
+    company: "Company",
+    chooseACompany: "Choose a company",
+    selectACompany: "Select a company",
+    additionalInformation: "Additional Information",
+    validUntilOptional: "Valid Until (Optional)",
+    notesOptional: "Notes (Optional)",
+    internalNotes: "Internal notes",
+    clearFilters: "Clear Filters",
+    filterByProformaNumber: "Filter by Proforma Number",
+    searchProformaNumbers: "Search proforma numbers...",
+    selectDateRange: "Select date range",
+    viewProforma: "View Proforma",
+    proforma: "Proforma",
+    companyInformation: "Company Information",
+    clientInformation: "Client Information",
+    item: "Item",
+    qty: "Qty",
+    unitCost: "Unit Cost",
+    unitPrice: "Unit Price",
+    totalPrice: "Total Price",
+    totalProfit: "Total Profit",
+    totalAmount: "Total Amount",
+    profitMargin: "Profit Margin",
+    validUntil: "Valid Until",
+    created: "Created",
+    createdBy: "Created by",
+    printProforma: "Print Proforma",
+    manageProformaAccess: "Manage Proforma Access",
+    loadingProformas: "Loading proformas...",
+    areYouSure: "Are you sure you want to delete proforma",
+    proformaCreatedSuccessfully: "Proforma created successfully",
+    proformaDeletedSuccessfully: "Proforma deleted successfully",
+    failedToCreateProforma: "Failed to create proforma",
+    failedToDeleteProforma: "Failed to delete proforma",
+    defaultCompany: "(Default)",
+    creatingProforma: "Creating...",
   },
-  
+
   fr: {
     // Navigation
     dashboard: "Tableau de bord",
@@ -151,7 +214,7 @@ export const translations = {
     proformas: "Proformas",
     expenses: "Dépenses",
     stock: "Stock",
-    
+
     // Dashboard
     totalTasks: "Total des tâches",
     overallProgress: "Progression globale",
@@ -160,10 +223,11 @@ export const translations = {
     tasksCompleted: "{{completed}} sur {{total}} tâches terminées",
     newTask: "Nouvelle tâche",
     showingTasks: "Affichage de {{count}} sur {{total}}",
-    
+
     // Create Task Dialog
     createNewTask: "Créer une nouvelle tâche",
-    createTaskDescription: "Remplissez le formulaire ci-dessous pour créer une nouvelle tâche avec des détails, des sous-tâches, des étapes et une affectation de flux de travail.",
+    createTaskDescription:
+      "Remplissez le formulaire ci-dessous pour créer une nouvelle tâche avec des détails, des sous-tâches, des étapes et une affectation de flux de travail.",
     taskTitle: "Titre de la tâche",
     taskDescription: "Description de la tâche",
     participants: "Participants",
@@ -184,7 +248,7 @@ export const translations = {
     low: "Faible",
     medium: "Moyen",
     high: "Élevé",
-    
+
     // Common Actions
     create: "Créer",
     edit: "Modifier",
@@ -199,7 +263,7 @@ export const translations = {
     loading: "Chargement...",
     filters: "Filtres",
     clearFilters: "Effacer les filtres",
-    
+
     // Common Labels
     name: "Nom",
     date: "Date",
@@ -215,18 +279,18 @@ export const translations = {
     dueDate: "Date d'échéance",
     createdAt: "Créé le",
     updatedAt: "Mis à jour le",
-    
+
     // Workflow States
     pending: "En attente",
     inProgress: "En cours",
     completed: "Terminé",
-    
+
     // Permissions
     canView: "Peut voir",
     canEdit: "Peut modifier",
     canDelete: "Peut supprimer",
     canManage: "Peut gérer",
-    
+
     // Stock Management
     stockTitle: "Gestion de stock",
     createItem: "Créer un article",
@@ -249,11 +313,13 @@ export const translations = {
     managePermissions: "Gérer les permissions",
     adjustPermissions: "Ajuster les permissions",
     noItems: "Aucun article trouvé",
-    noPermissions: "Vous n'avez pas la permission d'accéder au système de stock",
-    
+    noPermissions:
+      "Vous n'avez pas la permission d'accéder au système de stock",
+
     // Estimations
     estimationsTitle: "Estimations",
-    estimationsDescription: "Créer et gérer les estimations de projet avec les articles de stock",
+    estimationsDescription:
+      "Créer et gérer les estimations de projet avec les articles de stock",
     newEstimation: "Nouvelle estimation",
     createNewEstimation: "Créer une nouvelle estimation",
     filterByName: "Filtrer par nom",
@@ -273,14 +339,74 @@ export const translations = {
     enterProjectAddress: "Entrer l'adresse du projet",
     clientName: "Nom du client",
     enterClientName: "Entrer le nom du client",
-    techniqueOptional: "Technique (Optionnel)",
+    techniqueOptional: "Technicien (Optionnel)",
     selectTechnique: "Sélectionner une technique",
     noTechniqueSelected: "Aucune technique sélectionnée",
     clientInformationOptional: "Informations client (Optionnel)",
     additionalClientInfo: "Informations client supplémentaires",
     creating: "Création...",
+    
+    // Proformas
+    proformasTitle: "Proformas",
+    proformasDescription: "Créer des devis professionnels basés sur des estimations",
+    newProforma: "Nouveau proforma",
+    createNewProforma: "Créer un nouveau proforma",
+    selectEstimation: "Sélectionner une estimation",
+    chooseAnEstimation: "Choisir une estimation",
+    selectAnEstimation: "Sélectionner une estimation",
+    estimationDetails: "Détails de l'estimation",
+    client: "Client",
+    items: "Articles",
+    totalCost: "Coût total",
+    selectedCompany: "Entreprise sélectionnée",
+    name: "Nom",
+    email: "Email",
+    phone: "Téléphone",
+    notProvided: "Non fourni",
+    profitPercentage: "Pourcentage de profit (%)",
+    enterProfitPercentage: "Entrer le pourcentage de profit",
+    pricePreview: "Aperçu des prix",
+    cost: "Coût",
+    profit: "Profit",
+    sellingPrice: "Prix de vente",
+    company: "Entreprise",
+    chooseACompany: "Choisir une entreprise",
+    selectACompany: "Sélectionner une entreprise",
+    additionalInformation: "Informations supplémentaires",
+    validUntilOptional: "Valide jusqu'au (Optionnel)",
+    notesOptional: "Notes (Optionnel)",
+    internalNotes: "Notes internes",
+    clearFilters: "Effacer les filtres",
+    filterByProformaNumber: "Filtrer par numéro de proforma",
+    searchProformaNumbers: "Rechercher des numéros de proforma...",
+    selectDateRange: "Sélectionner une plage de dates",
+    viewProforma: "Voir le proforma",
+    proforma: "Proforma",
+    companyInformation: "Informations sur l'entreprise",
+    clientInformation: "Informations sur le client",
+    item: "Article",
+    qty: "Qté",
+    unitCost: "Coût unitaire",
+    unitPrice: "Prix unitaire",
+    totalPrice: "Prix total",
+    totalProfit: "Profit total",
+    totalAmount: "Montant total",
+    profitMargin: "Marge bénéficiaire",
+    validUntil: "Valide jusqu'au",
+    created: "Créé",
+    createdBy: "Créé par",
+    printProforma: "Imprimer le proforma",
+    manageProformaAccess: "Gérer l'accès aux proformas",
+    loadingProformas: "Chargement des proformas...",
+    areYouSure: "Êtes-vous sûr de vouloir supprimer le proforma",
+    proformaCreatedSuccessfully: "Proforma créé avec succès",
+    proformaDeletedSuccessfully: "Proforma supprimé avec succès",
+    failedToCreateProforma: "Échec de la création du proforma",
+    failedToDeleteProforma: "Échec de la suppression du proforma",
+    defaultCompany: "(Par défaut)",
+    creatingProforma: "Création...",
   },
-  
+
   es: {
     // Navigation
     dashboard: "Tablero",
@@ -292,7 +418,7 @@ export const translations = {
     proformas: "Proformas",
     expenses: "Gastos",
     stock: "Inventario",
-    
+
     // Dashboard
     totalTasks: "Total de tareas",
     overallProgress: "Progreso general",
@@ -301,10 +427,11 @@ export const translations = {
     tasksCompleted: "{{completed}} de {{total}} tareas completadas",
     newTask: "Nueva tarea",
     showingTasks: "Mostrando {{count}} de {{total}}",
-    
+
     // Create Task Dialog
     createNewTask: "Crear nueva tarea",
-    createTaskDescription: "Complete el formulario a continuación para crear una nueva tarea con detalles, subtareas, pasos y asignación de flujo de trabajo.",
+    createTaskDescription:
+      "Complete el formulario a continuación para crear una nueva tarea con detalles, subtareas, pasos y asignación de flujo de trabajo.",
     taskTitle: "Título de la tarea",
     taskDescription: "Descripción de la tarea",
     participants: "Participantes",
@@ -325,7 +452,7 @@ export const translations = {
     low: "Baja",
     medium: "Media",
     high: "Alta",
-    
+
     // Common Actions
     create: "Crear",
     edit: "Editar",
@@ -340,7 +467,7 @@ export const translations = {
     loading: "Cargando...",
     filters: "Filtros",
     clearFilters: "Limpiar filtros",
-    
+
     // Common Labels
     name: "Nombre",
     date: "Fecha",
@@ -356,18 +483,18 @@ export const translations = {
     dueDate: "Fecha límite",
     createdAt: "Creado el",
     updatedAt: "Actualizado el",
-    
+
     // Workflow States
     pending: "Pendiente",
     inProgress: "En progreso",
     completed: "Completado",
-    
+
     // Permissions
     canView: "Puede ver",
     canEdit: "Puede editar",
     canDelete: "Puede eliminar",
     canManage: "Puede gestionar",
-    
+
     // Stock Management
     stockTitle: "Gestión de inventario",
     createItem: "Crear artículo",
@@ -391,10 +518,11 @@ export const translations = {
     adjustPermissions: "Ajustar permisos",
     noItems: "No se encontraron artículos",
     noPermissions: "No tienes permisos para acceder al sistema de inventario",
-    
+
     // Estimations
     estimationsTitle: "Estimaciones",
-    estimationsDescription: "Crear y gestionar estimaciones de proyecto con artículos de inventario",
+    estimationsDescription:
+      "Crear y gestionar estimaciones de proyecto con artículos de inventario",
     newEstimation: "Nueva estimación",
     createNewEstimation: "Crear nueva estimación",
     filterByName: "Filtrar por nombre",
@@ -414,11 +542,71 @@ export const translations = {
     enterProjectAddress: "Ingrese la dirección del proyecto",
     clientName: "Nombre del cliente",
     enterClientName: "Ingrese el nombre del cliente",
-    techniqueOptional: "Técnica (Opcional)",
+    techniqueOptional: "Técnico (Opcional)",
     selectTechnique: "Seleccione una técnica",
     noTechniqueSelected: "Ninguna técnica seleccionada",
     clientInformationOptional: "Información del cliente (Opcional)",
     additionalClientInfo: "Información adicional del cliente",
     creating: "Creando...",
-  }
+    
+    // Proformas
+    proformasTitle: "Proformas",
+    proformasDescription: "Crear cotizaciones profesionales basadas en estimaciones",
+    newProforma: "Nuevo proforma",
+    createNewProforma: "Crear nuevo proforma",
+    selectEstimation: "Seleccionar estimación",
+    chooseAnEstimation: "Elegir una estimación",
+    selectAnEstimation: "Seleccionar una estimación",
+    estimationDetails: "Detalles de la estimación",
+    client: "Cliente",
+    items: "Artículos",
+    totalCost: "Costo total",
+    selectedCompany: "Empresa seleccionada",
+    name: "Nombre",
+    email: "Email",
+    phone: "Teléfono",
+    notProvided: "No proporcionado",
+    profitPercentage: "Porcentaje de ganancia (%)",
+    enterProfitPercentage: "Ingrese el porcentaje de ganancia",
+    pricePreview: "Vista previa de precios",
+    cost: "Costo",
+    profit: "Ganancia",
+    sellingPrice: "Precio de venta",
+    company: "Empresa",
+    chooseACompany: "Elegir una empresa",
+    selectACompany: "Seleccionar una empresa",
+    additionalInformation: "Información adicional",
+    validUntilOptional: "Válido hasta (Opcional)",
+    notesOptional: "Notas (Opcional)",
+    internalNotes: "Notas internas",
+    clearFilters: "Limpiar filtros",
+    filterByProformaNumber: "Filtrar por número de proforma",
+    searchProformaNumbers: "Buscar números de proforma...",
+    selectDateRange: "Seleccionar rango de fechas",
+    viewProforma: "Ver proforma",
+    proforma: "Proforma",
+    companyInformation: "Información de la empresa",
+    clientInformation: "Información del cliente",
+    item: "Artículo",
+    qty: "Cant",
+    unitCost: "Costo unitario",
+    unitPrice: "Precio unitario",
+    totalPrice: "Precio total",
+    totalProfit: "Ganancia total",
+    totalAmount: "Monto total",
+    profitMargin: "Margen de ganancia",
+    validUntil: "Válido hasta",
+    created: "Creado",
+    createdBy: "Creado por",
+    printProforma: "Imprimir proforma",
+    manageProformaAccess: "Gestionar acceso a proformas",
+    loadingProformas: "Cargando proformas...",
+    areYouSure: "¿Estás seguro de que quieres eliminar el proforma",
+    proformaCreatedSuccessfully: "Proforma creado exitosamente",
+    proformaDeletedSuccessfully: "Proforma eliminado exitosamente",
+    failedToCreateProforma: "Error al crear proforma",
+    failedToDeleteProforma: "Error al eliminar proforma",
+    defaultCompany: "(Predeterminado)",
+    creatingProforma: "Creando...",
+  },
 };

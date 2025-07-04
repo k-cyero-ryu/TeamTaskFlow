@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useProformaPermissions } from "@/hooks/use-proforma-permissions";
+import { useI18n } from "@/i18n";
 import ProformaMemberManagement from "@/components/proforma-member-management";
 
 // Types
@@ -95,6 +96,7 @@ type ProformaFormData = z.infer<typeof proformaFormSchema>;
 export default function ProformasPage() {
   const { toast } = useToast();
   const { canManageAccess } = useProformaPermissions();
+  const { t } = useI18n();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
@@ -279,7 +281,7 @@ export default function ProformasPage() {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading proformas...</div>
+          <div className="text-lg">{t("loadingProformas")}</div>
         </div>
       </div>
     );
@@ -289,26 +291,26 @@ export default function ProformasPage() {
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Proformas</h1>
-          <p className="text-muted-foreground">Create professional quotes based on estimations</p>
+          <h1 className="text-3xl font-bold">{t("proformasTitle")}</h1>
+          <p className="text-muted-foreground">{t("proformasDescription")}</p>
         </div>
         <div className="flex items-center gap-2">
           {canManageAccess && (
             <Button variant="outline" onClick={() => setShowMembersDialog(true)}>
               <Users className="mr-2 h-4 w-4" />
-              Manage Access
+              {t("manageAccess")}
             </Button>
           )}
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                New Proforma
+                {t("newProforma")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Proforma</DialogTitle>
+              <DialogTitle>{t("createNewProforma")}</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-6">
@@ -317,14 +319,14 @@ export default function ProformasPage() {
                   name="estimationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Select Estimation</FormLabel>
+                      <FormLabel>{t("selectEstimation")}</FormLabel>
                       <FormControl>
                         <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString() || "0"}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Choose an estimation" />
+                            <SelectValue placeholder={t("chooseAnEstimation")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="0" disabled>Select an estimation</SelectItem>
+                            <SelectItem value="0" disabled>{t("selectAnEstimation")}</SelectItem>
                             {estimations.map((estimation) => (
                               <SelectItem key={estimation.id} value={estimation.id.toString()}>
                                 {estimation.name} - {estimation.clientName}
@@ -340,15 +342,15 @@ export default function ProformasPage() {
 
                 {selectedEstimation && (
                   <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-3">Estimation Details</h4>
+                    <h4 className="font-medium mb-3">{t("estimationDetails")}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                       <div>
-                        <p><strong>Client:</strong> {selectedEstimation.clientName}</p>
-                        <p><strong>Items:</strong> {selectedEstimation.items.length}</p>
+                        <p><strong>{t("client")}:</strong> {selectedEstimation.clientName}</p>
+                        <p><strong>{t("items")}:</strong> {selectedEstimation.items.length}</p>
                       </div>
                       <div>
-                        <p><strong>Address:</strong> {selectedEstimation.address}</p>
-                        <p><strong>Total Cost:</strong> {formatCurrency(selectedEstimation.totalCost)}</p>
+                        <p><strong>{t("address")}:</strong> {selectedEstimation.address}</p>
+                        <p><strong>{t("totalCost")}:</strong> {formatCurrency(selectedEstimation.totalCost)}</p>
                       </div>
                     </div>
                   </div>
@@ -356,15 +358,15 @@ export default function ProformasPage() {
 
                 {selectedCompany && (
                   <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-3">Selected Company</h4>
+                    <h4 className="font-medium mb-3">{t("selectedCompany")}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                       <div>
-                        <p><strong>Name:</strong> {selectedCompany.name}</p>
-                        <p><strong>Email:</strong> {selectedCompany.email || "Not provided"}</p>
+                        <p><strong>{t("name")}:</strong> {selectedCompany.name}</p>
+                        <p><strong>{t("email")}:</strong> {selectedCompany.email || t("notProvided")}</p>
                       </div>
                       <div>
-                        <p><strong>Phone:</strong> {selectedCompany.phone || "Not provided"}</p>
-                        <p><strong>Address:</strong> {selectedCompany.address}</p>
+                        <p><strong>{t("phone")}:</strong> {selectedCompany.phone || t("notProvided")}</p>
+                        <p><strong>{t("address")}:</strong> {selectedCompany.address}</p>
                       </div>
                     </div>
                   </div>
@@ -375,7 +377,7 @@ export default function ProformasPage() {
                   name="profitPercentage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Profit Percentage (%)</FormLabel>
+                      <FormLabel>{t("profitPercentage")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -384,7 +386,7 @@ export default function ProformasPage() {
                           step="0.1"
                           {...field} 
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          placeholder="Enter profit percentage" 
+                          placeholder={t("enterProfitPercentage")} 
                         />
                       </FormControl>
                       <FormMessage />
@@ -394,18 +396,18 @@ export default function ProformasPage() {
 
                 {previewData && (
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                    <h4 className="font-medium mb-3">Price Preview</h4>
+                    <h4 className="font-medium mb-3">{t("pricePreview")}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Cost</p>
+                        <p className="text-muted-foreground">{t("cost")}</p>
                         <p className="font-medium">{formatCurrency(previewData.totalCost * 100)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Profit ({profitPercentage}%)</p>
+                        <p className="text-muted-foreground">{t("profit")} ({profitPercentage}%)</p>
                         <p className="font-medium text-green-600">{formatCurrency(previewData.profit * 100)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Selling Price</p>
+                        <p className="text-muted-foreground">{t("sellingPrice")}</p>
                         <p className="font-semibold text-lg">{formatCurrency(previewData.totalPrice * 100)}</p>
                       </div>
                     </div>
@@ -418,17 +420,17 @@ export default function ProformasPage() {
                     name="companyId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company</FormLabel>
+                        <FormLabel>{t("company")}</FormLabel>
                         <FormControl>
                           <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString() || "0"}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Choose a company" />
+                              <SelectValue placeholder={t("chooseACompany")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="0" disabled>Select a company</SelectItem>
+                              <SelectItem value="0" disabled>{t("selectACompany")}</SelectItem>
                               {companies.map((company) => (
                                 <SelectItem key={company.id} value={company.id.toString()}>
-                                  {company.name} {company.isDefault && "(Default)"}
+                                  {company.name} {company.isDefault && t("defaultCompany")}
                                 </SelectItem>
                               ))}
                             </SelectContent>
