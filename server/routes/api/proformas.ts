@@ -2,6 +2,7 @@ import { Router } from "express";
 import { storage } from "../../storage";
 import { Logger } from "../../utils/logger";
 import { insertProformaSchema } from "@shared/schema";
+import { requireAuth } from "../../middleware";
 
 const router = Router();
 const logger = new Logger('ProformaRoutes');
@@ -186,15 +187,42 @@ router.delete("/:id", async (req, res) => {
 });
 
 /**
+ * Helper function to convert image file to base64
+ */
+const getImageAsBase64 = async (logoPath: string): Promise<string> => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Handle both full paths and relative paths
+    let filePath;
+    if (logoPath.startsWith('/uploads/')) {
+      filePath = path.join(process.cwd(), 'uploads', logoPath.substring('/uploads/'.length));
+    } else if (logoPath.startsWith('uploads/')) {
+      filePath = path.join(process.cwd(), logoPath);
+    } else {
+      filePath = path.join(process.cwd(), 'uploads', logoPath);
+    }
+    
+    if (fs.existsSync(filePath)) {
+      const imageBuffer = fs.readFileSync(filePath);
+      return imageBuffer.toString('base64');
+    }
+    
+    return '';
+  } catch (error) {
+    logger.error('Error reading image file for base64 conversion', { logoPath, error });
+    return '';
+  }
+};
+
+/**
  * @route GET /api/proformas/:id/print
  * @desc Get proforma print view
  * @access Private
  */
-router.get("/:id/print", async (req, res) => {
+router.get("/:id/print", requireAuth, async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
 
     const proformaId = parseInt(req.params.id);
 
@@ -210,6 +238,12 @@ router.get("/:id/print", async (req, res) => {
 
     // Generate HTML for print view
     const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+    // Get company logo as base64 if available
+    const logoBase64 = proforma.companyLogo ? await getImageAsBase64(proforma.companyLogo) : '';
+    const logoHtml = logoBase64 
+      ? `<img src="data:image/jpeg;base64,${logoBase64}" alt="Company Logo">`
+      : proforma.companyName;
 
     const printHTML = `
     <!DOCTYPE html>
@@ -254,6 +288,15 @@ router.get("/:id/print", async (req, res) => {
           margin-right: 20px;
           font-weight: bold;
           font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .logo img {
+          max-height: 40px;
+          max-width: 120px;
+          object-fit: contain;
         }
         
         .company-address {
@@ -412,10 +455,11 @@ router.get("/:id/print", async (req, res) => {
     <body>
       <div class="header">
         <div class="header-left">
-          <div class="logo">TU LOGO</div>
+          <div class="logo">
+            ${logoHtml}
+          </div>
           <div class="company-address">
-            CALLE CUALQUIERA 123,<br>
-            CUALQUIER LUGAR, CP: 12345
+            ${proforma.companyAddress.replace(/\n/g, '<br>')}
           </div>
         </div>
         <div class="header-right">
