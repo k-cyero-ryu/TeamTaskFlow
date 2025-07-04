@@ -37,6 +37,7 @@ import { handleQueryError } from "@/lib/error-utils";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useTranslation } from 'react-i18next';
 
 export default function CreateTaskDialog() {
   return (
@@ -116,6 +117,7 @@ function CreateTaskErrorState() {
 function CreateTaskDialogContent() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
 
   const { data: users = [] } = useQuery<User[]>({
@@ -226,7 +228,7 @@ function CreateTaskDialogContent() {
       <DialogTrigger asChild>
         <Button aria-label="Create a new task">
           <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-          <span>New Task</span>
+          <span>{t("newTask")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent 
