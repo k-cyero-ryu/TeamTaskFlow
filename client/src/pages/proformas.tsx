@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
-import { FileText, Plus, Edit, Trash2, MapPin, Building, Calendar, DollarSign, Eye, Printer, Users } from "lucide-react";
+import { format, startOfWeek, startOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { FileText, Plus, Edit, Trash2, MapPin, Building, Calendar, DollarSign, Eye, Printer, Users, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -98,12 +98,64 @@ export default function ProformasPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [proformaNumberFilter, setProformaNumberFilter] = useState("");
+  const [dateRange, setDateRange] = useState("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
 
   // Data fetching
   const { data: proformas = [], isLoading, refetch } = useQuery<Proforma[]>({
     queryKey: ["/api/proformas"],
   });
+
+  // Filter proformas
+  const filteredProformas = useMemo(() => {
+    let filtered = proformas;
+
+    // Filter by proforma number
+    if (proformaNumberFilter) {
+      filtered = filtered.filter(proforma => 
+        proforma.proformaNumber.toLowerCase().includes(proformaNumberFilter.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    if (dateRange !== "all") {
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (dateRange) {
+        case "lastWeek":
+          startDate = startOfWeek(now, { weekStartsOn: 1 });
+          break;
+        case "lastMonth":
+          startDate = startOfMonth(now);
+          break;
+        case "custom":
+          if (customStartDate && customEndDate) {
+            startDate = parseISO(customStartDate);
+            endDate = parseISO(customEndDate);
+          } else {
+            return filtered;
+          }
+          break;
+        default:
+          return filtered;
+      }
+
+      filtered = filtered.filter(proforma => {
+        const proformaDate = parseISO(proforma.createdAt);
+        return isWithinInterval(proformaDate, { start: startDate, end: endDate });
+      });
+    }
+
+    return filtered;
+  }, [proformas, proformaNumberFilter, dateRange, customStartDate, customEndDate]);
 
   const { data: estimations = [] } = useQuery<Estimation[]>({
     queryKey: ["/api/estimations"],
@@ -441,8 +493,89 @@ export default function ProformasPage() {
         </div>
       </div>
 
+      {/* Filter Controls */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+          </Button>
+          {(proformaNumberFilter || dateRange !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setProformaNumberFilter("");
+                setDateRange("all");
+                setCustomStartDate("");
+                setCustomEndDate("");
+              }}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {showFilters && (
+          <Card className="p-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label htmlFor="proformaNumberFilter">Filter by Proforma Number</Label>
+                <Input
+                  id="proformaNumberFilter"
+                  placeholder="Search proforma numbers..."
+                  value={proformaNumberFilter}
+                  onChange={(e) => setProformaNumberFilter(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="dateRange">Date Range</Label>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select date range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="lastWeek">Last Week</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {dateRange === "custom" && (
+                <>
+                  <div>
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        )}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {proformas.map((proforma) => (
+        {filteredProformas.map((proforma) => (
           <Card key={proforma.id} className="cursor-pointer hover:shadow-lg transition-shadow relative">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">

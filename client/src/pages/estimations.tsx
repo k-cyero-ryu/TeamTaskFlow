@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
-import { Calendar, Plus, Edit, Trash2, MapPin, User, Package, Minus } from "lucide-react";
+import { format, startOfWeek, startOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { Calendar, Plus, Edit, Trash2, MapPin, User, Package, Minus, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -79,11 +79,63 @@ export default function EstimationsPage() {
   const [selectedEstimation, setSelectedEstimation] = useState<Estimation | null>(null);
   const [selectedStockItem, setSelectedStockItem] = useState<string>("");
   const [itemQuantity, setItemQuantity] = useState(1);
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [nameFilter, setNameFilter] = useState("");
+  const [dateRange, setDateRange] = useState("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   // Data fetching
   const { data: estimations = [], isLoading, refetch } = useQuery<Estimation[]>({
     queryKey: ["/api/estimations"],
   });
+
+  // Filter estimations
+  const filteredEstimations = useMemo(() => {
+    let filtered = estimations;
+
+    // Filter by name
+    if (nameFilter) {
+      filtered = filtered.filter(estimation => 
+        estimation.name.toLowerCase().includes(nameFilter.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    if (dateRange !== "all") {
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (dateRange) {
+        case "lastWeek":
+          startDate = startOfWeek(now, { weekStartsOn: 1 });
+          break;
+        case "lastMonth":
+          startDate = startOfMonth(now);
+          break;
+        case "custom":
+          if (customStartDate && customEndDate) {
+            startDate = parseISO(customStartDate);
+            endDate = parseISO(customEndDate);
+          } else {
+            return filtered;
+          }
+          break;
+        default:
+          return filtered;
+      }
+
+      filtered = filtered.filter(estimation => {
+        const estimationDate = parseISO(estimation.date);
+        return isWithinInterval(estimationDate, { start: startDate, end: endDate });
+      });
+    }
+
+    return filtered;
+  }, [estimations, nameFilter, dateRange, customStartDate, customEndDate]);
 
   const { data: stockItems = [] } = useQuery<StockItem[]>({
     queryKey: ["/api/stock/items"],
@@ -447,8 +499,89 @@ export default function EstimationsPage() {
         </Dialog>
       </div>
 
+      {/* Filter Controls */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+          </Button>
+          {(nameFilter || dateRange !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setNameFilter("");
+                setDateRange("all");
+                setCustomStartDate("");
+                setCustomEndDate("");
+              }}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {showFilters && (
+          <Card className="p-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label htmlFor="nameFilter">Filter by Name</Label>
+                <Input
+                  id="nameFilter"
+                  placeholder="Search estimations..."
+                  value={nameFilter}
+                  onChange={(e) => setNameFilter(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="dateRange">Date Range</Label>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select date range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="lastWeek">Last Week</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {dateRange === "custom" && (
+                <>
+                  <div>
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        )}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {estimations.map((estimation) => (
+        {filteredEstimations.map((estimation) => (
           <Card key={estimation.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">{estimation.name}</CardTitle>
