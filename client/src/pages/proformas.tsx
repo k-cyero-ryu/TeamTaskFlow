@@ -233,12 +233,12 @@ export default function ProformasPage() {
               New Proforma
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Proforma</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
+              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-6">
                 <FormField
                   control={createForm.control}
                   name="estimationId"
@@ -267,12 +267,16 @@ export default function ProformasPage() {
 
                 {selectedEstimation && (
                   <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Estimation Details</h4>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p><strong>Client:</strong> {selectedEstimation.clientName}</p>
-                      <p><strong>Address:</strong> {selectedEstimation.address}</p>
-                      <p><strong>Items:</strong> {selectedEstimation.items.length}</p>
-                      <p><strong>Total Cost:</strong> {formatCurrency(selectedEstimation.totalCost)}</p>
+                    <h4 className="font-medium mb-3">Estimation Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                      <div>
+                        <p><strong>Client:</strong> {selectedEstimation.clientName}</p>
+                        <p><strong>Items:</strong> {selectedEstimation.items.length}</p>
+                      </div>
+                      <div>
+                        <p><strong>Address:</strong> {selectedEstimation.address}</p>
+                        <p><strong>Total Cost:</strong> {formatCurrency(selectedEstimation.totalCost)}</p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -301,106 +305,127 @@ export default function ProformasPage() {
 
                 {previewData && (
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                    <h4 className="font-medium mb-2">Price Preview</h4>
-                    <div className="text-sm space-y-1">
-                      <p><strong>Cost:</strong> {formatCurrency(previewData.totalCost * 100)}</p>
-                      <p><strong>Profit:</strong> {formatCurrency(previewData.profit * 100)} ({profitPercentage}%)</p>
-                      <p><strong>Selling Price:</strong> {formatCurrency(previewData.totalPrice * 100)}</p>
+                    <h4 className="font-medium mb-3">Price Preview</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Cost</p>
+                        <p className="font-medium">{formatCurrency(previewData.totalCost * 100)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Profit ({profitPercentage}%)</p>
+                        <p className="font-medium text-green-600">{formatCurrency(previewData.profit * 100)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Selling Price</p>
+                        <p className="font-semibold text-lg">{formatCurrency(previewData.totalPrice * 100)}</p>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={createForm.control}
-                    name="companyName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter company name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={createForm.control}
-                    name="companyEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company Email</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="email" placeholder="company@example.com" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Company Information</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="companyName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Enter company name" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="companyEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Email</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="company@example.com" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={createForm.control}
+                        name="companyAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Address</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} placeholder="Enter company address" rows={3} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={createForm.control}
+                        name="companyPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Phone (Optional)</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter company phone" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Additional Information</h3>
+                    <div className="space-y-4">
+                      <FormField
+                        control={createForm.control}
+                        name="validUntil"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valid Until (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
+                                onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={createForm.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Notes (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} placeholder="Internal notes" rows={4} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <FormField
-                  control={createForm.control}
-                  name="companyAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Address</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Enter company address" rows={2} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="companyPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Phone (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter company phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="validUntil"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valid Until (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Internal notes" rows={3} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
+                <DialogFooter className="mt-8 pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
                     Cancel
                   </Button>
