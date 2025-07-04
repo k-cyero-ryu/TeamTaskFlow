@@ -2929,11 +2929,7 @@ export class DatabaseStorage implements IStorage {
           proformaPermissions: userProformaPermissions
         })
         .from(users)
-        .leftJoin(userProformaPermissions, eq(users.id, userProformaPermissions.userId))
-        .where(or(
-          eq(users.id, 1), // Admin always has access
-          isNotNull(userProformaPermissions.userId)
-        ));
+        .leftJoin(userProformaPermissions, eq(users.id, userProformaPermissions.userId));
 
       return usersWithPermissions.map(user => ({
         id: user.id,
