@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import { useProformaPermissions } from "@/hooks/use-proforma-permissions";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -23,6 +24,7 @@ import { NotificationsDropdown } from "./notifications-dropdown";
 export function MainNav() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
+  const { hasProformaAccess } = useProformaPermissions();
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["/api/messages/unread"],
@@ -105,18 +107,20 @@ export function MainNav() {
                 </div>
               </NavigationMenuLink>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                className={navigationMenuTriggerStyle()}
-                active={location.startsWith("/proformas")}
-                onClick={() => setLocation("/proformas")}
-              >
-                <div className="flex items-center">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Proformas
-                </div>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+            {hasProformaAccess && (
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  active={location.startsWith("/proformas")}
+                  onClick={() => setLocation("/proformas")}
+                >
+                  <div className="flex items-center">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Proformas
+                  </div>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            )}
             <NavigationMenuItem>
               <NavigationMenuLink
                 className={navigationMenuTriggerStyle()}
