@@ -200,7 +200,7 @@ export default function ProformasPage() {
 
   const handlePrint = (proforma: Proforma) => {
     // Open print view in new window
-    const printWindow = window.open(`/proformas/${proforma.id}/print`, '_blank');
+    const printWindow = window.open(`/api/proformas/${proforma.id}/print`, '_blank');
     if (printWindow) {
       printWindow.focus();
     }
@@ -458,7 +458,7 @@ export default function ProformasPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <DollarSign className="h-4 w-4" />
-                  <span>{formatCurrency(proforma.totalPrice)} ({proforma.profitPercentage}% profit)</span>
+                  <span>Cost: {formatCurrency(proforma.totalCost)} | Price: {formatCurrency(proforma.totalPrice)} ({proforma.profitPercentage}% profit)</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4" />

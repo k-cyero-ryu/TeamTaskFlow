@@ -98,6 +98,13 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Enhanced Proformas system with cost display and print functionality
+  - Added comprehensive cost information display in proforma cards showing both costs and selling prices
+  - Expanded proforma dialog width to 800px with better spacing and organized form sections
+  - Enhanced proforma view table to show unit costs alongside unit prices with proper visual hierarchy
+  - Implemented HTML-based print functionality with professional invoice template including all cost breakdowns
+  - Fixed TypeScript errors for proper cost and profit calculations in both frontend and backend
+  - Added proper route for proforma print view accessible via /api/proformas/:id/print
 - July 03, 2025. Added Technique field to estimations with user selection dropdown
   - Enhanced estimations database schema with techniqueId field referencing users table
   - Updated both create and edit estimation forms to include technique user selection
