@@ -399,7 +399,7 @@ export default function ExpensesPage() {
                     name="nextPaymentDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Next Payment Date</FormLabel>
+                        <FormLabel>{t('nextPaymentDate')}</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -413,7 +413,7 @@ export default function ExpensesPage() {
                     name="lastPaidDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Paid Date (Optional)</FormLabel>
+                        <FormLabel>{t('lastPaidDate')} (Optional)</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -429,7 +429,7 @@ export default function ExpensesPage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormLabel>{t('description')} (Optional)</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Additional notes about this expense" {...field} />
                       </FormControl>
@@ -439,7 +439,7 @@ export default function ExpensesPage() {
                 />
 
                 <Button type="submit" disabled={createExpenseMutation.isPending} className="w-full">
-                  {createExpenseMutation.isPending ? "Creating..." : "Create Expense"}
+                  {createExpenseMutation.isPending ? t('creating') : t('createExpense')}
                 </Button>
               </form>
             </Form>
@@ -456,7 +456,7 @@ export default function ExpensesPage() {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="mr-2 h-4 w-4" />
-            Filters
+            {t('filters')}
           </Button>
           {(serviceNameFilter || dateRange !== "all") && (
             <Button
@@ -470,7 +470,7 @@ export default function ExpensesPage() {
               }}
             >
               <X className="mr-2 h-4 w-4" />
-              Clear Filters
+              {t('clearFilters')}
             </Button>
           )}
         </div>
@@ -479,32 +479,32 @@ export default function ExpensesPage() {
           <Card className="p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <Label htmlFor="serviceNameFilter">Filter by Service/Beneficiary</Label>
+                <Label htmlFor="serviceNameFilter">{t('filterByServiceBeneficiary')}</Label>
                 <Input
                   id="serviceNameFilter"
-                  placeholder="Search services or beneficiaries..."
+                  placeholder={t('searchServicesOrBeneficiaries')}
                   value={serviceNameFilter}
                   onChange={(e) => setServiceNameFilter(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="dateRange">Date Range (Next Payment)</Label>
+                <Label htmlFor="dateRange">{t('dateRangeNextPayment')}</Label>
                 <Select value={dateRange} onValueChange={setDateRange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select date range" />
+                    <SelectValue placeholder={t('selectDateRange')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="lastWeek">Last Week</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="custom">Custom Range</SelectItem>
+                    <SelectItem value="all">{t('allTime')}</SelectItem>
+                    <SelectItem value="lastWeek">{t('lastWeek')}</SelectItem>
+                    <SelectItem value="lastMonth">{t('lastMonth')}</SelectItem>
+                    <SelectItem value="custom">{t('customRange')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {dateRange === "custom" && (
                 <>
                   <div>
-                    <Label htmlFor="startDate">Start Date</Label>
+                    <Label htmlFor="startDate">{t('startDate')}</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -513,7 +513,7 @@ export default function ExpensesPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate">{t('endDate')}</Label>
                     <Input
                       id="endDate"
                       type="date"
