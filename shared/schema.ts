@@ -968,3 +968,90 @@ export const insertCompanySchema = createInsertSchema(companies).pick({
 
 export type Company = typeof companies.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
+
+// Expenses management tables
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  serviceName: text("service_name").notNull(), // name of the service (e.g., "Internet", "Rent", "Insurance")
+  beneficiary: text("beneficiary").notNull(), // company or person receiving payment
+  amount: integer("amount").notNull(), // amount to pay in cents
+  frequency: text("frequency").notNull(), // 'monthly', 'quarterly', 'yearly'
+  lastPaidDate: timestamp("last_paid_date"), // when it was last paid
+  nextPaymentDate: timestamp("next_payment_date").notNull(), // when next payment is due
+  status: text("status").default("active"), // active, paused, cancelled
+  description: text("description"), // optional description
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Expense receipts - file attachments for expenses (like task comments)
+export const expenseReceipts = pgTable("expense_receipts", {
+  id: serial("id").primaryKey(),
+  expenseId: integer("expense_id").references(() => expenses.id).notNull(),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+  paymentDate: timestamp("payment_date").notNull(), // when this payment was made
+  amount: integer("amount").notNull(), // amount paid in cents (can be different from expense amount)
+  notes: text("notes"), // optional notes about this payment
+  uploadedById: integer("uploaded_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Expense management schemas and types
+export const insertExpenseSchema = createInsertSchema(expenses).pick({
+  serviceName: true,
+  beneficiary: true,
+  amount: true,
+  frequency: true,
+  lastPaidDate: true,
+  nextPaymentDate: true,
+  status: true,
+  description: true,
+}).extend({
+  amount: z.number().min(0),
+  frequency: z.enum(["monthly", "quarterly", "yearly"]),
+  lastPaidDate: z.string().transform((str) => new Date(str)).optional(),
+  nextPaymentDate: z.string().transform((str) => new Date(str)),
+});
+
+export const insertExpenseReceiptSchema = createInsertSchema(expenseReceipts).pick({
+  expenseId: true,
+  fileName: true,
+  filePath: true,
+  fileSize: true,
+  mimeType: true,
+  paymentDate: true,
+  amount: true,
+  notes: true,
+}).extend({
+  amount: z.number().min(0),
+  paymentDate: z.string().transform((str) => new Date(str)),
+});
+
+export type Expense = typeof expenses.$inferSelect;
+export type ExpenseReceipt = typeof expenseReceipts.$inferSelect;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type InsertExpenseReceipt = z.infer<typeof insertExpenseReceiptSchema>;
+
+// Expense relations
+export const expensesRelations = relations(expenses, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [expenses.createdById],
+    references: [users.id],
+  }),
+  receipts: many(expenseReceipts),
+}));
+
+export const expenseReceiptsRelations = relations(expenseReceipts, ({ one }) => ({
+  expense: one(expenses, {
+    fields: [expenseReceipts.expenseId],
+    references: [expenses.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [expenseReceipts.uploadedById],
+    references: [users.id],
+  }),
+}));

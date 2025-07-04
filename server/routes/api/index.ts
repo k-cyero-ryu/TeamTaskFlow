@@ -13,6 +13,7 @@ import stockRouter from './stock';
 import estimationsRouter from './estimations';
 import proformasRouter from './proformas';
 import companiesRouter from './companies';
+import expensesRouter from './expenses';
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use('/stock', stockRouter);
 router.use('/estimations', estimationsRouter);
 router.use('/companies', companiesRouter);
 router.use('/proformas', proformasRouter);
+router.use('/expenses', expensesRouter);
 
 export default router;

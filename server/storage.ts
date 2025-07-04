@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem, UserProformaPermission, InsertUserProformaPermission } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem, UserProformaPermission, InsertUserProformaPermission, Expense, InsertExpense, ExpenseReceipt, InsertExpenseReceipt } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql, isNotNull } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems, userProformaPermissions } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems, userProformaPermissions, expenses, expenseReceipts } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -162,6 +162,18 @@ interface IStorage {
   getUserProformaPermissions(userId: number): Promise<UserProformaPermission | undefined>;
   getUsersWithProformaAccess(): Promise<Array<{ id: number; username: string; proformaPermissions?: UserProformaPermission; }>>;
   setUserProformaPermissions(userId: number, permissions: InsertUserProformaPermission, grantedById: number): Promise<UserProformaPermission>;
+  
+  // Expense methods
+  getExpenses(): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] })[]>;
+  getExpense(id: number): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] }) | undefined>;
+  createExpense(expense: InsertExpense, userId: number): Promise<Expense>;
+  updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense>;
+  deleteExpense(id: number): Promise<void>;
+  
+  // Expense receipt methods
+  getExpenseReceipts(expenseId: number): Promise<(ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[]>;
+  uploadExpenseReceipt(receipt: InsertExpenseReceipt, userId: number): Promise<ExpenseReceipt>;
+  deleteExpenseReceipt(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2972,6 +2984,206 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Error setting user proforma permissions', error);
       throw new DatabaseError(`Failed to set user proforma permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Expense methods implementation
+  async getExpenses(): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const expensesWithCreator = await db
+          .select({
+            id: expenses.id,
+            serviceName: expenses.serviceName,
+            beneficiary: expenses.beneficiary,
+            amount: expenses.amount,
+            frequency: expenses.frequency,
+            lastPaidDate: expenses.lastPaidDate,
+            nextPaymentDate: expenses.nextPaymentDate,
+            status: expenses.status,
+            description: expenses.description,
+            createdById: expenses.createdById,
+            createdAt: expenses.createdAt,
+            updatedAt: expenses.updatedAt,
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(expenses)
+          .leftJoin(users, eq(expenses.createdById, users.id))
+          .orderBy(desc(expenses.createdAt));
+
+        // Get receipts for each expense
+        const expensesWithReceipts = await Promise.all(
+          expensesWithCreator.map(async (expense) => {
+            const receipts = await this.getExpenseReceipts(expense.id);
+            return {
+              ...expense,
+              receipts,
+            };
+          })
+        );
+
+        return expensesWithReceipts;
+      }, 'Get all expenses');
+    } catch (error) {
+      logger.error('Error getting expenses', error);
+      throw new DatabaseError(`Failed to get expenses: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getExpense(id: number): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] }) | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [expense] = await db
+          .select({
+            id: expenses.id,
+            serviceName: expenses.serviceName,
+            beneficiary: expenses.beneficiary,
+            amount: expenses.amount,
+            frequency: expenses.frequency,
+            lastPaidDate: expenses.lastPaidDate,
+            nextPaymentDate: expenses.nextPaymentDate,
+            status: expenses.status,
+            description: expenses.description,
+            createdById: expenses.createdById,
+            createdAt: expenses.createdAt,
+            updatedAt: expenses.updatedAt,
+            createdBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(expenses)
+          .leftJoin(users, eq(expenses.createdById, users.id))
+          .where(eq(expenses.id, id));
+
+        if (!expense) return undefined;
+
+        const receipts = await this.getExpenseReceipts(expense.id);
+        return {
+          ...expense,
+          receipts,
+        };
+      }, 'Get expense by ID');
+    } catch (error) {
+      logger.error(`Error getting expense with ID ${id}`, error);
+      throw new DatabaseError(`Failed to get expense: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createExpense(expense: InsertExpense, userId: number): Promise<Expense> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newExpense] = await db
+          .insert(expenses)
+          .values({
+            ...expense,
+            createdById: userId,
+          })
+          .returning();
+        return newExpense;
+      }, 'Create expense');
+    } catch (error) {
+      logger.error('Error creating expense', error);
+      throw new DatabaseError(`Failed to create expense: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedExpense] = await db
+          .update(expenses)
+          .set({
+            ...expense,
+            updatedAt: new Date(),
+          })
+          .where(eq(expenses.id, id))
+          .returning();
+        return updatedExpense;
+      }, 'Update expense');
+    } catch (error) {
+      logger.error(`Error updating expense with ID ${id}`, error);
+      throw new DatabaseError(`Failed to update expense: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteExpense(id: number): Promise<void> {
+    try {
+      return await executeWithRetry(async () => {
+        // First delete all receipts
+        await db.delete(expenseReceipts).where(eq(expenseReceipts.expenseId, id));
+        // Then delete the expense
+        await db.delete(expenses).where(eq(expenses.id, id));
+      }, 'Delete expense');
+    } catch (error) {
+      logger.error(`Error deleting expense with ID ${id}`, error);
+      throw new DatabaseError(`Failed to delete expense: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getExpenseReceipts(expenseId: number): Promise<(ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[]> {
+    try {
+      return await executeWithRetry(async () => {
+        const receipts = await db
+          .select({
+            id: expenseReceipts.id,
+            expenseId: expenseReceipts.expenseId,
+            fileName: expenseReceipts.fileName,
+            filePath: expenseReceipts.filePath,
+            fileSize: expenseReceipts.fileSize,
+            mimeType: expenseReceipts.mimeType,
+            paymentDate: expenseReceipts.paymentDate,
+            amount: expenseReceipts.amount,
+            notes: expenseReceipts.notes,
+            uploadedById: expenseReceipts.uploadedById,
+            createdAt: expenseReceipts.createdAt,
+            uploadedBy: {
+              id: users.id,
+              username: users.username,
+            },
+          })
+          .from(expenseReceipts)
+          .leftJoin(users, eq(expenseReceipts.uploadedById, users.id))
+          .where(eq(expenseReceipts.expenseId, expenseId))
+          .orderBy(desc(expenseReceipts.createdAt));
+
+        return receipts;
+      }, 'Get expense receipts');
+    } catch (error) {
+      logger.error(`Error getting receipts for expense ${expenseId}`, error);
+      throw new DatabaseError(`Failed to get expense receipts: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async uploadExpenseReceipt(receipt: InsertExpenseReceipt, userId: number): Promise<ExpenseReceipt> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newReceipt] = await db
+          .insert(expenseReceipts)
+          .values({
+            ...receipt,
+            uploadedById: userId,
+          })
+          .returning();
+        return newReceipt;
+      }, 'Upload expense receipt');
+    } catch (error) {
+      logger.error('Error uploading expense receipt', error);
+      throw new DatabaseError(`Failed to upload expense receipt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async deleteExpenseReceipt(id: number): Promise<void> {
+    try {
+      return await executeWithRetry(async () => {
+        await db.delete(expenseReceipts).where(eq(expenseReceipts.id, id));
+      }, 'Delete expense receipt');
+    } catch (error) {
+      logger.error(`Error deleting expense receipt with ID ${id}`, error);
+      throw new DatabaseError(`Failed to delete expense receipt: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

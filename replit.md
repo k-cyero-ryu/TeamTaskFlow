@@ -98,6 +98,20 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Implemented comprehensive Expenses management system for tracking company fixed expenses
+  - Created complete database schema for expenses and expense receipts with proper relations
+  - Built full REST API for expenses with CRUD operations and file upload capabilities for receipts
+  - Developed frontend Expenses page with expense creation, editing, deletion, and receipt management
+  - Added receipt upload functionality similar to task comments with support for images and PDFs
+  - Integrated expense payment tracking with payment history and automatic frequency calculation
+  - Added comprehensive filtering system for expenses by service name, beneficiary, and date ranges
+  - Implemented expense status tracking (active, paused, cancelled) and payment due date management
+  - Added navigation link to Expenses page with Receipt icon in main navigation menu
+- July 04, 2025. Enhanced filtering systems for Estimations and Proformas pages
+  - Added comprehensive filtering to Estimations page (filter by name and date range)
+  - Added comprehensive filtering to Proformas page (filter by proforma number and date range)
+  - Implemented date range filters: All Time, Last Week, Last Month, and Custom Range with date pickers
+  - Added collapsible filter controls with clear filters functionality for both pages
 - July 04, 2025. Completed comprehensive Proforma Access Management system
   - Implemented complete user permission database schema for proforma access control
   - Built permission middleware system with proper authentication and authorization checks

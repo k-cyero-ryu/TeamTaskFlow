@@ -13,6 +13,7 @@ import ChannelDetail from "@/pages/channel-detail";
 import Stock from "@/pages/stock";
 import Estimations from "@/pages/estimations";
 import Proformas from "@/pages/proformas";
+import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 import CompanySettings from "@/pages/company-settings";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -204,6 +205,14 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Proformas />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/expenses">
+          <ProtectedRoute>
+            <Layout>
+              <Expenses />
             </Layout>
           </ProtectedRoute>
         </Route>
