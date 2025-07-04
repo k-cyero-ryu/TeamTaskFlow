@@ -98,6 +98,16 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 04, 2025. Completed comprehensive Proforma Access Management system
+  - Implemented complete user permission database schema for proforma access control
+  - Built permission middleware system with proper authentication and authorization checks
+  - Created REST API endpoints for managing user proforma permissions with CRUD operations
+  - Developed frontend permission checking hooks for conditional UI rendering
+  - Added permission-based navigation visibility to hide Proformas link from unauthorized users
+  - Implemented conditional "Manage Access" button visibility based on user management permissions
+  - Integrated with existing user management system allowing granular permission assignment
+  - Added four permission levels: View, Create/Edit, Delete, and Manage Access permissions
+  - Ensured admin users (ID 1) automatically receive all permissions in the system
 - July 04, 2025. Enhanced Proformas system with complete logo integration and print functionality
   - Fixed company logo assignment to automatically pull logo from selected company profile during proforma creation
   - Added company logo display in top right corner of proforma cards with fallback placeholder for missing logos

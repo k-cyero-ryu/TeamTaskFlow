@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useProformaPermissions } from "@/hooks/use-proforma-permissions";
 import ProformaMemberManagement from "@/components/proforma-member-management";
 
 // Types
@@ -93,6 +94,7 @@ type ProformaFormData = z.infer<typeof proformaFormSchema>;
 
 export default function ProformasPage() {
   const { toast } = useToast();
+  const { canManageAccess } = useProformaPermissions();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
@@ -239,10 +241,12 @@ export default function ProformasPage() {
           <p className="text-muted-foreground">Create professional quotes based on estimations</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowMembersDialog(true)}>
-            <Users className="mr-2 h-4 w-4" />
-            Manage Access
-          </Button>
+          {canManageAccess && (
+            <Button variant="outline" onClick={() => setShowMembersDialog(true)}>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Access
+            </Button>
+          )}
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
