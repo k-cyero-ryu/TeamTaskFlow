@@ -10,13 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User, Settings, Link } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { Client, InsertClient } from '@shared/schema';
+import type { Client, InsertClient, Service, ClientService, InsertClientService } from '@shared/schema';
 import { format } from 'date-fns';
 
 const contactInfoSchema = z.object({
@@ -240,11 +240,364 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
   );
 }
 
+// Service Assignment Form Component
+function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const serviceAssignmentSchema = z.object({
+    serviceId: z.number().min(1, 'Please select a service'),
+    characteristics: z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'], {
+      required_error: 'Please select characteristics'
+    }),
+    price: z.number().min(0, 'Price must be positive'),
+    frequency: z.enum(['monthly', 'yearly', 'weekly', 'one_time'], {
+      required_error: 'Please select frequency'
+    }),
+    startDate: z.string().min(1, 'Start date is required'),
+    endDate: z.string().optional(),
+    notes: z.string().optional(),
+    isActive: z.boolean().default(true),
+  });
+
+  type ServiceAssignmentData = z.infer<typeof serviceAssignmentSchema>;
+
+  const form = useForm<ServiceAssignmentData>({
+    resolver: zodResolver(serviceAssignmentSchema),
+    defaultValues: {
+      serviceId: 0,
+      characteristics: 'remote',
+      price: 0,
+      frequency: 'monthly',
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      endDate: '',
+      notes: '',
+      isActive: true,
+    }
+  });
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['/api/services'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/services');
+      return response.json() as Promise<Service[]>;
+    }
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: (data: ServiceAssignmentData) => {
+      const payload = {
+        clientId: client.id,
+        serviceId: data.serviceId,
+        characteristics: data.characteristics,
+        price: Math.round(data.price * 100), // Convert to cents
+        frequency: data.frequency,
+        startDate: data.startDate,
+        endDate: data.endDate || null,
+        notes: data.notes || null,
+        isActive: data.isActive,
+      };
+      return apiRequest('POST', '/api/client-services', payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-services'] });
+      toast({ title: 'Service assigned successfully' });
+      onSuccess();
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error assigning service', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const onSubmit = (data: ServiceAssignmentData) => {
+    assignMutation.mutate(data);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="serviceId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service</FormLabel>
+                <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a service" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {services.map((service) => (
+                      <SelectItem key={service.id} value={service.id.toString()}>
+                        {service.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="characteristics"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Characteristics</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="remote">Remote</SelectItem>
+                    <SelectItem value="in_presence">In Presence</SelectItem>
+                    <SelectItem value="one_time">One Time</SelectItem>
+                    <SelectItem value="short_term">Short Term</SelectItem>
+                    <SelectItem value="long_term">Long Term</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price ($)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="frequency"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Frequency</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="one_time">One Time</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date (Optional)</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Additional notes about this service assignment" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="assignmentActive"
+            {...form.register('isActive')}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <Label htmlFor="assignmentActive">Active</Label>
+        </div>
+
+        <Button type="submit" disabled={assignMutation.isPending}>
+          {assignMutation.isPending ? 'Assigning...' : 'Assign Service'}
+        </Button>
+      </form>
+    </Form>
+  );
+}
+
+// Main Client Services Manager Component
+function ClientServicesManager({ client, onClose }: { client: Client; onClose: () => void }) {
+  const [showAssignForm, setShowAssignForm] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: clientServices = [], isLoading } = useQuery({
+    queryKey: ['/api/client-services', client.id],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/client-services/client/${client.id}`);
+      return response.json() as Promise<any[]>;
+    }
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (serviceId: number) => apiRequest('DELETE', `/api/client-services/${serviceId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-services', client.id] });
+      toast({ title: 'Service removed successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error removing service', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const handleRemoveService = (serviceId: number) => {
+    if (confirm('Are you sure you want to remove this service assignment?')) {
+      removeMutation.mutate(serviceId);
+    }
+  };
+
+  const handleAssignSuccess = () => {
+    setShowAssignForm(false);
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading services...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Current Services */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Current Services</h3>
+          <Button onClick={() => setShowAssignForm(!showAssignForm)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Assign Service
+          </Button>
+        </div>
+
+        {clientServices.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No services assigned to this client
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {clientServices.map((item) => (
+              <Card key={item.client_services.id} className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-medium">{item.services?.name}</h4>
+                      <Badge variant={item.client_services.isActive ? "default" : "secondary"}>
+                        {item.client_services.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">Characteristics:</span> {item.client_services.characteristics}
+                      </div>
+                      <div>
+                        <span className="font-medium">Price:</span> ${(item.client_services.price / 100).toFixed(2)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Frequency:</span> {item.client_services.frequency}
+                      </div>
+                      <div>
+                        <span className="font-medium">Start Date:</span> {format(new Date(item.client_services.startDate), 'MMM d, yyyy')}
+                      </div>
+                      {item.client_services.endDate && (
+                        <div>
+                          <span className="font-medium">End Date:</span> {format(new Date(item.client_services.endDate), 'MMM d, yyyy')}
+                        </div>
+                      )}
+                    </div>
+                    {item.client_services.notes && (
+                      <div className="mt-2 text-sm">
+                        <span className="font-medium">Notes:</span> {item.client_services.notes}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveService(item.client_services.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Assign New Service Form */}
+      {showAssignForm && (
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-semibold mb-4">Assign New Service</h3>
+          <ServiceAssignmentForm client={client} onSuccess={handleAssignSuccess} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [servicesDialogOpen, setServicesDialogOpen] = useState(false);
+  const [selectedClientForServices, setSelectedClientForServices] = useState<Client | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -288,6 +641,16 @@ export default function Clients() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingClient(null);
+  };
+
+  const handleManageServices = (client: Client) => {
+    setSelectedClientForServices(client);
+    setServicesDialogOpen(true);
+  };
+
+  const handleServicesDialogClose = () => {
+    setServicesDialogOpen(false);
+    setSelectedClientForServices(null);
   };
 
   if (isLoading) {
@@ -384,6 +747,14 @@ export default function Clients() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleManageServices(client)}
+                      title="Manage Services"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEdit(client)}
                     >
                       <Edit className="h-4 w-4" />
@@ -456,6 +827,24 @@ export default function Clients() {
           )}
         </div>
       )}
+
+      {/* Service Assignment Dialog */}
+      <Dialog open={servicesDialogOpen} onOpenChange={setServicesDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Services - {selectedClientForServices?.name}</DialogTitle>
+            <DialogDescription>
+              Assign and manage services for this client
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClientForServices && (
+            <ClientServicesManager 
+              client={selectedClientForServices} 
+              onClose={handleServicesDialogClose} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
