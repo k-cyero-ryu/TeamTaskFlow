@@ -552,9 +552,10 @@ export const clientServices = pgTable("client_services", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").references(() => clients.id).notNull(),
   serviceId: integer("service_id").references(() => services.id).notNull(),
-  characteristics: text("characteristics").notNull(), // 'remote', 'in_presence', 'one_time', 'short_term', 'long_term'
+  characteristics: jsonb("characteristics").default([]).notNull(), // Array of: 'remote', 'in_presence', 'one_time', 'short_term', 'long_term'
   price: integer("price").notNull(), // price in cents
   frequency: text("frequency"), // 'monthly', 'yearly', 'weekly', 'one_time', etc.
+  contractFile: text("contract_file"), // path to uploaded contract file
   isActive: boolean("is_active").default(true),
   startDate: timestamp("start_date").notNull().defaultNow(),
   endDate: timestamp("end_date"), // null for ongoing services
@@ -1156,12 +1157,15 @@ export const insertClientServiceSchema = createInsertSchema(clientServices).pick
   characteristics: true,
   price: true,
   frequency: true,
+  contractFile: true,
   isActive: true,
   startDate: true,
   endDate: true,
   notes: true,
 }).extend({
   price: z.number().min(0),
+  characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
+  contractFile: z.string().optional(),
   startDate: z.string().transform((str) => new Date(str)),
   endDate: z.string().transform((str) => new Date(str)).optional(),
 });

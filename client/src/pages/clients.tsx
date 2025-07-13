@@ -247,9 +247,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
 
   const serviceAssignmentSchema = z.object({
     serviceId: z.number().min(1, 'Please select a service'),
-    characteristics: z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'], {
-      required_error: 'Please select characteristics'
-    }),
+    characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
     price: z.number().min(0, 'Price must be positive'),
     frequency: z.enum(['monthly', 'yearly', 'weekly', 'one_time'], {
       required_error: 'Please select frequency'
@@ -257,6 +255,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().optional(),
     notes: z.string().optional(),
+    contractFile: z.instanceof(File).optional(),
     isActive: z.boolean().default(true),
   });
 
@@ -266,12 +265,13 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
     resolver: zodResolver(serviceAssignmentSchema),
     defaultValues: {
       serviceId: 0,
-      characteristics: 'remote',
+      characteristics: [],
       price: 0,
       frequency: 'monthly',
       startDate: format(new Date(), 'yyyy-MM-dd'),
       endDate: '',
       notes: '',
+      contractFile: undefined,
       isActive: true,
     }
   });
@@ -285,7 +285,19 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
   });
 
   const assignMutation = useMutation({
-    mutationFn: (data: ServiceAssignmentData) => {
+    mutationFn: async (data: ServiceAssignmentData) => {
+      let contractFilePath = null;
+      
+      // Upload contract file if provided
+      if (data.contractFile) {
+        const formData = new FormData();
+        formData.append('file', data.contractFile);
+        
+        const uploadResponse = await apiRequest('POST', '/api/uploads', formData);
+        const uploadResult = await uploadResponse.json();
+        contractFilePath = uploadResult.path;
+      }
+      
       const payload = {
         clientId: client.id,
         serviceId: data.serviceId,
@@ -295,6 +307,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         startDate: data.startDate,
         endDate: data.endDate || null,
         notes: data.notes || null,
+        contractFile: contractFilePath,
         isActive: data.isActive,
       };
       return apiRequest('POST', '/api/client-services', payload);
@@ -349,20 +362,27 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Characteristics</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="remote">Remote</SelectItem>
-                    <SelectItem value="in_presence">In Presence</SelectItem>
-                    <SelectItem value="one_time">One Time</SelectItem>
-                    <SelectItem value="short_term">Short Term</SelectItem>
-                    <SelectItem value="long_term">Long Term</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  {['remote', 'in_presence', 'one_time', 'short_term', 'long_term'].map((characteristic) => (
+                    <div key={characteristic} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={characteristic}
+                        checked={field.value.includes(characteristic)}
+                        onChange={(e) => {
+                          const newValue = e.target.checked
+                            ? [...field.value, characteristic]
+                            : field.value.filter(c => c !== characteristic);
+                          field.onChange(newValue);
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor={characteristic} className="text-sm capitalize">
+                        {characteristic.replace('_', ' ')}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -440,6 +460,27 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="contractFile"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Contract File (Optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    field.onChange(file);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -542,7 +583,14 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                       <div>
-                        <span className="font-medium">Characteristics:</span> {item.client_services.characteristics}
+                        <span className="font-medium">Characteristics:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(item.client_services.characteristics as string[]).map((char, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {char.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <span className="font-medium">Price:</span> ${(item.client_services.price / 100).toFixed(2)}
@@ -556,6 +604,19 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                       {item.client_services.endDate && (
                         <div>
                           <span className="font-medium">End Date:</span> {format(new Date(item.client_services.endDate), 'MMM d, yyyy')}
+                        </div>
+                      )}
+                      {item.client_services.contractFile && (
+                        <div>
+                          <span className="font-medium">Contract:</span>
+                          <a 
+                            href={`/api/uploads/${item.client_services.contractFile}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline ml-1"
+                          >
+                            Download
+                          </a>
                         </div>
                       )}
                     </div>

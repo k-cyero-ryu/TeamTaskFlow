@@ -49,7 +49,10 @@ router.post('/',
     try {
       const [clientService] = await db
         .insert(clientServices)
-        .values(req.body)
+        .values({
+          ...req.body,
+          characteristics: req.body.characteristics || []
+        })
         .returning();
       res.status(201).json(clientService);
     } catch (error) {
