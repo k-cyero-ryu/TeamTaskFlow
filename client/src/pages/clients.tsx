@@ -289,7 +289,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
       let contractFilePath = null;
       
       // Upload contract file if provided
-      if (data.contractFile) {
+      if (data.contractFile && data.contractFile instanceof File) {
         const formData = new FormData();
         formData.append('file', data.contractFile);
         
@@ -312,6 +312,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
       };
       
       console.log('About to make service assignment request');
+      console.log('Payload:', payload);
       const response = await apiRequest('POST', '/api/client-services', payload);
       console.log('Service assignment response:', response.status);
       return response;
