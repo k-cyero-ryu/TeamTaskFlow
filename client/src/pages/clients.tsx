@@ -244,6 +244,7 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
 function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSuccess: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
 
   const serviceAssignmentSchema = z.object({
     serviceId: z.number().min(1, 'Please select a service'),
@@ -255,7 +256,6 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().optional(),
     notes: z.string().optional(),
-    contractFile: z.any().optional(),
     isActive: z.boolean().default(true),
   });
 
@@ -271,7 +271,6 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
       startDate: format(new Date(), 'yyyy-MM-dd'),
       endDate: '',
       notes: '',
-      contractFile: undefined,
       isActive: true,
     }
   });
@@ -286,42 +285,21 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
 
   const assignMutation = useMutation({
     mutationFn: async (data: ServiceAssignmentData) => {
-      console.log('Raw form data:', data);
-      let contractFilePath = null;
+      console.log('Assigning service with data:', data);
       
-      // Upload contract file if provided
-      if (data.contractFile && data.contractFile instanceof File) {
-        console.log('Uploading contract file:', data.contractFile.name);
-        const formData = new FormData();
-        formData.append('file', data.contractFile);
-        
-        const uploadResponse = await apiRequest('POST', '/api/uploads', formData);
-        if (!uploadResponse.ok) {
-          throw new Error(`File upload failed: ${uploadResponse.status}`);
-        }
-        const uploadResult = await uploadResponse.json();
-        contractFilePath = uploadResult.path;
-        console.log('Contract file uploaded to:', contractFilePath);
-      } else {
-        console.log('No contract file to upload, contractFile is:', typeof data.contractFile, data.contractFile);
-      }
-      
-      const payload = {
+      const response = await apiRequest('POST', '/api/client-services', {
         clientId: client.id,
         serviceId: data.serviceId,
         characteristics: data.characteristics,
-        price: Math.round(data.price * 100), // Convert to cents
+        price: data.price,
         frequency: data.frequency,
         startDate: data.startDate,
         endDate: data.endDate || null,
         notes: data.notes || null,
-        contractFile: contractFilePath,
+        contractFile: uploadedFilePath,
         isActive: data.isActive,
-      };
+      });
       
-      console.log('About to make service assignment request');
-      console.log('Payload:', payload);
-      const response = await apiRequest('POST', '/api/client-services', payload);
       console.log('Service assignment response:', response.status);
       return response;
     },
@@ -330,6 +308,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
       toast({ title: 'Service assigned successfully' });
       onSuccess();
       form.reset();
+      setUploadedFilePath(null);
     },
     onError: (error: any) => {
       toast({ title: 'Error assigning service', description: error.message, variant: 'destructive' });
@@ -476,27 +455,34 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="contractFile"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contract File (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    console.log('File selected:', file ? file.name : 'none');
-                    field.onChange(file || undefined);
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Contract File (Optional)</label>
+          <Input
+            type="file"
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                try {
+                  console.log('Uploading file:', file.name);
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  
+                  const response = await apiRequest('POST', '/api/uploads', formData);
+                  const result = await response.json();
+                  setUploadedFilePath(result.path);
+                  console.log('File uploaded successfully:', result.path);
+                } catch (error) {
+                  console.error('File upload failed:', error);
+                  toast({ title: 'File upload failed', variant: 'destructive' });
+                }
+              }
+            }}
+          />
+          {uploadedFilePath && (
+            <p className="text-sm text-green-600">File uploaded: {uploadedFilePath.split('/').pop()}</p>
           )}
-        />
+        </div>
 
         <FormField
           control={form.control}
