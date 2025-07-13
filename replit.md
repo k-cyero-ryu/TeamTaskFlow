@@ -98,6 +98,15 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 13, 2025. Fixed critical mobile navigation scrolling issue and enhanced mobile user experience
+  - Replaced ScrollArea component with native mobile-optimized scrolling for better touch device compatibility
+  - Added mobile-specific CSS including -webkit-overflow-scrolling: touch for smooth scrolling
+  - Implemented touch optimization with improved tap handling and reduced selection issues
+  - Enhanced mobile button sizes (h-12) and touch targets for better usability
+  - Fixed mobile layout padding to properly account for fixed header positioning
+  - Added overscroll-behavior containment to prevent unwanted scrolling effects
+  - Created responsive mobile navigation with proper Sheet component layout
+  - User confirmed mobile navigation now works perfectly on touch devices
 - July 13, 2025. Fixed WebSocket production connectivity issues for chat functionality
   - Diagnosed Apache reverse proxy configuration issue preventing WebSocket upgrades on teamtaskflow.atalou.info
   - Created robust WebSocket connection system with automatic fallback to HTTP polling for problematic domains
