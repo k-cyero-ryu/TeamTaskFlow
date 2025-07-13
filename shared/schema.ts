@@ -519,6 +519,76 @@ export const userStockPermissionsRelations = relations(userStockPermissions, ({ 
   }),
 }));
 
+// Services table
+export const services = pgTable("services", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // 'service', 'software', 'seller/provider', 'installation', 'configuration'
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Clients table
+export const clients = pgTable("clients", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address"),
+  type: text("type").notNull(), // 'individual', 'company'
+  startDate: timestamp("start_date").notNull().defaultNow(), // when they started with our company
+  contactInfo: jsonb("contact_info").default({
+    phone: null,
+    whatsapp: null,
+    email: null
+  }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Client services assignment table
+export const clientServices = pgTable("client_services", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id).notNull(),
+  serviceId: integer("service_id").references(() => services.id).notNull(),
+  characteristics: text("characteristics").notNull(), // 'remote', 'in_presence', 'one_time', 'short_term', 'long_term'
+  price: integer("price").notNull(), // price in cents
+  frequency: text("frequency"), // 'monthly', 'yearly', 'weekly', 'one_time', etc.
+  isActive: boolean("is_active").default(true),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date"), // null for ongoing services
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    clientServiceUnique: unique().on(table.clientId, table.serviceId)
+  };
+});
+
+// Services relations
+export const servicesRelations = relations(services, ({ many }) => ({
+  clientServices: many(clientServices),
+}));
+
+// Clients relations
+export const clientsRelations = relations(clients, ({ many }) => ({
+  clientServices: many(clientServices),
+}));
+
+// Client services relations
+export const clientServicesRelations = relations(clientServices, ({ one }) => ({
+  client: one(clients, {
+    fields: [clientServices.clientId],
+    references: [clients.id],
+  }),
+  service: one(services, {
+    fields: [clientServices.serviceId],
+    references: [services.id],
+  }),
+}));
+
 
 
 
@@ -1055,3 +1125,50 @@ export const expenseReceiptsRelations = relations(expenseReceipts, ({ one }) => 
     references: [users.id],
   }),
 }));
+
+// Service and client management schemas and types
+export const insertServiceSchema = createInsertSchema(services).pick({
+  name: true,
+  description: true,
+  type: true,
+  isActive: true,
+});
+
+export const insertClientSchema = createInsertSchema(clients).pick({
+  name: true,
+  address: true,
+  type: true,
+  startDate: true,
+  contactInfo: true,
+  isActive: true,
+}).extend({
+  startDate: z.string().transform((str) => new Date(str)),
+  contactInfo: z.object({
+    phone: z.string().optional(),
+    whatsapp: z.string().optional(),
+    email: z.string().email().optional(),
+  }).optional(),
+});
+
+export const insertClientServiceSchema = createInsertSchema(clientServices).pick({
+  clientId: true,
+  serviceId: true,
+  characteristics: true,
+  price: true,
+  frequency: true,
+  isActive: true,
+  startDate: true,
+  endDate: true,
+  notes: true,
+}).extend({
+  price: z.number().min(0),
+  startDate: z.string().transform((str) => new Date(str)),
+  endDate: z.string().transform((str) => new Date(str)).optional(),
+});
+
+export type Service = typeof services.$inferSelect;
+export type Client = typeof clients.$inferSelect;
+export type ClientService = typeof clientServices.$inferSelect;
+export type InsertService = z.infer<typeof insertServiceSchema>;
+export type InsertClient = z.infer<typeof insertClientSchema>;
+export type InsertClientService = z.infer<typeof insertClientServiceSchema>;

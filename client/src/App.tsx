@@ -16,6 +16,8 @@ import Proformas from "@/pages/proformas";
 import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 import CompanySettings from "@/pages/company-settings";
+import Services from "@/pages/services";
+import Clients from "@/pages/clients";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,9 +33,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex">
       <SidebarNav />
       <main className="flex-1 lg:ml-64 min-w-0">
-        <div className="p-4 pt-6 md:p-6 lg:p-8">
-          {children}
-        </div>
+        <div className="p-14 pt-6 md:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );
@@ -70,12 +70,15 @@ export default function App() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-8 p-8 bg-card rounded-lg shadow-lg">
         <div className="text-center space-y-6">
-          <h2 className="text-3xl font-bold text-foreground">Something went wrong</h2>
+          <h2 className="text-3xl font-bold text-foreground">
+            Something went wrong
+          </h2>
           <p className="text-muted-foreground">
-            We encountered an unexpected error. Please try refreshing the page or contact support if the issue persists.
+            We encountered an unexpected error. Please try refreshing the page
+            or contact support if the issue persists.
           </p>
-          <Button 
-            onClick={() => window.location.reload()} 
+          <Button
+            onClick={() => window.location.reload()}
             size="lg"
             className="flex items-center gap-2"
           >
@@ -88,11 +91,14 @@ export default function App() {
   );
 
   return (
-    <ErrorBoundary 
-      fallback={globalErrorFallback} 
+    <ErrorBoundary
+      fallback={globalErrorFallback}
       onError={(error) => {
         console.error("Global application error:", error);
-        handleQueryError(error, { title: "Application Error", showToast: true });
+        handleQueryError(error, {
+          title: "Application Error",
+          showToast: true,
+        });
       }}
       showToast={true}
     >
@@ -180,7 +186,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         </Route>
-        
+
         <Route path="/settings">
           <ProtectedRoute>
             <Layout>
@@ -225,6 +231,22 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Stock />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/services">
+          <ProtectedRoute>
+            <Layout>
+              <Services />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/clients">
+          <ProtectedRoute>
+            <Layout>
+              <Clients />
             </Layout>
           </ProtectedRoute>
         </Route>

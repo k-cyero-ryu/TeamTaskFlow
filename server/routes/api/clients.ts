@@ -1,0 +1,85 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { db } from '../../db';
+import { clients, insertClientSchema } from '@shared/schema';
+import { validateRequest } from '../../middleware/validate-request';
+import { isAuthenticated } from '../../middleware/auth';
+import { eq } from 'drizzle-orm';
+
+const router = Router();
+
+// Get all clients
+router.get('/', isAuthenticated, async (req, res) => {
+  try {
+    const allClients = await db.select().from(clients);
+    res.json(allClients);
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: 'Failed to fetch clients' });
+  }
+});
+
+// Create a new client
+router.post('/', 
+  isAuthenticated, 
+  validateRequest(insertClientSchema), 
+  async (req, res) => {
+    try {
+      const [client] = await db
+        .insert(clients)
+        .values(req.body)
+        .returning();
+      res.status(201).json(client);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      res.status(500).json({ error: 'Failed to create client' });
+    }
+  }
+);
+
+// Update a client
+router.put('/:id', 
+  isAuthenticated, 
+  validateRequest(insertClientSchema), 
+  async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [client] = await db
+        .update(clients)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(clients.id, id))
+        .returning();
+      
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      
+      res.json(client);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      res.status(500).json({ error: 'Failed to update client' });
+    }
+  }
+);
+
+// Delete a client
+router.delete('/:id', isAuthenticated, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [client] = await db
+      .delete(clients)
+      .where(eq(clients.id, id))
+      .returning();
+    
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    
+    res.json({ message: 'Client deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
+export default router;

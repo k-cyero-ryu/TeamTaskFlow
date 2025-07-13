@@ -14,6 +14,9 @@ import estimationsRouter from './estimations';
 import proformasRouter from './proformas';
 import companiesRouter from './companies';
 import expensesRouter from './expenses';
+import servicesRouter from './services';
+import clientsRouter from './clients';
+import clientServicesRouter from './client-services';
 
 const router = Router();
 
@@ -33,5 +36,8 @@ router.use('/estimations', estimationsRouter);
 router.use('/companies', companiesRouter);
 router.use('/proformas', proformasRouter);
 router.use('/expenses', expensesRouter);
+router.use('/services', servicesRouter);
+router.use('/clients', clientsRouter);
+router.use('/client-services', clientServicesRouter);
 
 export default router;

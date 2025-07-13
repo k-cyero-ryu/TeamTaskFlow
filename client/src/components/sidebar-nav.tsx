@@ -32,6 +32,8 @@ import {
   Receipt,
   Menu,
   X,
+  Settings,
+  UserCheck,
 } from "lucide-react";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { LanguageSelector } from "./language-selector";
@@ -103,6 +105,16 @@ export function SidebarNav() {
       href: "/stock",
       icon: Package,
       label: t('stock'),
+    },
+    {
+      href: "/services",
+      icon: Settings,
+      label: "Services",
+    },
+    {
+      href: "/clients",
+      icon: UserCheck,
+      label: "Clients",
     },
   ];
 

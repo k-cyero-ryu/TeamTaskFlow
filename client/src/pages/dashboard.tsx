@@ -3,7 +3,14 @@ import { Progress } from "@/components/ui/progress";
 import TaskList from "@/components/task-list";
 import TaskCard from "@/components/task-card";
 import CreateTaskDialog from "@/components/create-task-dialog";
-import { Loader2, CheckCircle2, Circle, Clock, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Circle,
+  Clock,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { ExtendedTask } from "@/lib/types";
@@ -23,30 +30,32 @@ export default function Dashboard() {
 // Error fallback component
 function DashboardErrorState() {
   const { t } = useI18n();
-  
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
-      
+
       <div className="p-8 border rounded-lg bg-background space-y-6">
         <div className="text-center space-y-2">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
           <h2 className="text-2xl font-semibold">Unable to Load Dashboard</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            We encountered a problem while trying to load your dashboard. This could be due to connection issues or a temporary server problem.
+            We encountered a problem while trying to load your dashboard. This
+            could be due to connection issues or a temporary server problem.
           </p>
         </div>
-        
+
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Connection Error</AlertTitle>
           <AlertDescription>
-            Could not retrieve dashboard data. Please check your network connection and try again.
+            Could not retrieve dashboard data. Please check your network
+            connection and try again.
           </AlertDescription>
         </Alert>
-        
+
         <div className="flex justify-center">
-          <Button 
+          <Button
             onClick={() => window.location.reload()}
             variant="default"
             className="gap-2"
@@ -62,23 +71,23 @@ function DashboardErrorState() {
 // Main content component
 function DashboardContent() {
   const { t } = useI18n();
-  
+
   // Use custom hooks for data fetching
-  const { 
-    tasks = [], 
-    isLoading: tasksLoading, 
+  const {
+    tasks = [],
+    isLoading: tasksLoading,
     isError: tasksError,
     error: tasksErrorDetails,
-    getTaskStats 
+    getTaskStats,
   } = useTasks();
-  
-  const { 
-    workflows = [], 
-    allStages = [], 
+
+  const {
+    workflows = [],
+    allStages = [],
     isLoading: workflowsLoading,
     isError: workflowsError,
     error: workflowsErrorDetails,
-    getWorkflowStages
+    getWorkflowStages,
   } = useWorkflows();
 
   // Display loading state
@@ -92,32 +101,30 @@ function DashboardContent() {
       </div>
     );
   }
-  
+
   // Display error state
   if (tasksError || workflowsError) {
-    const errorMessage = tasksErrorDetails?.message || workflowsErrorDetails?.message || "Unknown error occurred";
-    
+    const errorMessage =
+      tasksErrorDetails?.message ||
+      workflowsErrorDetails?.message ||
+      "Unknown error occurred";
+
     return (
       <div className="container mx-auto py-8">
         <h1 className="text-3xl font-bold mb-6">{t("dashboard")}</h1>
-        
+
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>
-            {errorMessage}
-          </AlertDescription>
+          <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
-        
+
         <div className="flex mb-8">
-          <Button 
-            onClick={() => window.location.reload()}
-            className="gap-2"
-          >
+          <Button onClick={() => window.location.reload()} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Try Again
           </Button>
         </div>
-        
+
         {/* Render partial content if available */}
         {tasks.length > 0 && (
           <Card className="mb-8">
@@ -134,13 +141,18 @@ function DashboardContent() {
   }
 
   // Get task statistics
-  const { total: totalTasks, completed: completedTasks, inProgress: inProgressTasks, progressPercentage } = getTaskStats();
+  const {
+    total: totalTasks,
+    completed: completedTasks,
+    inProgress: inProgressTasks,
+    progressPercentage,
+  } = getTaskStats();
 
   // Group tasks by workflow
-  const workflowTasks = tasks.filter(task => task.workflowId !== null);
+  const workflowTasks = tasks.filter((task) => task.workflowId !== null);
 
   return (
-    <div className="container mx-auto py-6 lg:py-8">
+    <div className="container mx-auto py-14 lg:py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
         <CreateTaskDialog />
@@ -149,7 +161,9 @@ function DashboardContent() {
       <div className="grid gap-6 md:grid-cols-3 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("totalTasks")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t("totalTasks")}
+            </CardTitle>
             <Circle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -158,7 +172,9 @@ function DashboardContent() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("inProgress")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t("inProgress")}
+            </CardTitle>
             <Clock className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -167,7 +183,9 @@ function DashboardContent() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("completed")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t("completed")}
+            </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -183,7 +201,10 @@ function DashboardContent() {
         <CardContent>
           <Progress value={progressPercentage} className="h-2" />
           <p className="text-sm text-muted-foreground mt-2">
-            {t("tasksCompleted", { completed: String(completedTasks), total: String(totalTasks) })}
+            {t("tasksCompleted", {
+              completed: String(completedTasks),
+              total: String(totalTasks),
+            })}
           </p>
         </CardContent>
       </Card>
@@ -201,17 +222,21 @@ function DashboardContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-8">
-              {workflows.map(workflow => {
-                const workflowTasks = tasks.filter(task => task.workflowId === workflow.id);
+              {workflows.map((workflow) => {
+                const workflowTasks = tasks.filter(
+                  (task) => task.workflowId === workflow.id,
+                );
                 if (workflowTasks.length === 0) return null;
 
                 const workflowStages = getWorkflowStages(workflow.id);
-                
+
                 // Prepare task data with workflow and stage information
-                const tasksWithStages = workflowTasks.map(task => {
-                  const stage = workflowStages.find(s => s.id === task.stageId);
+                const tasksWithStages = workflowTasks.map((task) => {
+                  const stage = workflowStages.find(
+                    (s) => s.id === task.stageId,
+                  );
                   return {
-                    ...task as ExtendedTask,
+                    ...(task as ExtendedTask),
                     workflow,
                     stage,
                   };
@@ -225,10 +250,10 @@ function DashboardContent() {
                         ({tasksWithStages.length})
                       </span>
                     </h3>
-                    
+
                     {/* Use TaskList with a limit for workflows to maintain grid layout */}
-                    <TaskList 
-                      tasks={tasksWithStages} 
+                    <TaskList
+                      tasks={tasksWithStages}
                       limit={6} // Use pagination for workflow tasks
                       isLoading={false}
                       error={null}
@@ -246,16 +271,18 @@ function DashboardContent() {
         <CardHeader>
           <CardTitle className="flex items-center">
             {t("recentTasks")}
-            {tasksLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
+            {tasksLoading && (
+              <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
             <span className="ml-2 text-sm text-muted-foreground">
               (Showing {Math.min(tasks.length, 6)} of {tasks.length})
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TaskList 
-            tasks={tasks} 
-            limit={6} 
+          <TaskList
+            tasks={tasks}
+            limit={6}
             isLoading={tasksLoading}
             error={tasksError ? tasksErrorDetails : null}
           />
