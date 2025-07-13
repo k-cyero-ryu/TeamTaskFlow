@@ -358,7 +358,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         clientId: client.id,
         serviceId: data.serviceId,
         characteristics: data.characteristics,
-        price: data.price,
+        price: Math.round(data.price * 100), // Convert dollars to cents
         frequency: data.frequency,
         startDate: data.startDate,
         endDate: data.endDate || null,
