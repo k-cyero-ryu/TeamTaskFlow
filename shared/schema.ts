@@ -1166,8 +1166,17 @@ export const insertClientServiceSchema = createInsertSchema(clientServices).pick
   price: z.number().min(0),
   characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
   contractFile: z.string().optional(),
-  startDate: z.string().transform((str) => new Date(str)),
-  endDate: z.string().transform((str) => new Date(str)).optional(),
+  startDate: z.preprocess((arg) => {
+    if (typeof arg === 'string') return new Date(arg);
+    if (arg instanceof Date) return arg;
+    return new Date();
+  }, z.date()),
+  endDate: z.preprocess((arg) => {
+    if (!arg) return null;
+    if (typeof arg === 'string') return new Date(arg);
+    if (arg instanceof Date) return arg;
+    return null;
+  }, z.date().nullable()),
 });
 
 export type Service = typeof services.$inferSelect;

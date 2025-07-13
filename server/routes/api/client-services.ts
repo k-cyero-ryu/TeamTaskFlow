@@ -47,6 +47,7 @@ router.post('/',
   validateRequest(insertClientServiceSchema), 
   async (req, res) => {
     try {
+      console.log('Received client service data:', req.body);
       const [clientService] = await db
         .insert(clientServices)
         .values({
