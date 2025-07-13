@@ -279,7 +279,7 @@ export default function ProformasPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto py-14">
         <div className="flex items-center justify-center h-64">
           <div className="text-lg">{t("loadingProformas")}</div>
         </div>
@@ -288,7 +288,7 @@ export default function ProformasPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-14">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">{t("proformasTitle")}</h1>

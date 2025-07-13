@@ -272,7 +272,7 @@ export default function StockPage() {
 
   if (!canView) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto py-14">
         <Alert>
           <AlertDescription>
             You don't have permission to view stock items. Contact an administrator to request access.
@@ -284,7 +284,7 @@ export default function StockPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto py-14 space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -301,7 +301,7 @@ export default function StockPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto py-14">
         <Alert variant="destructive">
           <AlertDescription>
             Failed to load stock items. Please try again later.
@@ -312,7 +312,7 @@ export default function StockPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto py-14 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

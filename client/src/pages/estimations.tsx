@@ -364,7 +364,7 @@ export default function EstimationsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto py-14">
         <div className="flex items-center justify-center h-64">
           <div className="text-lg">Loading estimations...</div>
         </div>
@@ -373,7 +373,7 @@ export default function EstimationsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-14">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">{t("estimationsTitle")}</h1>

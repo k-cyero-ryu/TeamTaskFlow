@@ -32,7 +32,7 @@ function DashboardErrorState() {
   const { t } = useI18n();
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="container mx-auto py-14 space-y-8">
       <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
 
       <div className="p-8 border rounded-lg bg-background space-y-6">
@@ -110,7 +110,7 @@ function DashboardContent() {
       "Unknown error occurred";
 
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-14">
         <h1 className="text-3xl font-bold mb-6">{t("dashboard")}</h1>
 
         <Alert variant="destructive" className="mb-6">
@@ -152,7 +152,7 @@ function DashboardContent() {
   const workflowTasks = tasks.filter((task) => task.workflowId !== null);
 
   return (
-    <div className="container mx-auto py-14 lg:py-8">
+    <div className="container mx-auto py-14">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
         <CreateTaskDialog />

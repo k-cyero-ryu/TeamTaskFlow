@@ -25,7 +25,7 @@ export default function Tasks() {
 // Error state for the entire page
 function TasksErrorState() {
   return (
-    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
+    <div className="w-full py-14 px-4 md:px-6 lg:px-8">
       <h1 className="text-3xl font-bold mb-8">Tasks</h1>
       
       <Card className="border-destructive/50">
@@ -64,7 +64,7 @@ function TasksErrorState() {
 // Loading state with skeletons
 function TasksLoadingState() {
   return (
-    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
+    <div className="w-full py-14 px-4 md:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-8">
         <Skeleton className="h-9 w-40" />
         <div className="flex gap-4">
@@ -115,7 +115,7 @@ function TasksContent() {
   const doneTasks = filteredTasks?.filter((t) => t.status === "done") || [];
 
   return (
-    <div className="w-full py-8 px-4 md:px-6 lg:px-8">
+    <div className="w-full py-14 px-4 md:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tasks</h1>
         <div className="flex gap-4 w-full md:w-auto">
