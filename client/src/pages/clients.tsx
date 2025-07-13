@@ -255,7 +255,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().optional(),
     notes: z.string().optional(),
-    contractFile: z.instanceof(File).optional().or(z.undefined()),
+    contractFile: z.any().optional(),
     isActive: z.boolean().default(true),
   });
 
@@ -488,6 +488,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
                   accept=".pdf,.doc,.docx,.txt"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
+                    console.log('File selected:', file ? file.name : 'none');
                     field.onChange(file || undefined);
                   }}
                 />
