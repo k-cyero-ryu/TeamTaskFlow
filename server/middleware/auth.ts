@@ -19,15 +19,6 @@ declare global {
  * Middleware to check if the user is authenticated
  */
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  console.log('Auth check:', {
-    isAuthenticated: req.isAuthenticated(),
-    user: req.user,
-    sessionID: req.sessionID,
-    path: req.originalUrl,
-    method: req.method,
-    headers: req.headers.cookie ? 'Cookie present' : 'No cookie'
-  });
-  
   if (req.isAuthenticated()) {
     return next();
   }
