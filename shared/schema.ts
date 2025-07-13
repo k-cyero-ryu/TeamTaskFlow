@@ -556,6 +556,7 @@ export const clientServices = pgTable("client_services", {
   price: integer("price").notNull(), // price in cents
   frequency: text("frequency"), // 'monthly', 'yearly', 'weekly', 'one_time', etc.
   contractFile: text("contract_file"), // path to uploaded contract file
+  contractFileUploadDate: timestamp("contract_file_upload_date"), // when the contract file was uploaded
   isActive: boolean("is_active").default(true),
   startDate: timestamp("start_date").notNull().defaultNow(),
   endDate: timestamp("end_date"), // null for ongoing services
@@ -1158,6 +1159,7 @@ export const insertClientServiceSchema = createInsertSchema(clientServices).pick
   price: true,
   frequency: true,
   contractFile: true,
+  contractFileUploadDate: true,
   isActive: true,
   startDate: true,
   endDate: true,
@@ -1166,6 +1168,12 @@ export const insertClientServiceSchema = createInsertSchema(clientServices).pick
   price: z.number().min(0),
   characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
   contractFile: z.string().optional(),
+  contractFileUploadDate: z.preprocess((arg) => {
+    if (!arg) return null;
+    if (typeof arg === 'string') return new Date(arg);
+    if (arg instanceof Date) return arg;
+    return null;
+  }, z.date().nullable()),
   startDate: z.preprocess((arg) => {
     if (typeof arg === 'string') return new Date(arg);
     if (arg instanceof Date) return arg;

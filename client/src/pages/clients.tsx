@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User, Settings, Link } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User, Settings, Link, FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,6 +18,73 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { Client, InsertClient, Service, ClientService, InsertClientService } from '@shared/schema';
 import { format } from 'date-fns';
+
+// File viewing component for different file types
+function FileViewer({ filePath, onClose }: { filePath: string; onClose: () => void }) {
+  const fileExtension = filePath.split('.').pop()?.toLowerCase();
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension || '');
+  const isPDF = fileExtension === 'pdf';
+  
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Contract File</DialogTitle>
+          <DialogDescription>
+            {filePath.split('/').pop()}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-hidden">
+          {isImage ? (
+            <img 
+              src={`/api/uploads/file/${filePath}`} 
+              alt="Contract file" 
+              className="max-w-full max-h-[70vh] object-contain mx-auto"
+            />
+          ) : isPDF ? (
+            <iframe 
+              src={`/api/uploads/file/${filePath}`} 
+              className="w-full h-[70vh] border-0"
+              title="Contract PDF"
+            />
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">
+                Preview not available for this file type
+              </p>
+              <Button 
+                onClick={() => window.open(`/api/uploads/file/${filePath}`, '_blank')}
+                className="mr-2"
+              >
+                Open in New Tab
+              </Button>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = `/api/uploads/file/${filePath}`;
+              link.download = filePath.split('/').pop() || 'contract';
+              link.click();
+            }}
+          >
+            Download
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const contactInfoSchema = z.object({
   phone: z.string().optional(),
@@ -534,6 +601,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
 // Main Client Services Manager Component
 function ClientServicesManager({ client, onClose }: { client: Client; onClose: () => void }) {
   const [showAssignForm, setShowAssignForm] = useState(false);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -626,14 +694,29 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                       {item.client_services.contractFile && (
                         <div>
                           <span className="font-medium">Contract:</span>
-                          <a 
-                            href={`/api/uploads/${item.client_services.contractFile}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline ml-1"
-                          >
-                            Download
-                          </a>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setViewingFile(item.client_services.contractFile)}
+                              className="h-8 text-xs"
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              View File
+                            </Button>
+                            <a 
+                              href={`/api/uploads/file/${item.client_services.contractFile}`}
+                              download
+                              className="text-blue-600 hover:text-blue-800 underline text-xs"
+                            >
+                              Download
+                            </a>
+                          </div>
+                          {item.client_services.contractFileUploadDate && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Uploaded: {format(new Date(item.client_services.contractFileUploadDate), 'MMM d, yyyy h:mm a')}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -664,6 +747,14 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
           <h3 className="text-lg font-semibold mb-4">Assign New Service</h3>
           <ServiceAssignmentForm client={client} onSuccess={handleAssignSuccess} />
         </div>
+      )}
+      
+      {/* File Viewer Dialog */}
+      {viewingFile && (
+        <FileViewer 
+          filePath={viewingFile} 
+          onClose={() => setViewingFile(null)} 
+        />
       )}
     </div>
   );

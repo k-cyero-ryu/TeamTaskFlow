@@ -65,13 +65,20 @@ router.post('/',
       
       console.log('Validated data:', validationResult.data);
       
+      const dataToInsert = {
+        ...validationResult.data,
+        characteristics: validationResult.data.characteristics || [],
+        contractFile: validationResult.data.contractFile || null
+      };
+      
+      // If a contract file is being uploaded, set the upload date to now
+      if (dataToInsert.contractFile) {
+        dataToInsert.contractFileUploadDate = new Date();
+      }
+      
       const [clientService] = await db
         .insert(clientServices)
-        .values({
-          ...validationResult.data,
-          characteristics: validationResult.data.characteristics || [],
-          contractFile: validationResult.data.contractFile || null
-        })
+        .values(dataToInsert)
         .returning();
       
       console.log('Created client service:', clientService);
