@@ -255,7 +255,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().optional(),
     notes: z.string().optional(),
-    contractFile: z.instanceof(File).optional(),
+    contractFile: z.instanceof(File).optional().or(z.undefined()),
     isActive: z.boolean().default(true),
   });
 
@@ -286,16 +286,21 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
 
   const assignMutation = useMutation({
     mutationFn: async (data: ServiceAssignmentData) => {
+      console.log('Raw form data:', data);
       let contractFilePath = null;
       
       // Upload contract file if provided
       if (data.contractFile && data.contractFile instanceof File) {
+        console.log('Uploading contract file:', data.contractFile.name);
         const formData = new FormData();
         formData.append('file', data.contractFile);
         
         const uploadResponse = await apiRequest('POST', '/api/uploads', formData);
         const uploadResult = await uploadResponse.json();
         contractFilePath = uploadResult.path;
+        console.log('Contract file uploaded to:', contractFilePath);
+      } else {
+        console.log('No contract file to upload');
       }
       
       const payload = {
@@ -480,7 +485,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
                   accept=".pdf,.doc,.docx,.txt"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    field.onChange(file);
+                    field.onChange(file || undefined);
                   }}
                 />
               </FormControl>
