@@ -17,7 +17,7 @@ import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 import CompanySettings from "@/pages/company-settings";
 import { ProtectedRoute } from "./lib/protected-route";
-import { MainNav } from "./components/main-nav";
+import { SidebarNav } from "./components/sidebar-nav";
 import { useAuth } from "@/hooks/use-auth";
 import { wsClient } from "./lib/websocket";
 import { useEffect } from "react";
@@ -28,9 +28,13 @@ import { RefreshCw } from "lucide-react";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col">
-      <MainNav />
-      <main className="flex-1">{children}</main>
+    <div className="min-h-screen flex">
+      <SidebarNav />
+      <main className="flex-1 lg:ml-64">
+        <div className="p-4 md:p-6 lg:p-8">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
