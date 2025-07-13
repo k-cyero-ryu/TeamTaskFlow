@@ -358,7 +358,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         clientId: client.id,
         serviceId: data.serviceId,
         characteristics: data.characteristics,
-        price: Math.round(data.price * 100), // Convert dollars to cents
+        price: data.price,
         frequency: data.frequency,
         startDate: data.startDate,
         endDate: data.endDate || null,
@@ -828,7 +828,7 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                         </div>
                       </div>
                       <div>
-                        <span className="font-medium">Price:</span> ${(item.client_services.price / 100).toFixed(2)}
+                        <span className="font-medium">Price:</span> ${item.client_services.price}
                       </div>
                       <div>
                         <span className="font-medium">Frequency:</span> {item.client_services.frequency}
