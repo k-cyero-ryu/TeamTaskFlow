@@ -44,17 +44,32 @@ router.get('/client/:clientId', isAuthenticated, async (req, res) => {
 // Create a new client service assignment
 router.post('/', 
   isAuthenticated, 
-  validateRequest(insertClientServiceSchema), 
   async (req, res) => {
     try {
-      console.log('Received client service data:', req.body);
+      console.log('Raw request body:', req.body);
+      
+      // Validate the request body manually
+      const validationResult = insertClientServiceSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        console.log('Validation failed:', validationResult.error.errors);
+        return res.status(400).json({ 
+          error: 'Validation failed',
+          details: validationResult.error.errors 
+        });
+      }
+      
+      console.log('Validated data:', validationResult.data);
+      
       const [clientService] = await db
         .insert(clientServices)
         .values({
-          ...req.body,
-          characteristics: req.body.characteristics || []
+          ...validationResult.data,
+          characteristics: validationResult.data.characteristics || []
         })
         .returning();
+      
+      console.log('Created client service:', clientService);
       res.status(201).json(clientService);
     } catch (error) {
       console.error('Error creating client service:', error);
