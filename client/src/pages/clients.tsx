@@ -37,13 +37,13 @@ function FileViewer({ filePath, onClose }: { filePath: string; onClose: () => vo
         <div className="flex-1 overflow-hidden">
           {isImage ? (
             <img 
-              src={`/api/uploads/file/${filePath}`} 
+              src={`/api/uploads/file/${filePath.replace('/uploads/', '')}`} 
               alt="Contract file" 
               className="max-w-full max-h-[70vh] object-contain mx-auto"
             />
           ) : isPDF ? (
             <iframe 
-              src={`/api/uploads/file/${filePath}`} 
+              src={`/api/uploads/file/${filePath.replace('/uploads/', '')}`} 
               className="w-full h-[70vh] border-0"
               title="Contract PDF"
             />
@@ -54,7 +54,7 @@ function FileViewer({ filePath, onClose }: { filePath: string; onClose: () => vo
                 Preview not available for this file type
               </p>
               <Button 
-                onClick={() => window.open(`/api/uploads/file/${filePath}`, '_blank')}
+                onClick={() => window.open(`/api/uploads/file/${filePath.replace('/uploads/', '')}`, '_blank')}
                 className="mr-2"
               >
                 Open in New Tab
@@ -70,7 +70,7 @@ function FileViewer({ filePath, onClose }: { filePath: string; onClose: () => vo
             variant="outline" 
             onClick={() => {
               const link = document.createElement('a');
-              link.href = `/api/uploads/file/${filePath}`;
+              link.href = `/api/uploads/file/${filePath.replace('/uploads/', '')}`;
               link.download = filePath.split('/').pop() || 'contract';
               link.click();
             }}
@@ -705,7 +705,7 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                               View File
                             </Button>
                             <a 
-                              href={`/api/uploads/file/${item.client_services.contractFile}`}
+                              href={`/api/uploads/file/${item.client_services.contractFile?.replace('/uploads/', '') || ''}`}
                               download
                               className="text-blue-600 hover:text-blue-800 underline text-xs"
                             >

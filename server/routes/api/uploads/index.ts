@@ -258,21 +258,30 @@ router.post('/group-message/:channelId', isAuthenticated, upload.array('files', 
 router.get('/file/*', isAuthenticated, async (req, res) => {
   try {
     // Get the full path after /file/
-    const requestedPath = req.params[0];
+    let requestedPath = decodeURIComponent(req.params[0]);
     
-    // If path starts with uploads/, it's a full path, otherwise just a filename
-    let filePath;
-    if (requestedPath.startsWith('uploads/')) {
-      // Full path from root - remove leading uploads/ since uploadDir already points to uploads
-      const relativePath = requestedPath.substring('uploads/'.length);
-      filePath = path.join(uploadDir, relativePath);
-    } else {
-      // Just a filename
-      filePath = path.join(uploadDir, requestedPath);
+    logger.info('File download request', { originalPath: req.params[0], decodedPath: requestedPath });
+    
+    // Remove /uploads/ prefix if it exists (to handle double uploads/ in path)
+    if (requestedPath.startsWith('/uploads/')) {
+      requestedPath = requestedPath.substring('/uploads/'.length);
+    } else if (requestedPath.startsWith('uploads/')) {
+      requestedPath = requestedPath.substring('uploads/'.length);
     }
+    
+    // Security check - prevent directory traversal
+    if (requestedPath.includes('..')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+    
+    // Build the full file path
+    const filePath = path.join(uploadDir, requestedPath);
+    
+    logger.info('Serving file', { requestedPath, filePath, uploadDir });
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
+      logger.error('File not found', { requestedPath, filePath });
       return res.status(404).json({ error: 'File not found' });
     }
     
