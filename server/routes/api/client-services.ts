@@ -50,7 +50,10 @@ router.post('/',
       console.log('Raw request body:', req.body);
       
       // Validate the request body manually
-      const validationResult = insertClientServiceSchema.safeParse(req.body);
+      const validationResult = insertClientServiceSchema.safeParse({
+        ...req.body,
+        contractFile: req.body.contractFile || undefined
+      });
       
       if (!validationResult.success) {
         console.log('Validation failed:', validationResult.error.errors);
@@ -66,7 +69,8 @@ router.post('/',
         .insert(clientServices)
         .values({
           ...validationResult.data,
-          characteristics: validationResult.data.characteristics || []
+          characteristics: validationResult.data.characteristics || [],
+          contractFile: validationResult.data.contractFile || null
         })
         .returning();
       

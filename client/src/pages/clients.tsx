@@ -469,9 +469,13 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
                   formData.append('file', file);
                   
                   const response = await apiRequest('POST', '/api/uploads', formData);
+                  if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                  }
                   const result = await response.json();
                   setUploadedFilePath(result.path);
                   console.log('File uploaded successfully:', result.path);
+                  toast({ title: 'File uploaded successfully' });
                 } catch (error) {
                   console.error('File upload failed:', error);
                   toast({ title: 'File upload failed', variant: 'destructive' });
