@@ -248,7 +248,7 @@ export function SidebarNav() {
       </div>
 
       {/* Mobile top spacing */}
-      <div className="lg:hidden h-16"></div>
+      <div className="lg:hidden h-20"></div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:bg-background">
