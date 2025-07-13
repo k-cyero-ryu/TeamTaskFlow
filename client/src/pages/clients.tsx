@@ -31,6 +31,7 @@ const insertClientSchema = z.object({
   type: z.enum(['individual', 'company'], {
     required_error: 'Please select a client type'
   }),
+  startDate: z.string().optional(),
   contactInfo: contactInfoSchema,
   isActive: z.boolean().default(true),
 });
@@ -57,6 +58,7 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
       name: client?.name || '',
       address: client?.address || '',
       type: client?.type as ClientFormData['type'] || 'individual',
+      startDate: client?.startDate ? new Date(client.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       contactInfo: {
         phone: (client?.contactInfo as any)?.phone || '',
         whatsapp: (client?.contactInfo as any)?.whatsapp || '',
@@ -135,6 +137,20 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="startDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Start Date</FormLabel>
+              <FormControl>
+                <Input {...field} type="date" />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
