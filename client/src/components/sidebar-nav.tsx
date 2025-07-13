@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -182,8 +182,8 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <ScrollArea className="flex-1 p-2">
-      <div className="space-y-1">
+    <div className="flex-1 overflow-y-auto p-2 mobile-scroll scrollbar-mobile">
+      <div className="space-y-1 pb-4">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
             (item.href !== "/" && location.startsWith(item.href));
@@ -193,7 +193,7 @@ export function SidebarNav() {
               key={item.href}
               variant={isActive ? "secondary" : "ghost"}
               className={cn(
-                "w-full justify-start gap-3 h-10",
+                "w-full justify-start gap-3 h-12 touch-manipulation text-left touch-optimized",
                 isActive && "bg-secondary"
               )}
               onClick={() => {
@@ -201,10 +201,10 @@ export function SidebarNav() {
                 setMobileOpen(false);
               }}
             >
-              <item.icon className="h-4 w-4" />
-              <span className="flex-1 text-left">{item.label}</span>
+              <item.icon className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 text-left truncate">{item.label}</span>
               {item.badge && (
-                <Badge variant="secondary" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                <Badge variant="secondary" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs flex-shrink-0">
                   {item.badge}
                 </Badge>
               )}
@@ -212,7 +212,7 @@ export function SidebarNav() {
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   const SidebarContent = () => (
@@ -229,22 +229,26 @@ export function SidebarNav() {
         <div className="flex items-center justify-between p-4">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="touch-optimized">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <div className="flex items-center justify-between p-4 border-b">
+            <SheetContent side="left" className="w-64 p-0 flex flex-col mobile-scroll">
+              <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
                 <h2 className="text-lg font-semibold">{t('navigation')}</h2>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setMobileOpen(false)}
+                  className="touch-optimized"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <SidebarContent />
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <UserSection />
+                <NavigationItems />
+              </div>
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">

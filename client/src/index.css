@@ -9,6 +9,49 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Mobile scrolling improvements */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+
+  /* Touch optimization */
+  .touch-optimized {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Better scrollbars for mobile */
+  .scrollbar-mobile {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+
+  .scrollbar-mobile::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-mobile::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-mobile::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 2px;
+  }
+
+  .scrollbar-mobile::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(148 163 184);
   }
 }
 
