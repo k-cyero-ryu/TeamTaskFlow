@@ -678,7 +678,7 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
   const contactInfo = client.contactInfo as any;
 
   return (
-    <div className="container mx-auto py-6 px-4 space-y-4">
+    <div className="container mx-auto py-14 px-4 space-y-4">
       {/* Header - More compact */}
       <div className="flex items-center gap-4 pb-2">
         <Button
@@ -757,7 +757,10 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg">Assigned Services</CardTitle>
-            <Button onClick={() => setShowAssignForm(!showAssignForm)} size="sm">
+            <Button
+              onClick={() => setShowAssignForm(!showAssignForm)}
+              size="sm"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Assign Service
             </Button>
@@ -765,19 +768,24 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
         </CardHeader>
         <CardContent className="pt-0">
           {servicesLoading ? (
-            <div className="text-center py-8">Loading services...</div>
+            <div className="text-center py-14">Loading services...</div>
           ) : clientServices.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-14 text-gray-500">
               No services assigned to this client
             </div>
           ) : (
             <div className="space-y-3">
               {clientServices.map((item) => (
-                <Card key={item.client_services.id} className="p-3 border-l-4 border-l-blue-500">
+                <Card
+                  key={item.client_services.id}
+                  className="p-3 border-l-4 border-l-blue-500"
+                >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-base">{item.services?.name}</h4>
+                        <h4 className="font-medium text-base">
+                          {item.services?.name}
+                        </h4>
                         <Badge
                           variant={
                             item.client_services.isActive
@@ -832,9 +840,8 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
                             )}
                           </div>
                         )}
-
                       </div>
-                      
+
                       {/* Contract File Section - More compact */}
                       {item.client_services.contractFile && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
@@ -842,13 +849,17 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
                             <FileText className="h-4 w-4 text-gray-500" />
                             <span className="font-medium">Contract:</span>
                             <span className="text-gray-600 text-xs flex-1">
-                              {item.client_services.contractFile.split("/").pop()}
+                              {item.client_services.contractFile
+                                .split("/")
+                                .pop()}
                             </span>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                setViewingFile(item.client_services.contractFile)
+                                setViewingFile(
+                                  item.client_services.contractFile,
+                                )
                               }
                               className="h-7 text-xs px-2"
                             >
@@ -867,7 +878,7 @@ export default function ClientDetails({ params }: { params: { id: string } }) {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Notes Section - More compact */}
                       {item.client_services.notes && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
