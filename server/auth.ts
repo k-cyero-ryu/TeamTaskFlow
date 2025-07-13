@@ -119,7 +119,14 @@ export function setupAuth(app: Express) {
         console.log(`User not found during deserialization: ${id}`);
         return done(null, false);
       }
-      done(null, user);
+      
+      // Set admin status based on user ID (admin users have ID 1)
+      const userWithAdmin = {
+        ...user,
+        isAdmin: user.id === 1
+      };
+      
+      done(null, userWithAdmin);
     } catch (error) {
       console.error("Deserialization error:", error);
       done(error);

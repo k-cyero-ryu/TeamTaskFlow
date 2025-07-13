@@ -256,6 +256,11 @@ export class DatabaseStorage implements IStorage {
   async getTasksForUser(userId: number): Promise<Task[]> {
     try {
       return await executeWithRetry(async () => {
+        // Admin users (ID 1) can see all tasks
+        if (userId === 1) {
+          return await db.select().from(tasks);
+        }
+        
         // Get tasks where the user is:
         // 1. Creator
         // 2. Responsible person
