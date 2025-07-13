@@ -38,7 +38,9 @@ export default function Chat() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
+  const { data: conversations, isLoading: conversationsLoading } = useQuery<
+    Conversation[]
+  >({
     queryKey: ["/api/messages/conversations"],
   });
 
@@ -50,7 +52,7 @@ export default function Chat() {
         description: error.message,
         variant: "destructive",
       });
-    }
+    },
   });
 
   const isLoading = conversationsLoading || usersLoading;
@@ -63,10 +65,10 @@ export default function Chat() {
     );
   }
 
-  const otherUsers = users?.filter(u => u.id !== user?.id) || [];
+  const otherUsers = users?.filter((u) => u.id !== user?.id) || [];
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-14">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Messages</h1>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -82,7 +84,7 @@ export default function Chat() {
             </DialogHeader>
             <div className="space-y-4 mt-4">
               {otherUsers.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
+                <div className="text-center py-14 text-muted-foreground">
                   No other users available
                 </div>
               ) : (
@@ -172,11 +174,12 @@ export default function Chat() {
         ))}
 
         {!conversations?.length && (
-          <div className="text-center py-8">
+          <div className="text-center py-14">
             <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No messages yet</h3>
             <p className="text-muted-foreground mt-1">
-              Start a conversation with someone using the "New Message" button above
+              Start a conversation with someone using the "New Message" button
+              above
             </p>
           </div>
         )}

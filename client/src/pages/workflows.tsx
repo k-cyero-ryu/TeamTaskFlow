@@ -6,7 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertWorkflowSchema, type InsertWorkflow, type Workflow } from "@shared/schema";
+import {
+  insertWorkflowSchema,
+  type InsertWorkflow,
+  type Workflow,
+} from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -65,7 +69,7 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-14">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <Card>
@@ -76,7 +80,7 @@ export default function WorkflowsPage() {
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit((data) =>
-                    createWorkflowMutation.mutate(data)
+                    createWorkflowMutation.mutate(data),
                   )}
                   className="space-y-4"
                 >
@@ -100,7 +104,7 @@ export default function WorkflowsPage() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input {...field} value={field.value || ''} />
+                          <Input {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

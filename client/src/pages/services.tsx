@@ -59,10 +59,7 @@ function ServiceForm({ service, onSuccess }: { service?: Service; onSuccess: () 
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: ServiceFormData) => apiRequest('/api/services', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
+    mutationFn: (data: ServiceFormData) => apiRequest('POST', '/api/services', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/services'] });
       toast({ title: 'Service created successfully' });
@@ -74,10 +71,7 @@ function ServiceForm({ service, onSuccess }: { service?: Service; onSuccess: () 
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: ServiceFormData) => apiRequest(`/api/services/${service?.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
+    mutationFn: (data: ServiceFormData) => apiRequest('PUT', `/api/services/${service?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/services'] });
       toast({ title: 'Service updated successfully' });
@@ -185,13 +179,14 @@ export default function Services() {
 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ['/api/services'],
-    queryFn: () => apiRequest('/api/services') as Promise<Service[]>
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/services');
+      return response.json();
+    }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/services/${id}`, {
-      method: 'DELETE'
-    }),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/services/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/services'] });
       toast({ title: 'Service deleted successfully' });
