@@ -182,7 +182,7 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <ScrollArea className="flex-1 p-2">
+    <ScrollArea className="flex-1 p-2 h-0">
       <div className="space-y-1">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
