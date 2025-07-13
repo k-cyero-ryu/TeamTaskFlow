@@ -182,7 +182,7 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <div className="flex-1 p-2 overflow-y-scroll max-h-full">
+    <ScrollArea className="flex-1 p-2">
       <div className="space-y-1">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
@@ -212,7 +212,7 @@ export function SidebarNav() {
           );
         })}
       </div>
-    </div>
+    </ScrollArea>
   );
 
   const SidebarContent = () => (

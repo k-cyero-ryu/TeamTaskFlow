@@ -250,7 +250,10 @@ export default function Clients() {
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['/api/clients'],
-    queryFn: () => apiRequest('/api/clients') as Promise<Client[]>
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/clients');
+      return response.json() as Promise<Client[]>;
+    }
   });
 
   const deleteMutation = useMutation({
