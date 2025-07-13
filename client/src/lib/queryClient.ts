@@ -99,16 +99,20 @@ export async function apiRequest(
   }
 
   try {
+    console.log('Making fetch request to:', url, 'with config:', config);
     const res = await fetch(url, config);
+    console.log('Fetch response received:', res.status, res.statusText);
     
     // Create a clone immediately for error checking
     const resForError = res.clone();
     
     // Check if response is OK
     if (!resForError.ok) {
+      console.log('Response not OK, status:', res.status);
       // Try to get error details from response
       try {
         const errorData = await resForError.json();
+        console.log('Error data:', errorData);
         const error = new Error(
           errorData.message || 
           errorData.error?.message || 
@@ -117,6 +121,7 @@ export async function apiRequest(
         (error as any).status = resForError.status;
         throw error;
       } catch (jsonError) {
+        console.log('Could not parse error as JSON:', jsonError);
         // If we couldn't parse JSON, throw with status text
         throw new Error(`Request failed: ${resForError.statusText || resForError.status}`);
       }
@@ -125,6 +130,11 @@ export async function apiRequest(
     return res;
   } catch (error) {
     console.error("API request error:", error);
+    console.log('Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
     throw error;
   }
 }

@@ -79,6 +79,22 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+  
+  // Debug session middleware
+  app.use((req, res, next) => {
+    if (req.method === 'POST' && req.path === '/api/client-services') {
+      console.log('POST /api/client-services session debug:', {
+        sessionID: req.sessionID,
+        isAuthenticated: req.isAuthenticated(),
+        user: req.user ? { id: req.user.id, username: req.user.username } : null,
+        cookies: req.headers.cookie,
+        sessionCookie: req.headers.cookie?.split(';').find(c => c.trim().startsWith('connect.sid=')),
+        'user-agent': req.headers['user-agent'],
+        'content-type': req.headers['content-type']
+      });
+    }
+    next();
+  });
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
