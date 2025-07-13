@@ -328,6 +328,8 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
   });
 
   const onSubmit = (data: ServiceAssignmentData) => {
+    console.log('Form submitted with data:', data);
+    console.log('Form errors:', form.formState.errors);
     assignMutation.mutate(data);
   };
 
