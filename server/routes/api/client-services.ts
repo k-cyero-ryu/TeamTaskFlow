@@ -91,29 +91,71 @@ router.post('/',
 );
 
 // Update a client service
-router.put('/:id', 
-  isAuthenticated, 
-  validateRequest(insertClientServiceSchema), 
-  async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const [clientService] = await db
-        .update(clientServices)
-        .set({ ...req.body, updatedAt: new Date() })
-        .where(eq(clientServices.id, id))
-        .returning();
-      
-      if (!clientService) {
-        return res.status(404).json({ error: 'Client service not found' });
-      }
-      
-      res.json(clientService);
-    } catch (error) {
-      console.error('Error updating client service:', error);
-      res.status(500).json({ error: 'Failed to update client service' });
+router.put('/:id', isAuthenticated, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid service ID' });
     }
+
+    // Get the current service to check if it exists
+    const [currentService] = await db
+      .select()
+      .from(clientServices)
+      .where(eq(clientServices.id, id));
+
+    if (!currentService) {
+      return res.status(404).json({ error: 'Service assignment not found' });
+    }
+
+    // Prepare update data
+    const updateData: any = { updatedAt: new Date() };
+    
+    if (req.body.contractFile !== undefined) {
+      updateData.contractFile = req.body.contractFile;
+      updateData.contractFileUploadDate = new Date();
+    }
+
+    if (req.body.price !== undefined) {
+      updateData.price = req.body.price;
+    }
+
+    if (req.body.frequency !== undefined) {
+      updateData.frequency = req.body.frequency;
+    }
+
+    if (req.body.isActive !== undefined) {
+      updateData.isActive = req.body.isActive;
+    }
+
+    if (req.body.notes !== undefined) {
+      updateData.notes = req.body.notes;
+    }
+
+    if (req.body.characteristics !== undefined) {
+      updateData.characteristics = req.body.characteristics;
+    }
+
+    // Update the service
+    const [clientService] = await db
+      .update(clientServices)
+      .set(updateData)
+      .where(eq(clientServices.id, id))
+      .returning();
+
+    console.log('Client service updated successfully:', { 
+      serviceId: id, 
+      updateData: Object.keys(updateData),
+      userId: req.user?.id 
+    });
+
+    res.json(clientService);
+  } catch (error) {
+    console.error('Error updating client service:', error);
+    res.status(500).json({ error: 'Failed to update client service' });
   }
-);
+});
 
 // Delete a client service
 router.delete('/:id', isAuthenticated, async (req, res) => {

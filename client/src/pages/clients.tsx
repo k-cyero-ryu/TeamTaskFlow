@@ -598,10 +598,127 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
   );
 }
 
+// Contract File Editor Component
+function ContractFileEditor({ service, onClose, onSuccess }: { 
+  service: any; 
+  onClose: () => void; 
+  onSuccess: () => void; 
+}) {
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { contractFile: string }) => {
+      const response = await apiRequest('PUT', `/api/client-services/${service.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-services'] });
+      toast({ title: 'Contract file updated successfully' });
+      onSuccess();
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error updating contract file', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/uploads', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setUploadedFilePath(result.path);
+        } else {
+          toast({ title: 'File upload failed', variant: 'destructive' });
+        }
+      } catch (error) {
+        console.error('File upload failed:', error);
+        toast({ title: 'File upload failed', variant: 'destructive' });
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleSubmit = () => {
+    if (uploadedFilePath) {
+      updateMutation.mutate({ contractFile: uploadedFilePath });
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Contract File</DialogTitle>
+          <DialogDescription>
+            Replace the contract file for this service assignment
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <span className="font-medium">Current File:</span>
+            <div className="mt-1 text-sm text-gray-600">
+              {service.contractFile?.split('/').pop()}
+            </div>
+            {service.contractFileUploadDate && (
+              <div className="text-xs text-gray-500 mt-1">
+                Uploaded: {format(new Date(service.contractFileUploadDate), 'MMM d, yyyy h:mm a')}
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <Label htmlFor="contractFile">New Contract File</Label>
+            <Input
+              id="contractFile"
+              type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              onChange={handleFileUpload}
+              disabled={isUploading}
+            />
+            {uploadedFilePath && (
+              <p className="text-sm text-green-600 mt-1">
+                New file ready: {uploadedFilePath.split('/').pop()}
+              </p>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={!uploadedFilePath || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? 'Updating...' : 'Update Contract'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Main Client Services Manager Component
 function ClientServicesManager({ client, onClose }: { client: Client; onClose: () => void }) {
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<any | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -640,10 +757,43 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
 
   return (
     <div className="space-y-6">
+      {/* Client Details Section */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="text-lg font-semibold mb-3">Client Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="font-medium">Name:</span> {client.name}
+          </div>
+          <div>
+            <span className="font-medium">Type:</span> {client.type}
+          </div>
+          {client.email && (
+            <div>
+              <span className="font-medium">Email:</span> {client.email}
+            </div>
+          )}
+          {client.phone && (
+            <div>
+              <span className="font-medium">Phone:</span> {client.phone}
+            </div>
+          )}
+          {client.address && (
+            <div className="md:col-span-2">
+              <span className="font-medium">Address:</span> {client.address}
+            </div>
+          )}
+          {client.notes && (
+            <div className="md:col-span-2">
+              <span className="font-medium">Notes:</span> {client.notes}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Current Services */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold">Current Services</h3>
+          <h3 className="text-lg font-semibold">Assigned Services</h3>
           <Button onClick={() => setShowAssignForm(!showAssignForm)}>
             <Plus className="h-4 w-4 mr-2" />
             Assign Service
@@ -704,6 +854,15 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
                               <FileText className="h-3 w-3 mr-1" />
                               View File
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingService(item.client_services)}
+                              className="h-8 text-xs"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit Contract
+                            </Button>
                             <a 
                               href={`/api/uploads/file/${item.client_services.contractFile?.replace('/uploads/', '') || ''}`}
                               download
@@ -754,6 +913,17 @@ function ClientServicesManager({ client, onClose }: { client: Client; onClose: (
         <FileViewer 
           filePath={viewingFile} 
           onClose={() => setViewingFile(null)} 
+        />
+      )}
+      
+      {/* Contract File Editor Dialog */}
+      {editingService && (
+        <ContractFileEditor 
+          service={editingService} 
+          onClose={() => setEditingService(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/client-services', client.id] });
+          }}
         />
       )}
     </div>
