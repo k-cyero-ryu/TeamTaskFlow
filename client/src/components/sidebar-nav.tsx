@@ -182,7 +182,7 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <ScrollArea className="flex-1 p-2 h-0">
+    <div className="flex-1 p-2 overflow-y-auto max-h-0">
       <div className="space-y-1">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
@@ -212,11 +212,11 @@ export function SidebarNav() {
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background min-h-0">
       <UserSection />
       <NavigationItems />
     </div>
