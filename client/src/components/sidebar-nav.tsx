@@ -182,7 +182,7 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <div className="flex-1 p-2 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
+    <div className="flex-1 p-2 overflow-y-scroll max-h-full">
       <div className="space-y-1">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
@@ -263,7 +263,7 @@ export function SidebarNav() {
       <div className="lg:hidden h-20"></div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:bg-background">
+      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:bg-background lg:overflow-hidden">
         <SidebarContent />
       </div>
     </>

@@ -67,10 +67,7 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: ClientFormData) => apiRequest('/api/clients', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
+    mutationFn: (data: ClientFormData) => apiRequest('POST', '/api/clients', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({ title: 'Client created successfully' });
@@ -82,10 +79,7 @@ function ClientForm({ client, onSuccess }: { client?: Client; onSuccess: () => v
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: ClientFormData) => apiRequest(`/api/clients/${client?.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
+    mutationFn: (data: ClientFormData) => apiRequest('PUT', `/api/clients/${client?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({ title: 'Client updated successfully' });
@@ -244,9 +238,7 @@ export default function Clients() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/clients/${id}`, {
-      method: 'DELETE'
-    }),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/clients/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({ title: 'Client deleted successfully' });
