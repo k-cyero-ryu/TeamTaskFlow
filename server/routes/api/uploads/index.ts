@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../../../storage';
-import { requireAuth } from '../../../middleware';
+import { isAuthenticated } from '../../../middleware/auth';
 import { Logger } from '../../../utils/logger';
 
 const router = Router();
@@ -44,11 +44,45 @@ const upload = multer({
 });
 
 /**
+ * @route POST /api/uploads
+ * @desc Upload a single file
+ * @access Private
+ */
+router.post('/', isAuthenticated, upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    logger.info('File uploaded successfully', {
+      filename: file.filename,
+      originalname: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype,
+      path: file.path
+    });
+
+    res.json({
+      message: 'File uploaded successfully',
+      path: `/uploads/${file.filename}`,
+      originalName: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype
+    });
+  } catch (error) {
+    logger.error('Error uploading file', { error });
+    res.status(500).json({ error: 'File upload failed' });
+  }
+});
+
+/**
  * @route POST /api/uploads/private-message/:userId
  * @desc Upload file(s) and send as private message
  * @access Private
  */
-router.post('/private-message/:userId', requireAuth, upload.array('files', 5), async (req, res) => {
+router.post('/private-message/:userId', isAuthenticated, upload.array('files', 5), async (req, res) => {
   try {
     const senderId = req.user!.id;
     const recipientId = parseInt(req.params.userId);
@@ -124,7 +158,7 @@ router.post('/private-message/:userId', requireAuth, upload.array('files', 5), a
  * @desc Upload file(s) and send as group message
  * @access Private
  */
-router.post('/group-message/:channelId', requireAuth, upload.array('files', 5), async (req, res) => {
+router.post('/group-message/:channelId', isAuthenticated, upload.array('files', 5), async (req, res) => {
   try {
     const senderId = req.user!.id;
     const channelId = parseInt(req.params.channelId);
@@ -221,7 +255,7 @@ router.post('/group-message/:channelId', requireAuth, upload.array('files', 5), 
  * @desc Download a file by full path or filename
  * @access Private
  */
-router.get('/file/*', requireAuth, async (req, res) => {
+router.get('/file/*', isAuthenticated, async (req, res) => {
   try {
     // Get the full path after /file/
     const requestedPath = req.params[0];
@@ -262,7 +296,7 @@ router.get('/file/*', requireAuth, async (req, res) => {
  * @desc Upload file(s) and send as comment
  * @access Private
  */
-router.post('/comment/:taskId', requireAuth, upload.array('files', 5), async (req, res) => {
+router.post('/comment/:taskId', isAuthenticated, upload.array('files', 5), async (req, res) => {
   try {
     const userId = req.user!.id;
     const taskId = parseInt(req.params.taskId);

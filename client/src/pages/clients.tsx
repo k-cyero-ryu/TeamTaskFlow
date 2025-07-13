@@ -469,15 +469,26 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
                   formData.append('file', file);
                   
                   const response = await apiRequest('POST', '/api/uploads', formData);
+                  console.log('Upload response status:', response.status);
+                  console.log('Upload response ok:', response.ok);
+                  
                   if (!response.ok) {
                     throw new Error(`Upload failed: ${response.status}`);
                   }
+                  
                   const result = await response.json();
-                  setUploadedFilePath(result.path);
-                  console.log('File uploaded successfully:', result.path);
-                  toast({ title: 'File uploaded successfully' });
+                  console.log('Upload result:', result);
+                  
+                  if (result.path) {
+                    setUploadedFilePath(result.path);
+                    console.log('File uploaded successfully:', result.path);
+                    toast({ title: 'File uploaded successfully' });
+                  } else {
+                    throw new Error('No file path returned from server');
+                  }
                 } catch (error) {
                   console.error('File upload failed:', error);
+                  console.error('Error details:', error.message);
                   toast({ title: 'File upload failed', variant: 'destructive' });
                 }
               }
