@@ -212,9 +212,9 @@ export function SidebarNav() {
 
   return (
     <>
-      {/* Mobile navigation */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 border-b">
+      {/* Mobile navigation header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b">
+        <div className="flex items-center justify-between p-4">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -246,6 +246,9 @@ export function SidebarNav() {
           </div>
         </div>
       </div>
+
+      {/* Mobile top spacing */}
+      <div className="lg:hidden h-16"></div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:bg-background">

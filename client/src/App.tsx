@@ -30,7 +30,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
       <SidebarNav />
-      <main className="flex-1 lg:ml-64">
+      <main className="flex-1 lg:ml-64 min-w-0">
         <div className="p-4 md:p-6 lg:p-8">
           {children}
         </div>
