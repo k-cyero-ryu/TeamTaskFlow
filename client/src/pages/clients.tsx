@@ -286,16 +286,19 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
 
   const assignMutation = useMutation({
     mutationFn: async (data: ServiceAssignmentData) => {
+      console.log('Starting service assignment with data:', data);
       let contractFilePath = null;
       
       // Upload contract file if provided
       if (data.contractFile) {
+        console.log('Uploading contract file:', data.contractFile.name);
         const formData = new FormData();
         formData.append('file', data.contractFile);
         
         const uploadResponse = await apiRequest('POST', '/api/uploads', formData);
         const uploadResult = await uploadResponse.json();
         contractFilePath = uploadResult.path;
+        console.log('Contract file uploaded:', contractFilePath);
       }
       
       const payload = {
@@ -310,7 +313,11 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         contractFile: contractFilePath,
         isActive: data.isActive,
       };
-      return apiRequest('POST', '/api/client-services', payload);
+      console.log('Sending API request with payload:', payload);
+      
+      const response = await apiRequest('POST', '/api/client-services', payload);
+      console.log('API response received:', response.status);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/client-services'] });
