@@ -46,6 +46,7 @@ router.post('/',
   isAuthenticated, 
   async (req, res) => {
     try {
+      console.log('POST /api/client-services reached server');
       console.log('Raw request body:', req.body);
       
       // Validate the request body manually

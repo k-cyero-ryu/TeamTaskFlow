@@ -311,7 +311,10 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         isActive: data.isActive,
       };
       
-      return apiRequest('POST', '/api/client-services', payload);
+      console.log('About to make service assignment request');
+      const response = await apiRequest('POST', '/api/client-services', payload);
+      console.log('Service assignment response:', response.status);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/client-services'] });
