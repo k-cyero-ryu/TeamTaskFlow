@@ -182,7 +182,7 @@ export function SidebarNav() {
   );
 
   const NavigationItems = () => (
-    <div className="flex-1 p-2 overflow-y-auto max-h-0">
+    <div className="flex-1 p-2 overflow-y-auto" style={{ minHeight: 0 }}>
       <div className="space-y-1">
         {filteredNavItems.map((item) => {
           const isActive = location === item.href || 
