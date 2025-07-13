@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -714,231 +715,16 @@ function ContractFileEditor({ service, onClose, onSuccess }: {
   );
 }
 
-// Main Client Services Manager Component
-function ClientServicesManager({ client, onClose }: { client: Client; onClose: () => void }) {
-  const [showAssignForm, setShowAssignForm] = useState(false);
-  const [viewingFile, setViewingFile] = useState<string | null>(null);
-  const [editingService, setEditingService] = useState<any | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: clientServices = [], isLoading } = useQuery({
-    queryKey: ['/api/client-services', client.id],
-    queryFn: async () => {
-      const response = await apiRequest('GET', `/api/client-services/client/${client.id}`);
-      return response.json() as Promise<any[]>;
-    }
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (serviceId: number) => apiRequest('DELETE', `/api/client-services/${serviceId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-services', client.id] });
-      toast({ title: 'Service removed successfully' });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error removing service', description: error.message, variant: 'destructive' });
-    }
-  });
-
-  const handleRemoveService = (serviceId: number) => {
-    if (confirm('Are you sure you want to remove this service assignment?')) {
-      removeMutation.mutate(serviceId);
-    }
-  };
-
-  const handleAssignSuccess = () => {
-    setShowAssignForm(false);
-  };
-
-  if (isLoading) {
-    return <div className="text-center py-8">Loading services...</div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Client Details Section */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-lg font-semibold mb-3">Client Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <span className="font-medium">Name:</span> {client.name}
-          </div>
-          <div>
-            <span className="font-medium">Type:</span> {client.type}
-          </div>
-          {client.email && (
-            <div>
-              <span className="font-medium">Email:</span> {client.email}
-            </div>
-          )}
-          {client.phone && (
-            <div>
-              <span className="font-medium">Phone:</span> {client.phone}
-            </div>
-          )}
-          {client.address && (
-            <div className="md:col-span-2">
-              <span className="font-medium">Address:</span> {client.address}
-            </div>
-          )}
-          {client.notes && (
-            <div className="md:col-span-2">
-              <span className="font-medium">Notes:</span> {client.notes}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Current Services */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold">Assigned Services</h3>
-          <Button onClick={() => setShowAssignForm(!showAssignForm)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Assign Service
-          </Button>
-        </div>
-
-        {clientServices.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No services assigned to this client
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {clientServices.map((item) => (
-              <Card key={item.client_services.id} className="p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium">{item.services?.name}</h4>
-                      <Badge variant={item.client_services.isActive ? "default" : "secondary"}>
-                        {item.client_services.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div>
-                        <span className="font-medium">Characteristics:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {(item.client_services.characteristics as string[]).map((char, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {char.replace('_', ' ')}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="font-medium">Price:</span> ${item.client_services.price}
-                      </div>
-                      <div>
-                        <span className="font-medium">Frequency:</span> {item.client_services.frequency}
-                      </div>
-                      <div>
-                        <span className="font-medium">Start Date:</span> {format(new Date(item.client_services.startDate), 'MMM d, yyyy')}
-                      </div>
-                      {item.client_services.endDate && (
-                        <div>
-                          <span className="font-medium">End Date:</span> {format(new Date(item.client_services.endDate), 'MMM d, yyyy')}
-                        </div>
-                      )}
-                      {item.client_services.contractFile && (
-                        <div>
-                          <span className="font-medium">Contract:</span>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setViewingFile(item.client_services.contractFile)}
-                              className="h-8 text-xs"
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              View File
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingService(item.client_services)}
-                              className="h-8 text-xs"
-                            >
-                              <Edit className="h-3 w-3 mr-1" />
-                              Edit Contract
-                            </Button>
-                            <a 
-                              href={`/api/uploads/file/${item.client_services.contractFile?.replace('/uploads/', '') || ''}`}
-                              download
-                              className="text-blue-600 hover:text-blue-800 underline text-xs"
-                            >
-                              Download
-                            </a>
-                          </div>
-                          {item.client_services.contractFileUploadDate && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Uploaded: {format(new Date(item.client_services.contractFileUploadDate), 'MMM d, yyyy h:mm a')}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {item.client_services.notes && (
-                      <div className="mt-2 text-sm">
-                        <span className="font-medium">Notes:</span> {item.client_services.notes}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveService(item.client_services.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Assign New Service Form */}
-      {showAssignForm && (
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-semibold mb-4">Assign New Service</h3>
-          <ServiceAssignmentForm client={client} onSuccess={handleAssignSuccess} />
-        </div>
-      )}
-      
-      {/* File Viewer Dialog */}
-      {viewingFile && (
-        <FileViewer 
-          filePath={viewingFile} 
-          onClose={() => setViewingFile(null)} 
-        />
-      )}
-      
-      {/* Contract File Editor Dialog */}
-      {editingService && (
-        <ContractFileEditor 
-          service={editingService} 
-          onClose={() => setEditingService(null)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/client-services', client.id] });
-          }}
-        />
-      )}
-    </div>
-  );
-}
+// ClientServicesManager component removed - moved to full page at /clients/:id
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [servicesDialogOpen, setServicesDialogOpen] = useState(false);
-  const [selectedClientForServices, setSelectedClientForServices] = useState<Client | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['/api/clients'],
@@ -983,13 +769,7 @@ export default function Clients() {
   };
 
   const handleManageServices = (client: Client) => {
-    setSelectedClientForServices(client);
-    setServicesDialogOpen(true);
-  };
-
-  const handleServicesDialogClose = () => {
-    setServicesDialogOpen(false);
-    setSelectedClientForServices(null);
+    setLocation(`/clients/${client.id}`);
   };
 
   if (isLoading) {
@@ -1167,23 +947,7 @@ export default function Clients() {
         </div>
       )}
 
-      {/* Service Assignment Dialog */}
-      <Dialog open={servicesDialogOpen} onOpenChange={setServicesDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Manage Services - {selectedClientForServices?.name}</DialogTitle>
-            <DialogDescription>
-              Assign and manage services for this client
-            </DialogDescription>
-          </DialogHeader>
-          {selectedClientForServices && (
-            <ClientServicesManager 
-              client={selectedClientForServices} 
-              onClose={handleServicesDialogClose} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

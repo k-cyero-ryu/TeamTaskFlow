@@ -18,6 +18,7 @@ import Settings from "@/pages/settings";
 import CompanySettings from "@/pages/company-settings";
 import Services from "@/pages/services";
 import Clients from "@/pages/clients";
+import ClientDetails from "@/pages/client-details";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { useAuth } from "@/hooks/use-auth";
@@ -249,6 +250,16 @@ export default function App() {
               <Clients />
             </Layout>
           </ProtectedRoute>
+        </Route>
+
+        <Route path="/clients/:id">
+          {(params) => (
+            <ProtectedRoute>
+              <Layout>
+                <ClientDetails params={params} />
+              </Layout>
+            </ProtectedRoute>
+          )}
         </Route>
 
         <Route component={NotFound} />
