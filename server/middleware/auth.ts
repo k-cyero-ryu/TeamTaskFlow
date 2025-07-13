@@ -19,6 +19,13 @@ declare global {
  * Middleware to check if the user is authenticated
  */
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  console.log(`Auth check for ${req.method} ${req.originalUrl}`);
+  console.log('Session ID:', req.sessionID);
+  console.log('Session exists:', !!req.session);
+  console.log('Session passport:', req.session?.passport);
+  console.log('isAuthenticated():', req.isAuthenticated());
+  console.log('User:', req.user);
+  
   if (req.isAuthenticated()) {
     return next();
   }
@@ -26,7 +33,9 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   logger.debug('Unauthorized access attempt', { 
     path: req.originalUrl, 
     method: req.method,
-    ip: req.ip
+    ip: req.ip,
+    sessionID: req.sessionID,
+    sessionData: req.session?.passport
   });
   
   res.status(401).json({ error: 'Authentication required' });

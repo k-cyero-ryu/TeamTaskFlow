@@ -296,11 +296,14 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
         formData.append('file', data.contractFile);
         
         const uploadResponse = await apiRequest('POST', '/api/uploads', formData);
+        if (!uploadResponse.ok) {
+          throw new Error(`File upload failed: ${uploadResponse.status}`);
+        }
         const uploadResult = await uploadResponse.json();
         contractFilePath = uploadResult.path;
         console.log('Contract file uploaded to:', contractFilePath);
       } else {
-        console.log('No contract file to upload');
+        console.log('No contract file to upload, contractFile is:', typeof data.contractFile, data.contractFile);
       }
       
       const payload = {
