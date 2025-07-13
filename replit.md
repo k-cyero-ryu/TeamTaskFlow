@@ -98,6 +98,13 @@ This is a full-stack task management application built with React frontend and E
 - **Connection Retry Logic**: Automatic retry with exponential backoff
 
 ## Changelog
+- July 13, 2025. Fixed WebSocket production connectivity issues for chat functionality
+  - Diagnosed Apache reverse proxy configuration issue preventing WebSocket upgrades on teamtaskflow.atalou.info
+  - Created robust WebSocket connection system with automatic fallback to HTTP polling for problematic domains
+  - Implemented production-ready WebSocket configuration with better error handling and reconnection logic
+  - Added comprehensive Apache configuration guide for WebSocket proxy setup
+  - Created fallback system that switches to HTTP polling when WebSocket connections fail
+  - Enhanced chat connection reliability with domain-specific configuration and debugging tools
 - July 04, 2025. Created comprehensive project documentation including GitHub README and multilingual user manuals
   - Developed professional GitHub README with complete feature overview, installation instructions, and technical specifications
   - Created detailed English user manual covering all application features and functionality

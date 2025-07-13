@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 import { FileUpload, FileAttachment as FileAttachmentComponent } from "@/components/file-upload";
 import { cn } from "@/lib/utils";
+import { getWebSocketConfig, getWebSocketDebugInfo } from "@/utils/websocket-config";
 
 type FileAttachment = {
   id: number;
@@ -57,18 +58,29 @@ export default function ChatConversation({ params }: { params: { id: string } })
     const connectWebSocket = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsHost = window.location.host;
-      const wsUrl = `${wsProtocol}//${wsHost}/ws`;
-
-      console.log('Attempting WebSocket connection to:', wsUrl);
+      // Get WebSocket configuration for current environment
+      const config = getWebSocketConfig();
+      const debugInfo = getWebSocketDebugInfo();
+      
+      console.log('WebSocket Debug Info:', debugInfo);
+      console.log('WebSocket Config:', config);
+      console.log('Attempting WebSocket connection to:', config.url);
 
       try {
-        const ws = new WebSocket(wsUrl);
+        const ws = new WebSocket(config.url);
         wsRef.current = ws;
+        
+        // Add connection timeout based on configuration
+        const connectionTimeout = setTimeout(() => {
+          if (ws.readyState === WebSocket.CONNECTING) {
+            console.error('WebSocket connection timeout after', config.connectionTimeout, 'ms');
+            ws.close();
+          }
+        }, config.connectionTimeout);
 
         ws.onopen = () => {
           console.log('WebSocket connected successfully');
+          clearTimeout(connectionTimeout);
           setIsConnected(true);
           if (user?.id) {
             ws.send(JSON.stringify({
@@ -125,6 +137,7 @@ export default function ChatConversation({ params }: { params: { id: string } })
 
         ws.onclose = (event) => {
           console.log('WebSocket connection closed:', event.code, event.reason);
+          clearTimeout(connectionTimeout);
           setIsConnected(false);
           wsRef.current = null;
 
@@ -132,22 +145,40 @@ export default function ChatConversation({ params }: { params: { id: string } })
             clearTimeout(reconnectTimeoutRef.current);
           }
 
-          if (user?.id) {
-            const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-            console.log(`Attempting reconnect in ${backoffDelay}ms`);
+          if (user?.id && reconnectAttempts < config.maxReconnectAttempts) {
+            const backoffDelay = Math.min(config.reconnectDelay * Math.pow(2, reconnectAttempts), 30000);
+            console.log(`Attempting reconnect in ${backoffDelay}ms (${reconnectAttempts + 1}/${config.maxReconnectAttempts})`);
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, backoffDelay);
             reconnectAttempts++;
+          } else if (reconnectAttempts >= config.maxReconnectAttempts) {
+            console.error('Max WebSocket reconnection attempts reached');
+            toast({
+              title: "Connection Failed",
+              description: "Unable to connect to chat server. Please refresh the page.",
+              variant: "destructive",
+            });
           }
         };
 
         ws.onerror = (error) => {
           console.error('WebSocket connection error:', error);
-          setIsConnected(false);
-          toast({
-            title: "Connection Error",
-            description: "Failed to connect to chat server. Retrying...",
-            variant: "destructive",
+          console.error('WebSocket error details:', {
+            url: config.url,
+            readyState: ws.readyState,
+            debugInfo,
+            config
           });
+          clearTimeout(connectionTimeout);
+          setIsConnected(false);
+          
+          // Show error toast only for the first few attempts
+          if (reconnectAttempts < 3) {
+            toast({
+              title: "Connection Error",
+              description: "Failed to connect to chat server. Retrying...",
+              variant: "destructive",
+            });
+          }
         };
       } catch (error) {
         console.error('Error creating WebSocket connection:', error);
