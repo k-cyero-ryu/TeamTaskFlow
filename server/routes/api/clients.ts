@@ -9,6 +9,9 @@ import clientPermissionsRouter from './clients/permissions';
 
 const router = Router();
 
+// Register permission routes BEFORE parameterized routes
+router.use('/permissions', clientPermissionsRouter);
+
 // Get all clients
 router.get('/', isAuthenticated, async (req, res) => {
   try {
@@ -100,7 +103,6 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
   }
 });
 
-// Register permission routes
-router.use('/permissions', clientPermissionsRouter);
+// Permission routes already registered above
 
 export default router;

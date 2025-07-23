@@ -31,6 +31,9 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Register permission routes BEFORE parameterized routes
+router.use('/permissions', expensePermissionsRouter);
+
 // Get all expenses
 router.get("/", async (req, res) => {
   try {
@@ -231,7 +234,6 @@ router.get("/receipts/:receiptId/download", async (req, res) => {
   }
 });
 
-// Register permission routes
-router.use('/permissions', expensePermissionsRouter);
+// Permission routes already registered above
 
 export default router;
