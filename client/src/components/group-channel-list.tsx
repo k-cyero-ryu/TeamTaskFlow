@@ -35,8 +35,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Users } from 'lucide-react';
+import { PlusCircle, Users, Settings } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { EditChannelDialog } from '@/components/edit-channel-dialog';
 
 // Schema for creating a new channel
 const createChannelSchema = z.object({
@@ -57,9 +58,16 @@ type GroupChannel = {
 
 export function GroupChannelList() {
   const [isOpen, setIsOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<GroupChannel | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get current user to check if they can edit channels
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+    staleTime: 300000, // 5 minutes
+  });
 
   // Get user's channels
   const { data: channels = [], isLoading, error } = useQuery<GroupChannel[]>({
@@ -228,7 +236,22 @@ export function GroupChannelList() {
                   <CardTitle className="text-lg">
                     {channel.isPrivate ? '🔒 ' : '# '}{channel.name}
                   </CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    {currentUser?.id === channel.creatorId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingChannel(channel);
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
                 <CardDescription>
                   {channel.description || 'No description provided'}
@@ -251,6 +274,16 @@ export function GroupChannelList() {
             Create Your First Channel
           </Button>
         </div>
+      )}
+
+      {editingChannel && (
+        <EditChannelDialog
+          channel={editingChannel}
+          open={!!editingChannel}
+          onOpenChange={(open) => {
+            if (!open) setEditingChannel(null);
+          }}
+        />
       )}
     </div>
   );

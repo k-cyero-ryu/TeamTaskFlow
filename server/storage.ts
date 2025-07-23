@@ -62,6 +62,7 @@ interface IStorage {
   getGroupChannels(userId: number): Promise<GroupChannel[]>;
   getGroupChannel(id: number): Promise<GroupChannel | undefined>;
   createGroupChannel(channel: InsertGroupChannel & { creatorId: number }): Promise<GroupChannel>;
+  updateGroupChannel(id: number, updates: Partial<Pick<InsertGroupChannel, 'name' | 'description' | 'isPrivate'>>): Promise<GroupChannel>;
   getChannelMembers(channelId: number): Promise<(ChannelMember & { user: Pick<User, 'id' | 'username'> })[]>;
   addChannelMember(channelId: number, userId: number, isAdmin?: boolean): Promise<ChannelMember>;
   removeChannelMember(channelId: number, userId: number): Promise<void>;
@@ -1250,6 +1251,30 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error('Failed to create group channel', { error, creatorId: channel.creatorId });
       throw new DatabaseError(`Failed to create group channel: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateGroupChannel(id: number, updates: Partial<Pick<InsertGroupChannel, 'name' | 'description' | 'isPrivate'>>): Promise<GroupChannel> {
+    try {
+      return await executeWithRetry(async () => {
+        const [updatedChannel] = await db
+          .update(groupChannels)
+          .set({
+            ...updates,
+            updatedAt: new Date(),
+          })
+          .where(eq(groupChannels.id, id))
+          .returning();
+
+        if (!updatedChannel) {
+          throw new Error(`Group channel with ID ${id} not found`);
+        }
+
+        return updatedChannel;
+      }, 'Update group channel');
+    } catch (error) {
+      logger.error(`Failed to update group channel with ID ${id}`, { error });
+      throw new DatabaseError(`Failed to update group channel: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

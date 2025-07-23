@@ -101,6 +101,53 @@ router.post('/',
     }
 });
 
+// Update a channel (only by creator)
+router.put('/:id', 
+  requireAuth,
+  validateRequest(z.object({
+    name: z.string().min(1).max(255).optional(),
+    description: z.string().max(1000).optional(),
+    isPrivate: z.boolean().optional(),
+  })), 
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const channelId = parseInt(req.params.id);
+      if (isNaN(channelId)) {
+        return res.status(400).json({ error: 'Invalid channel ID' });
+      }
+
+      // Get the channel to check if the user is the creator
+      const channel = await storage.getGroupChannel(channelId);
+      if (!channel) {
+        return res.status(404).json({ error: 'Channel not found' });
+      }
+
+      // Only the creator can edit the channel
+      if (channel.creatorId !== userId) {
+        return res.status(403).json({ error: 'Only the channel creator can edit this channel' });
+      }
+
+      const updates = req.body;
+      const updatedChannel = await storage.updateGroupChannel(channelId, updates);
+      
+      logger.info('Channel updated successfully', { 
+        channelId, 
+        userId,
+        updates: Object.keys(updates)
+      });
+
+      return res.json(updatedChannel);
+    } catch (error) {
+      logger.error('Error updating channel', { error, userId: req.user?.id });
+      next(error);
+    }
+});
+
 // Get all members of a channel
 router.get('/:id/members', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
