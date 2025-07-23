@@ -1723,7 +1723,11 @@ export class DatabaseStorage implements IStorage {
           .select()
           .from(emailNotifications)
           .where(eq(emailNotifications.userId, userId))
-          .orderBy(desc(emailNotifications.createdAt));
+          .orderBy(
+            // Sort unread first (false comes before true), then by creation date descending
+            emailNotifications.isRead,
+            desc(emailNotifications.createdAt)
+          );
       }, 'Get user email notifications');
     } catch (error) {
       logger.error(`Failed to get email notifications for user ${userId}`, { error });
