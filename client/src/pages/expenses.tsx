@@ -96,6 +96,7 @@ export default function ExpensesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showReceiptViewer, setShowReceiptViewer] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -162,6 +163,21 @@ export default function ExpensesPage() {
 
   // Create expense form
   const createForm = useForm<ExpenseFormData>({
+    resolver: zodResolver(expenseFormSchema),
+    defaultValues: {
+      serviceName: "",
+      beneficiary: "",
+      amount: 0,
+      frequency: "monthly",
+      lastPaidDate: "",
+      nextPaymentDate: "",
+      status: "active",
+      description: "",
+    },
+  });
+
+  // Edit expense form
+  const editForm = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       serviceName: "",
@@ -251,6 +267,55 @@ export default function ExpensesPage() {
     },
   });
 
+  // Update expense mutation
+  const updateExpenseMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: ExpenseFormData }) => {
+      const response = await apiRequest("PUT", `/api/expenses/${id}`, {
+        ...data,
+        amount: Math.round(data.amount * 100), // Convert to cents
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      setShowEditDialog(false);
+      editForm.reset();
+      toast({
+        title: "Success",
+        description: "Expense updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update expense",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete expense mutation
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/expenses/${id}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      toast({
+        title: "Success",
+        description: "Expense deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete expense",
+        variant: "destructive",
+      });
+    },
+  });
+
   const markAsPaidMutation = useMutation({
     mutationFn: async (expenseId: number) => {
       const response = await apiRequest("POST", `/api/expenses/${expenseId}/mark-paid`);
@@ -271,6 +336,33 @@ export default function ExpensesPage() {
       });
     },
   });
+
+  const handleEditExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    editForm.reset({
+      serviceName: expense.serviceName,
+      beneficiary: expense.beneficiary,
+      amount: expense.amount / 100, // Convert from cents
+      frequency: expense.frequency as "monthly" | "quarterly" | "yearly",
+      lastPaidDate: expense.lastPaidDate ? format(parseISO(expense.lastPaidDate), "yyyy-MM-dd") : "",
+      nextPaymentDate: format(parseISO(expense.nextPaymentDate), "yyyy-MM-dd"),
+      status: expense.status as "active" | "paused" | "cancelled",
+      description: expense.description || "",
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateExpense = (data: ExpenseFormData) => {
+    if (selectedExpense) {
+      updateExpenseMutation.mutate({ id: selectedExpense.id, data });
+    }
+  };
+
+  const handleDeleteExpense = (expense: Expense) => {
+    if (confirm(`Are you sure you want to delete the expense "${expense.serviceName}"? This action cannot be undone.`)) {
+      deleteExpenseMutation.mutate(expense.id);
+    }
+  };
 
   const handleCreateExpense = (data: ExpenseFormData) => {
     createExpenseMutation.mutate(data);
@@ -622,6 +714,29 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 
+                {/* Edit and Delete buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditExpense(expense)}
+                    className="flex-1"
+                  >
+                    <Edit className="mr-1 h-3 w-3" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteExpense(expense)}
+                    disabled={deleteExpenseMutation.isPending}
+                    className="flex-1"
+                  >
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    Delete
+                  </Button>
+                </div>
+                
                 {expense.receipts.length > 0 && (
                   <div className="space-y-1">
                     {expense.receipts.slice(0, 3).map((receipt) => (
@@ -752,6 +867,181 @@ export default function ExpensesPage() {
               >
                 {uploadReceiptMutation.isPending ? "Uploading..." : "Upload Receipt"}
               </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Expense Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleUpdateExpense)} className="space-y-6">
+              {/* First row - Service Name and Beneficiary */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="serviceName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Internet, Rent, Insurance" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="beneficiary"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Beneficiary</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Company or person receiving payment" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Second row - Amount and Frequency */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="frequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Frequency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Third row - Payment Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="lastPaidDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Paid Date (Optional)</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="nextPaymentDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Next Payment Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Fourth row - Status */}
+              <FormField
+                control={editForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="paused">Paused</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Description */}
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Additional notes about this expense" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowEditDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateExpenseMutation.isPending}
+                >
+                  {updateExpenseMutation.isPending ? "Updating..." : "Update Expense"}
+                </Button>
+              </div>
             </form>
           </Form>
         </DialogContent>
