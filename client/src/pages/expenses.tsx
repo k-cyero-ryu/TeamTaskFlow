@@ -28,7 +28,8 @@ import {
   FileText,
   Download,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  Edit
 } from "lucide-react";
 import { format, parseISO, startOfWeek, startOfMonth, isWithinInterval } from "date-fns";
 
