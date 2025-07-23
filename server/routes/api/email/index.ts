@@ -501,4 +501,47 @@ router.put('/notifications/:id/unread', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * @route PUT /api/email/notifications/mark-all-read
+ * @desc Mark all unread notifications as read for the current user
+ * @access Private
+ */
+router.put('/notifications/mark-all-read', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: {
+          type: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required'
+        }
+      });
+    }
+
+    const result = await storage.markAllNotificationsAsRead(req.user.id);
+    
+    logger.info('All notifications marked as read', { 
+      userId: req.user.id,
+      updatedCount: result.updatedCount
+    });
+    
+    res.json({
+      success: true,
+      message: `Marked ${result.updatedCount} notifications as read`,
+      updatedCount: result.updatedCount
+    });
+  } catch (error) {
+    logger.error('Failed to mark all notifications as read', { 
+      error, 
+      userId: req.user?.id 
+    });
+    
+    res.status(500).json({
+      error: {
+        type: 'INTERNAL_ERROR',
+        message: 'Failed to mark all notifications as read'
+      }
+    });
+  }
+});
+
 export default router;

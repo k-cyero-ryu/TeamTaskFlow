@@ -48,6 +48,7 @@ export function NotificationsDropdown() {
   const queryClient = useQueryClient();
   const [isContentDialogOpen, setIsContentDialogOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<EmailNotification | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Query for email notifications
   const { data: notifications = [], isLoading } = useQuery<EmailNotification[]>({
@@ -119,6 +120,28 @@ export function NotificationsDropdown() {
     },
   });
 
+  // Mark all notifications as read
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PUT", "/api/email/notifications/mark-all-read");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/email/notifications"] });
+      toast({
+        title: "All notifications marked as read",
+        description: `Marked ${data.updatedCount} notifications as read`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: `Failed to mark all as read: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Count notifications by status
   const pendingCount = notifications.filter(n => n.status === "pending").length;
   const sentCount = notifications.filter(n => n.status === "sent").length;
@@ -176,7 +199,7 @@ export function NotificationsDropdown() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="relative">
             <Bell className="h-5 w-5" />
@@ -204,6 +227,22 @@ export function NotificationsDropdown() {
               )}
             </div>
           </DropdownMenuLabel>
+          
+          {unreadCount > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="justify-center cursor-pointer text-xs text-blue-600 hover:text-blue-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markAllAsRead.mutate();
+                }}
+                disabled={markAllAsRead.isPending}
+              >
+                {markAllAsRead.isPending ? "Marking all as read..." : `Mark all ${unreadCount} as read`}
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
 
           <ScrollArea className="h-80">
@@ -263,6 +302,7 @@ export function NotificationsDropdown() {
                             className="h-6 px-2 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
                               markAsUnread.mutate(notification.id);
                             }}
                             disabled={markAsUnread.isPending}
@@ -276,6 +316,7 @@ export function NotificationsDropdown() {
                             className="h-6 px-2 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
                               markAsRead.mutate(notification.id);
                             }}
                             disabled={markAsRead.isPending}
@@ -357,7 +398,7 @@ export function NotificationsDropdown() {
                     size="sm"
                     onClick={() => {
                       markAsUnread.mutate(selectedNotification.id);
-                      setIsContentDialogOpen(false);
+                      // Keep dialog open - don't close
                     }}
                     disabled={markAsUnread.isPending}
                   >
@@ -369,7 +410,7 @@ export function NotificationsDropdown() {
                     size="sm"
                     onClick={() => {
                       markAsRead.mutate(selectedNotification.id);
-                      setIsContentDialogOpen(false);
+                      // Keep dialog open - don't close
                     }}
                     disabled={markAsRead.isPending}
                   >

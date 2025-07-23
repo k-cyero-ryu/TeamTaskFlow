@@ -98,6 +98,7 @@ interface IStorage {
   deleteEmailNotification(id: number): Promise<void>;
   markNotificationAsRead(id: number): Promise<EmailNotification>;
   markNotificationAsUnread(id: number): Promise<EmailNotification>;
+  markAllNotificationsAsRead(userId: number): Promise<{ updatedCount: number }>;
   
   // Calendar event methods
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
@@ -1809,6 +1810,29 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to mark notification as unread with ID ${id}`, { error });
       throw new DatabaseError(`Failed to mark notification as unread: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async markAllNotificationsAsRead(userId: number): Promise<{ updatedCount: number }> {
+    try {
+      return await executeWithRetry(async () => {
+        const result = await db
+          .update(emailNotifications)
+          .set({ 
+            isRead: true,
+            readAt: new Date()
+          })
+          .where(and(
+            eq(emailNotifications.userId, userId),
+            eq(emailNotifications.isRead, false)
+          ))
+          .returning({ id: emailNotifications.id });
+        
+        return { updatedCount: result.length };
+      }, 'Mark all notifications as read');
+    } catch (error) {
+      logger.error(`Failed to mark all notifications as read for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to mark all notifications as read: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
