@@ -108,6 +108,7 @@ function EmptyTaskList() {
 
 // Main content component with proper error states and pagination
 function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
+  // ALL HOOKS MUST BE DECLARED FIRST - before any conditional returns
   // Create a ref for the List component
   const listRef = useRef<List | null>(null);
   
@@ -119,14 +120,31 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
     keyMapper: (index) => tasks[index]?.id || index,
   }));
   
-  // Determine display mode based on limit prop
-  const usePagination = limit !== undefined && limit < tasks.length;
-  const useVirtualization = false; // Disable virtualization to use proper grid layout
-  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = limit || 9; // Default to 9 items per page if no limit is provided
   
+  // Determine display mode based on limit prop
+  const usePagination = limit !== undefined && tasks && limit < tasks.length;
+  const useVirtualization = false; // Disable virtualization to use proper grid layout
+  const itemsPerPage = limit || 9; // Default to 9 items per page if no limit is provided
+
+  // Calculate pagination values (safe even with empty tasks)
+  const safeTasksArray = tasks || [];
+  const totalItems = safeTasksArray.length;
+  const totalPages = usePagination ? Math.ceil(totalItems / itemsPerPage) : 1;
+  const startIndex = usePagination ? (currentPage - 1) * itemsPerPage : 0;
+  const endIndex = usePagination ? Math.min(startIndex + itemsPerPage, totalItems) : totalItems;
+  const displayTasks = usePagination ? safeTasksArray.slice(startIndex, endIndex) : safeTasksArray;
+
+  // Reset cache when tasks change
+  useEffect(() => {
+    cache.current.clearAll();
+    if (listRef.current) {
+      listRef.current.recomputeRowHeights();
+    }
+  }, [tasks]);
+  
+  // NOW we can handle conditional returns after all hooks are declared
   // Handle explicit error from props
   if (error) {
     return <TaskListError />;
@@ -136,21 +154,6 @@ function TaskListContent({ tasks, limit, isLoading, error }: TaskListProps) {
   if (!isLoading && (!tasks || tasks.length === 0)) {
     return <EmptyTaskList />;
   }
-
-  // Calculate pagination values if using pagination
-  const totalItems = tasks.length;
-  const totalPages = usePagination ? Math.ceil(totalItems / itemsPerPage) : 1;
-  const startIndex = usePagination ? (currentPage - 1) * itemsPerPage : 0;
-  const endIndex = usePagination ? Math.min(startIndex + itemsPerPage, totalItems) : totalItems;
-  const displayTasks = usePagination ? tasks.slice(startIndex, endIndex) : tasks;
-  
-  // Reset cache when tasks change
-  useEffect(() => {
-    cache.current.clearAll();
-    if (listRef.current) {
-      listRef.current.recomputeRowHeights();
-    }
-  }, [tasks]);
 
   // Handle page change
   const handlePageChange = (pageNumber: number) => {
