@@ -1,6 +1,6 @@
-import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem, UserProformaPermission, InsertUserProformaPermission, Expense, InsertExpense, ExpenseReceipt, InsertExpenseReceipt } from "@shared/schema";
+import { Task, InsertTask, User, InsertUser, Subtask, TaskStep, Comment, InsertComment, PrivateMessage, InsertPrivateMessage, Workflow, WorkflowStage, WorkflowTransition, InsertWorkflow, InsertWorkflowStage, InsertWorkflowTransition, GroupChannel, InsertGroupChannel, ChannelMember, InsertChannelMember, GroupMessage, InsertGroupMessage, FileAttachment, InsertFileAttachment, PrivateMessageAttachment, InsertPrivateMessageAttachment, GroupMessageAttachment, InsertGroupMessageAttachment, CommentAttachment, InsertCommentAttachment, EmailNotification, InsertEmailNotification, CalendarEvent, InsertCalendarEvent, TaskHistory, InsertTaskHistory, StockItem, InsertStockItem, StockMovement, InsertStockMovement, UserStockPermission, InsertUserStockPermission, Estimation, InsertEstimation, EstimationItem, InsertEstimationItem, Company, InsertCompany, Proforma, InsertProforma, ProformaItem, UserProformaPermission, InsertUserProformaPermission, Expense, InsertExpense, ExpenseReceipt, InsertExpenseReceipt, UserExpensePermissions, InsertUserExpensePermissions, UserClientPermissions, InsertUserClientPermissions } from "@shared/schema";
 import { eq, and, or, desc, inArray, sql, isNotNull } from "drizzle-orm";
-import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems, userProformaPermissions, expenses, expenseReceipts } from "@shared/schema";
+import { tasks, users, taskParticipants, subtasks, taskSteps, comments, privateMessages, workflows, workflowStages, workflowTransitions, groupChannels, channelMembers, groupMessages, fileAttachments, privateMessageAttachments, groupMessageAttachments, commentAttachments, emailNotifications, calendarEvents, taskHistory, stockItems, stockMovements, userStockPermissions, estimations, estimationItems, companies, proformas, proformaItems, userProformaPermissions, expenses, expenseReceipts, userExpensePermissions, userClientPermissions, clients, services, clientServices } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool, db, executeWithRetry } from "./database/connection";
@@ -178,6 +178,16 @@ interface IStorage {
   getExpenseReceipts(expenseId: number): Promise<(ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[]>;
   uploadExpenseReceipt(receipt: InsertExpenseReceipt, userId: number): Promise<ExpenseReceipt>;
   deleteExpenseReceipt(id: number): Promise<void>;
+  
+  // Expense permissions methods
+  getUserExpensePermissions(userId: number): Promise<UserExpensePermissions | undefined>;
+  getUsersWithExpenseAccess(): Promise<Array<{ id: number; username: string; expensePermissions?: UserExpensePermissions; }>>;
+  setUserExpensePermissions(userId: number, permissions: InsertUserExpensePermissions, grantedById: number): Promise<UserExpensePermissions>;
+  
+  // Client permissions methods
+  getUserClientPermissions(userId: number): Promise<UserClientPermissions | undefined>;
+  getUsersWithClientAccess(): Promise<Array<{ id: number; username: string; clientPermissions?: UserClientPermissions; }>>;
+  setUserClientPermissions(userId: number, permissions: InsertUserClientPermissions, grantedById: number): Promise<UserClientPermissions>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3432,6 +3442,148 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Error deleting expense receipt with ID ${id}`, error);
       throw new DatabaseError(`Failed to delete expense receipt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Expense permissions methods
+  async getUserExpensePermissions(userId: number): Promise<UserExpensePermissions | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [permissions] = await db
+          .select()
+          .from(userExpensePermissions)
+          .where(eq(userExpensePermissions.userId, userId));
+        return permissions;
+      }, 'Get user expense permissions');
+    } catch (error) {
+      logger.error(`Failed to get expense permissions for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get expense permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUsersWithExpenseAccess(): Promise<Array<{ id: number; username: string; expensePermissions?: UserExpensePermissions; }>> {
+    try {
+      return await executeWithRetry(async () => {
+        const usersWithPermissions = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            expensePermissions: userExpensePermissions,
+          })
+          .from(users)
+          .leftJoin(userExpensePermissions, eq(users.id, userExpensePermissions.userId))
+          .where(or(
+            eq(users.id, 1), // Admin user
+            isNotNull(userExpensePermissions.userId)
+          ));
+
+        return usersWithPermissions.map(row => ({
+          id: row.id,
+          username: row.username,
+          expensePermissions: row.expensePermissions || undefined,
+        }));
+      }, 'Get users with expense access');
+    } catch (error) {
+      logger.error('Failed to get users with expense access', { error });
+      throw new DatabaseError(`Failed to get users with expense access: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async setUserExpensePermissions(userId: number, permissions: InsertUserExpensePermissions, grantedById: number): Promise<UserExpensePermissions> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newPermissions] = await db
+          .insert(userExpensePermissions)
+          .values({
+            userId,
+            ...permissions,
+            grantedById,
+          })
+          .onConflictDoUpdate({
+            target: userExpensePermissions.userId,
+            set: {
+              ...permissions,
+              grantedById,
+            },
+          })
+          .returning();
+
+        return newPermissions;
+      }, 'Set user expense permissions');
+    } catch (error) {
+      logger.error(`Failed to set expense permissions for user ${userId}`, { error, permissions });
+      throw new DatabaseError(`Failed to set expense permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Client permissions methods
+  async getUserClientPermissions(userId: number): Promise<UserClientPermissions | undefined> {
+    try {
+      return await executeWithRetry(async () => {
+        const [permissions] = await db
+          .select()
+          .from(userClientPermissions)
+          .where(eq(userClientPermissions.userId, userId));
+        return permissions;
+      }, 'Get user client permissions');
+    } catch (error) {
+      logger.error(`Failed to get client permissions for user ${userId}`, { error });
+      throw new DatabaseError(`Failed to get client permissions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getUsersWithClientAccess(): Promise<Array<{ id: number; username: string; clientPermissions?: UserClientPermissions; }>> {
+    try {
+      return await executeWithRetry(async () => {
+        const usersWithPermissions = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            clientPermissions: userClientPermissions,
+          })
+          .from(users)
+          .leftJoin(userClientPermissions, eq(users.id, userClientPermissions.userId))
+          .where(or(
+            eq(users.id, 1), // Admin user
+            isNotNull(userClientPermissions.userId)
+          ));
+
+        return usersWithPermissions.map(row => ({
+          id: row.id,
+          username: row.username,
+          clientPermissions: row.clientPermissions || undefined,
+        }));
+      }, 'Get users with client access');
+    } catch (error) {
+      logger.error('Failed to get users with client access', { error });
+      throw new DatabaseError(`Failed to get users with client access: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async setUserClientPermissions(userId: number, permissions: InsertUserClientPermissions, grantedById: number): Promise<UserClientPermissions> {
+    try {
+      return await executeWithRetry(async () => {
+        const [newPermissions] = await db
+          .insert(userClientPermissions)
+          .values({
+            userId,
+            ...permissions,
+            grantedById,
+          })
+          .onConflictDoUpdate({
+            target: userClientPermissions.userId,
+            set: {
+              ...permissions,
+              grantedById,
+            },
+          })
+          .returning();
+
+        return newPermissions;
+      }, 'Set user client permissions');
+    } catch (error) {
+      logger.error(`Failed to set client permissions for user ${userId}`, { error, permissions });
+      throw new DatabaseError(`Failed to set client permissions: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

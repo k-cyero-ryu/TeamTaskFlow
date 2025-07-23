@@ -5,6 +5,7 @@ import { clients, insertClientSchema } from '@shared/schema';
 import { validateRequest } from '../../middleware/validate-request';
 import { isAuthenticated } from '../../middleware/auth';
 import { eq } from 'drizzle-orm';
+import clientPermissionsRouter from './clients/permissions';
 
 const router = Router();
 
@@ -98,5 +99,8 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete client' });
   }
 });
+
+// Register permission routes
+router.use('/permissions', clientPermissionsRouter);
 
 export default router;

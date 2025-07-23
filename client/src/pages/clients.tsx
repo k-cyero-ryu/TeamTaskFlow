@@ -19,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { Client, InsertClient, Service, ClientService, InsertClientService } from '@shared/schema';
 import { format } from 'date-fns';
+import { ClientAccessDialog } from '@/components/client-access-dialog';
+import { useClientPermissions } from '@/hooks/use-client-permissions';
 
 // File viewing component for different file types
 function FileViewer({ filePath, onClose }: { filePath: string; onClose: () => void }) {
@@ -556,7 +558,7 @@ function ServiceAssignmentForm({ client, onSuccess }: { client: Client; onSucces
                   }
                 } catch (error) {
                   console.error('File upload failed:', error);
-                  console.error('Error details:', error.message);
+                  console.error('Error details:', (error as Error).message);
                   toast({ title: 'File upload failed', variant: 'destructive' });
                 }
               }
@@ -725,6 +727,7 @@ export default function Clients() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { canManageAccess } = useClientPermissions();
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['/api/clients'],
@@ -843,13 +846,15 @@ export default function Clients() {
           <p className="text-gray-600">Manage your company clients and contacts</p>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Client
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          {canManageAccess && <ClientAccessDialog />}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Client
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -862,6 +867,7 @@ export default function Clients() {
             <ClientForm client={editingClient || undefined} onSuccess={handleDialogClose} />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Income Dashboard */}

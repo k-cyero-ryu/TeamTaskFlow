@@ -4,6 +4,7 @@ import { storage } from "../../storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import expensePermissionsRouter from "./expenses/permissions";
 
 const router = Router();
 
@@ -229,5 +230,8 @@ router.get("/receipts/:receiptId/download", async (req, res) => {
     res.status(500).json({ message: "Failed to download receipt" });
   }
 });
+
+// Register permission routes
+router.use('/permissions', expensePermissionsRouter);
 
 export default router;

@@ -32,6 +32,8 @@ import {
   Edit
 } from "lucide-react";
 import { format, parseISO, startOfWeek, startOfMonth, isWithinInterval } from "date-fns";
+import { ExpenseAccessDialog } from "@/components/expense-access-dialog";
+import { useExpensePermissions } from "@/hooks/use-expense-permissions";
 
 // Types based on our schema
 type Expense = {
@@ -96,6 +98,7 @@ type ReceiptFormData = z.infer<typeof receiptFormSchema>;
 export default function ExpensesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { canManageAccess } = useExpensePermissions();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
@@ -447,13 +450,15 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold">{t('expenses')}</h1>
           <p className="text-muted-foreground">{t('expenseDescription')}</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('newExpense')}
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          {canManageAccess && <ExpenseAccessDialog />}
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t('newExpense')}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{t('createNewExpense')}</DialogTitle>
@@ -590,6 +595,7 @@ export default function ExpensesPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Dashboard Stats */}

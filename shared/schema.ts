@@ -885,6 +885,38 @@ export const userProformaPermissions = pgTable("user_proforma_permissions", {
   };
 });
 
+// User permissions for expense management
+export const userExpensePermissions = pgTable("user_expense_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  canViewExpenses: boolean("can_view_expenses").default(false),
+  canManageExpenses: boolean("can_manage_expenses").default(false), // can create/edit expenses
+  canDeleteExpenses: boolean("can_delete_expenses").default(false), // can delete expenses
+  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    userUnique: unique().on(table.userId)
+  };
+});
+
+// User permissions for client management
+export const userClientPermissions = pgTable("user_client_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  canViewClients: boolean("can_view_clients").default(false),
+  canManageClients: boolean("can_manage_clients").default(false), // can create/edit clients
+  canDeleteClients: boolean("can_delete_clients").default(false), // can delete clients
+  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    userUnique: unique().on(table.userId)
+  };
+});
+
 // Proforma management tables
 export const proformas = pgTable("proformas", {
   id: serial("id").primaryKey(),
@@ -944,6 +976,25 @@ export const insertUserProformaPermissionSchema = createInsertSchema(userProform
   canDeleteProformas: true,
   canManageAccess: true,
 });
+
+export const insertUserExpensePermissionSchema = createInsertSchema(userExpensePermissions).pick({
+  canViewExpenses: true,
+  canManageExpenses: true,
+  canDeleteExpenses: true,
+  canManageAccess: true,
+});
+
+export const insertUserClientPermissionSchema = createInsertSchema(userClientPermissions).pick({
+  canViewClients: true,
+  canManageClients: true,
+  canDeleteClients: true,
+  canManageAccess: true,
+});
+
+export type UserExpensePermissions = typeof userExpensePermissions.$inferSelect;
+export type UserClientPermissions = typeof userClientPermissions.$inferSelect;
+export type InsertUserExpensePermissions = z.infer<typeof insertUserExpensePermissionSchema>;
+export type InsertUserClientPermissions = z.infer<typeof insertUserClientPermissionSchema>;
 
 export type Proforma = typeof proformas.$inferSelect;
 export type ProformaItem = typeof proformaItems.$inferSelect;
@@ -1193,3 +1244,26 @@ export type ClientService = typeof clientServices.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type InsertClientService = z.infer<typeof insertClientServiceSchema>;
+
+// Relations for permission tables
+export const userExpensePermissionsRelations = relations(userExpensePermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userExpensePermissions.userId],
+    references: [users.id],
+  }),
+  grantedBy: one(users, {
+    fields: [userExpensePermissions.grantedById],
+    references: [users.id],
+  }),
+}));
+
+export const userClientPermissionsRelations = relations(userClientPermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userClientPermissions.userId],
+    references: [users.id],
+  }),
+  grantedBy: one(users, {
+    fields: [userClientPermissions.grantedById],
+    references: [users.id],
+  }),
+}));
