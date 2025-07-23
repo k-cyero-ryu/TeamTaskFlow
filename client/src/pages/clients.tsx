@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User, Settings, Link, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Phone, Mail, MessageCircle, Building, User, Settings, Link, FileText, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -734,6 +734,15 @@ export default function Clients() {
     }
   });
 
+  // Fetch all client services for dashboard calculations
+  const { data: allClientServices = [] } = useQuery({
+    queryKey: ['/api/client-services'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/client-services');
+      return response.json();
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest('DELETE', `/api/clients/${id}`),
     onSuccess: () => {
@@ -772,6 +781,51 @@ export default function Clients() {
     setLocation(`/clients/${client.id}`);
   };
 
+  // Calculate income statistics from client services
+  const incomeStats = useMemo(() => {
+    if (!allClientServices || allClientServices.length === 0) return null;
+
+    const stats = {
+      total: { count: 0, amount: 0 },
+      monthly: { count: 0, amount: 0 },
+      quarterly: { count: 0, amount: 0 },
+      yearly: { count: 0, amount: 0 },
+      active: { count: 0, amount: 0 },
+      inactive: { count: 0, amount: 0 }
+    };
+
+    allClientServices.forEach((item: any) => {
+      if (item.client_services && item.services) {
+        const price = item.client_services.price || 0;
+        
+        stats.total.count++;
+        stats.total.amount += price;
+        
+        // By frequency - use frequency from client_services, fallback to service frequency
+        const frequency = item.client_services.frequency || item.services.frequency || 'monthly';
+        if (stats[frequency as keyof typeof stats]) {
+          stats[frequency as keyof typeof stats].count++;
+          stats[frequency as keyof typeof stats].amount += price;
+        }
+        
+        // By status (active/inactive based on client service status)
+        if (item.client_services.isActive) {
+          stats.active.count++;
+          stats.active.amount += price;
+        } else {
+          stats.inactive.count++;
+          stats.inactive.amount += price;
+        }
+      }
+    });
+
+    return stats;
+  }, [allClientServices]);
+
+  const formatAmount = (cents: number) => {
+    return (cents / 100).toFixed(2);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -808,6 +862,94 @@ export default function Clients() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Income Dashboard */}
+      {incomeStats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${formatAmount(incomeStats.total.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.total.count} service{incomeStats.total.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+              <Calendar className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">${formatAmount(incomeStats.monthly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.monthly.count} service{incomeStats.monthly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Quarterly Income</CardTitle>
+              <Calendar className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">${formatAmount(incomeStats.quarterly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.quarterly.count} service{incomeStats.quarterly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Yearly Income</CardTitle>
+              <Calendar className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">${formatAmount(incomeStats.yearly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.yearly.count} service{incomeStats.yearly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Status Overview */}
+      {incomeStats && (
+        <div className="grid gap-4 md:grid-cols-2 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Services Income</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">${formatAmount(incomeStats.active.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.active.count} active service{incomeStats.active.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inactive Services</CardTitle>
+              <Users className="h-4 w-4 text-gray-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-600">${formatAmount(incomeStats.inactive.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeStats.inactive.count} inactive service{incomeStats.inactive.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-center">
