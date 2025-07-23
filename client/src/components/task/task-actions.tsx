@@ -6,22 +6,36 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Trash2, CheckCircle, Clock, Circle } from "lucide-react";
+import { MoreVertical, Trash2, CheckCircle, Clock, Circle, Edit2 } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
-import { TaskStatus } from "@/lib/types";
+import { TaskStatus, ExtendedTask } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import EditTaskDialog from "@/components/edit-task-dialog";
 
 interface TaskActionsProps {
   taskId: number;
   currentStatus: TaskStatus;
   onOpenTaskDetail?: () => void;
+  task?: ExtendedTask;
 }
 
 /**
  * A reusable component for task actions (status changes, deletion)
  */
-export function TaskActions({ taskId, currentStatus, onOpenTaskDetail }: TaskActionsProps) {
+export function TaskActions({ taskId, currentStatus, onOpenTaskDetail, task }: TaskActionsProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const { updateTaskStatus, deleteTask } = useTasks();
+  const { updateTaskStatus, deleteTask, getTaskById } = useTasks();
+  const { user } = useAuth();
+  
+  // Get task data for edit permission check
+  const taskData = task || getTaskById(taskId);
+  
+  // Check if user can edit this task (creator, responsible, or admin)
+  const canEdit = taskData && user && (
+    taskData.creatorId === user.id || 
+    taskData.responsibleId === user.id || 
+    user.isAdmin
+  );
 
   // Wrap the status update with transitioning state for UI feedback
   const handleStatusUpdate = (status: TaskStatus) => {
@@ -83,6 +97,17 @@ export function TaskActions({ taskId, currentStatus, onOpenTaskDetail }: TaskAct
           >
             View Details
           </DropdownMenuItem>
+        )}
+        {canEdit && taskData && (
+          <EditTaskDialog task={taskData} trigger={
+            <DropdownMenuItem
+              onClick={(e) => e.preventDefault()}
+              disabled={isTransitioning}
+              className="gap-2"
+            >
+              <Edit2 className="h-4 w-4" /> Edit Task
+            </DropdownMenuItem>
+          } />
         )}
         <DropdownMenuItem
           className="text-destructive gap-2"

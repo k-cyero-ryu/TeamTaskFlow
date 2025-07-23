@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { ExtendedTask, TaskStatus } from "@/lib/types";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Task } from "@shared/schema";
+import { Task, InsertTask } from "@shared/schema";
 
 /**
  * A hook that provides all task-related data fetching and mutations
@@ -174,6 +174,45 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
     }
   });
 
+  // Update task mutation
+  const updateTask = useMutation({
+    mutationFn: async ({ taskId, updates }: { taskId: number; updates: Partial<InsertTask> & { participantIds?: number[] } }) => {
+      const res = await apiRequest("PUT", `/api/tasks/${taskId}`, updates);
+      const resClone = res.clone();
+      
+      try {
+        return await resClone.json();
+      } catch (error) {
+        console.error("Error parsing task update response:", error);
+        throw new Error("Failed to update task: Invalid response format");
+      }
+    },
+    onSuccess: (updatedTask) => {
+      // Update the task in the cache directly
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (oldTasks) => {
+        if (!oldTasks) return oldTasks;
+        return oldTasks.map(task => 
+          task.id === updatedTask.id ? updatedTask : task
+        );
+      });
+      
+      // Also invalidate to trigger any other queries
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update task: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+
   return {
     tasks,
     isLoading,
@@ -184,6 +223,7 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
     updateTaskStatus,
     deleteTask,
     updateTaskStage,
-    updateTaskDueDate
+    updateTaskDueDate,
+    updateTask
   };
 }

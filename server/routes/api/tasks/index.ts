@@ -265,6 +265,91 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
 });
 
 /**
+ * @route PUT /api/tasks/:id
+ * @desc Update a task's details (title, description, priority, participants, etc.)
+ * @access Private
+ */
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const taskId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task ID');
+    }
+
+    // Get the existing task to check permissions
+    const existingTask = await storage.getTask(taskId);
+    if (!existingTask) {
+      throw new NotFoundError('Task not found');
+    }
+
+    // Check if user can edit the task (creator, responsible, or admin)
+    const canEdit = existingTask.creatorId === userId || 
+                   existingTask.responsibleId === userId || 
+                   req.user?.isAdmin;
+    
+    if (!canEdit) {
+      return res.status(403).json({
+        error: {
+          type: 'AUTHORIZATION_ERROR',
+          message: 'Only the task creator, responsible person, or admin can edit this task'
+        }
+      });
+    }
+
+    const { workflowId, stageId, dueDate, participantIds, ...taskData } = req.body;
+
+    // Process dueDate
+    let processedDueDate = null;
+    if (dueDate) {
+      try {
+        processedDueDate = new Date(dueDate);
+        if (isNaN(processedDueDate.getTime())) {
+          processedDueDate = null;
+        }
+      } catch (e) {
+        logger.warn('Invalid date format received for dueDate', { dueDate });
+        processedDueDate = null;
+      }
+    }
+
+    // Normalize participant IDs
+    const normalizedParticipantIds = Array.isArray(participantIds) 
+      ? participantIds
+          .filter(id => id !== null && id !== undefined)
+          .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+          .filter(id => !isNaN(id) && id > 0)
+      : [];
+
+    // Update the task
+    const updatedTask = await storage.updateTask(taskId, {
+      ...taskData,
+      dueDate: processedDueDate,
+      workflowId: workflowId || null,
+      stageId: stageId || null,
+      participantIds: normalizedParticipantIds,
+    });
+
+    // Broadcast the update to all connected clients
+    broadcastWebSocketMessage({
+      type: "task_updated",
+      data: updatedTask,
+    });
+
+    logger.info('Task updated successfully', { taskId, userId });
+    res.json(updatedTask);
+  } catch (error) {
+    logger.error('Error updating task', { 
+      taskId: req.params.id, 
+      error, 
+      userId: req.user?.id 
+    });
+    handleApiError(res, error);
+  }
+});
+
+/**
  * @route PATCH /api/tasks/:id/due-date
  * @desc Update a task's due date (only task responsible or creator can update)
  * @access Private

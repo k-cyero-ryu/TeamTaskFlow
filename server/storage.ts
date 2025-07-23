@@ -28,6 +28,7 @@ interface IStorage {
   getTasksForUser(userId: number): Promise<Task[]>;
   getTask(id: number): Promise<Task | undefined>;
   createTask(task: InsertTask & { creatorId: number; participantIds?: number[] }): Promise<Task>;
+  updateTask(id: number, updates: Partial<InsertTask> & { participantIds?: number[] }): Promise<Task>;
   updateTaskStatus(id: number, status: string): Promise<Task>;
   updateTaskDueDate(id: number, dueDate: Date | null): Promise<Task>;
   deleteTask(id: number): Promise<void>;
@@ -468,6 +469,118 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       logger.error(`Failed to update task due date for task ${id}`, { error });
       throw new DatabaseError(`Failed to update task due date: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask> & { participantIds?: number[] }): Promise<Task> {
+    try {
+      return await executeWithRetry(async () => {
+        const { subtasks: subtaskList, steps, participantIds, ...taskUpdates } = updates;
+
+        // Get current task for history tracking
+        const currentTask = await this.getTask(id);
+        if (!currentTask) {
+          throw new Error("Task not found");
+        }
+
+        // Update the main task fields
+        const [updatedTask] = await db
+          .update(tasks)
+          .set(taskUpdates)
+          .where(eq(tasks.id, id))
+          .returning();
+
+        if (!updatedTask) {
+          throw new Error("Task not found");
+        }
+
+        // Update participants if provided
+        if (participantIds !== undefined) {
+          // Remove existing participants
+          await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
+          
+          // Add new participants
+          if (participantIds.length > 0) {
+            const validParticipantIds = participantIds
+              .filter(userId => typeof userId === 'number' && !isNaN(userId) && userId > 0)
+              .map(userId => parseInt(String(userId), 10));
+              
+            if (validParticipantIds.length > 0) {
+              await db.insert(taskParticipants).values(
+                validParticipantIds.map(userId => ({
+                  taskId: id,
+                  userId,
+                }))
+              );
+            }
+          }
+        }
+
+        // Update subtasks if provided
+        if (subtaskList !== undefined) {
+          // Remove existing subtasks
+          await db.delete(subtasks).where(eq(subtasks.taskId, id));
+          
+          // Add new subtasks
+          if (subtaskList.length > 0) {
+            await db.insert(subtasks).values(
+              subtaskList.map(subtask => ({
+                ...subtask,
+                taskId: id,
+              }))
+            );
+          }
+        }
+
+        // Update steps if provided
+        if (steps !== undefined) {
+          // Remove existing steps
+          await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
+          
+          // Add new steps
+          if (steps.length > 0) {
+            await db.insert(taskSteps).values(
+              steps.map(step => ({
+                ...step,
+                taskId: id,
+              }))
+            );
+          }
+        }
+
+        // Create history entry for the update
+        const changedFields = [];
+        if (taskUpdates.title && taskUpdates.title !== currentTask.title) {
+          changedFields.push(`title from "${currentTask.title}" to "${taskUpdates.title}"`);
+        }
+        if (taskUpdates.description !== undefined && taskUpdates.description !== currentTask.description) {
+          changedFields.push(`description`);
+        }
+        if (taskUpdates.priority && taskUpdates.priority !== currentTask.priority) {
+          changedFields.push(`priority from "${currentTask.priority}" to "${taskUpdates.priority}"`);
+        }
+        if (taskUpdates.dueDate !== undefined) {
+          const oldDate = currentTask.dueDate ? new Date(currentTask.dueDate).toDateString() : 'none';
+          const newDate = taskUpdates.dueDate ? new Date(taskUpdates.dueDate).toDateString() : 'none';
+          if (oldDate !== newDate) {
+            changedFields.push(`due date from ${oldDate} to ${newDate}`);
+          }
+        }
+
+        if (changedFields.length > 0 || participantIds !== undefined || subtaskList !== undefined || steps !== undefined) {
+          await this.createTaskHistoryEntry({
+            taskId: id,
+            userId: updatedTask.creatorId, // Use creator as default, will be overridden in API route
+            action: 'updated',
+            details: `Task updated: ${changedFields.join(', ')}${participantIds !== undefined ? ', participants updated' : ''}${subtaskList !== undefined ? ', subtasks updated' : ''}${steps !== undefined ? ', steps updated' : ''}`,
+          });
+        }
+
+        return updatedTask;
+      }, 'Update task');
+    } catch (error) {
+      logger.error(`Failed to update task ${id}`, { error });
+      throw new DatabaseError(`Failed to update task: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

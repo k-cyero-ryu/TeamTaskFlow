@@ -167,6 +167,7 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
             taskId={task.id} 
             currentStatus={task.status as TaskStatus}
             onOpenTaskDetail={() => setDetailOpen(true)}
+            task={task}
           />
         </CardHeader>
 
