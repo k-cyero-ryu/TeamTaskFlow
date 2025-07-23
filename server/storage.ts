@@ -3464,6 +3464,7 @@ export class DatabaseStorage implements IStorage {
   async getUsersWithExpenseAccess(): Promise<Array<{ id: number; username: string; expensePermissions?: UserExpensePermissions; }>> {
     try {
       return await executeWithRetry(async () => {
+        // Get ALL users and their expense permissions (if any)
         const usersWithPermissions = await db
           .select({
             id: users.id,
@@ -3472,10 +3473,7 @@ export class DatabaseStorage implements IStorage {
           })
           .from(users)
           .leftJoin(userExpensePermissions, eq(users.id, userExpensePermissions.userId))
-          .where(or(
-            eq(users.id, 1), // Admin user
-            isNotNull(userExpensePermissions.userId)
-          ));
+          .orderBy(users.username);
 
         return usersWithPermissions.map(row => ({
           id: row.id,
@@ -3535,6 +3533,7 @@ export class DatabaseStorage implements IStorage {
   async getUsersWithClientAccess(): Promise<Array<{ id: number; username: string; clientPermissions?: UserClientPermissions; }>> {
     try {
       return await executeWithRetry(async () => {
+        // Get ALL users and their client permissions (if any)
         const usersWithPermissions = await db
           .select({
             id: users.id,
@@ -3543,10 +3542,7 @@ export class DatabaseStorage implements IStorage {
           })
           .from(users)
           .leftJoin(userClientPermissions, eq(users.id, userClientPermissions.userId))
-          .where(or(
-            eq(users.id, 1), // Admin user
-            isNotNull(userClientPermissions.userId)
-          ));
+          .orderBy(users.username);
 
         return usersWithPermissions.map(row => ({
           id: row.id,
