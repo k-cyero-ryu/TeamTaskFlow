@@ -475,12 +475,38 @@ export class DatabaseStorage implements IStorage {
     try {
       await executeWithRetry(async () => {
         // Execute in sequence to maintain referential integrity
+        // Delete all related entities first
         await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
         await db.delete(subtasks).where(eq(subtasks.taskId, id));
         await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
-        // Delete comments related to this task
+        
+        // Delete comment attachments first, then comments
+        const taskComments = await db.select({ id: comments.id }).from(comments).where(eq(comments.taskId, id));
+        for (const comment of taskComments) {
+          await db.delete(commentAttachments).where(eq(commentAttachments.commentId, comment.id));
+        }
         await db.delete(comments).where(eq(comments.taskId, id));
-        // Finally delete the task
+        
+        // Delete task history records
+        await db.delete(taskHistory).where(eq(taskHistory.taskId, id));
+        
+        // Delete any calendar events related to this task
+        await db.delete(calendarEvents).where(
+          and(
+            eq(calendarEvents.relatedEntityType, 'task'),
+            eq(calendarEvents.relatedEntityId, id)
+          )
+        );
+        
+        // Delete any email notifications related to this task
+        await db.delete(emailNotifications).where(
+          and(
+            eq(emailNotifications.relatedEntityType, 'task'),
+            eq(emailNotifications.relatedEntityId, id)
+          )
+        );
+        
+        // Finally delete the task itself
         await db.delete(tasks).where(eq(tasks.id, id));
       }, 'Delete task with all related entities');
     } catch (error) {
