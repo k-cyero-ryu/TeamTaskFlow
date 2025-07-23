@@ -400,6 +400,36 @@ export default function ExpensesPage() {
     }
   };
 
+  // Calculate expense statistics
+  const expenseStats = useMemo(() => {
+    if (!expenses) return null;
+
+    const stats = {
+      total: { count: 0, amount: 0 },
+      monthly: { count: 0, amount: 0 },
+      quarterly: { count: 0, amount: 0 },
+      yearly: { count: 0, amount: 0 },
+      active: { count: 0, amount: 0 },
+      paused: { count: 0, amount: 0 },
+      cancelled: { count: 0, amount: 0 }
+    };
+
+    expenses.forEach(expense => {
+      stats.total.count++;
+      stats.total.amount += expense.amount;
+      
+      // By frequency
+      stats[expense.frequency as keyof typeof stats].count++;
+      stats[expense.frequency as keyof typeof stats].amount += expense.amount;
+      
+      // By status
+      stats[expense.status as keyof typeof stats].count++;
+      stats[expense.status as keyof typeof stats].amount += expense.amount;
+    });
+
+    return stats;
+  }, [expenses]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-14">
@@ -561,6 +591,107 @@ export default function ExpensesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Dashboard Stats */}
+      {expenseStats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${formatAmount(expenseStats.total.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.total.count} expense{expenseStats.total.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Monthly</CardTitle>
+              <Calendar className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">${formatAmount(expenseStats.monthly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.monthly.count} expense{expenseStats.monthly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Quarterly</CardTitle>
+              <Calendar className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">${formatAmount(expenseStats.quarterly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.quarterly.count} expense{expenseStats.quarterly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Yearly</CardTitle>
+              <Calendar className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">${formatAmount(expenseStats.yearly.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.yearly.count} expense{expenseStats.yearly.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Status Overview */}
+      {expenseStats && (
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Expenses</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">${formatAmount(expenseStats.active.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.active.count} active expense{expenseStats.active.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paused Expenses</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">${formatAmount(expenseStats.paused.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.paused.count} paused expense{expenseStats.paused.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cancelled Expenses</CardTitle>
+              <X className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">${formatAmount(expenseStats.cancelled.amount)}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseStats.cancelled.count} cancelled expense{expenseStats.cancelled.count !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filter Controls */}
       <div className="mb-6">
