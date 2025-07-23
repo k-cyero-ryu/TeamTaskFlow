@@ -262,7 +262,7 @@ export default function CompanySettings() {
           form.reset();
         }
       }}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingCompany ? "Edit Company" : "Create Company"}
