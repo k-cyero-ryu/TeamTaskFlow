@@ -16,13 +16,14 @@ interface TaskActionsProps {
   taskId: number;
   currentStatus: TaskStatus;
   onOpenTaskDetail?: () => void;
+  onOpenTaskEdit?: () => void;
   task?: ExtendedTask;
 }
 
 /**
  * A reusable component for task actions (status changes, deletion)
  */
-export function TaskActions({ taskId, currentStatus, onOpenTaskDetail, task }: TaskActionsProps) {
+export function TaskActions({ taskId, currentStatus, onOpenTaskDetail, onOpenTaskEdit, task }: TaskActionsProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { updateTaskStatus, deleteTask, getTaskById } = useTasks();
   const { user } = useAuth();
@@ -98,16 +99,18 @@ export function TaskActions({ taskId, currentStatus, onOpenTaskDetail, task }: T
             View Details
           </DropdownMenuItem>
         )}
-        {canEdit && taskData && (
-          <EditTaskDialog task={taskData} trigger={
-            <DropdownMenuItem
-              onClick={(e) => e.preventDefault()}
-              disabled={isTransitioning}
-              className="gap-2"
-            >
-              <Edit2 className="h-4 w-4" /> Edit Task
-            </DropdownMenuItem>
-          } />
+        {canEdit && taskData && onOpenTaskEdit && (
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenTaskEdit();
+            }}
+            disabled={isTransitioning}
+            className="gap-2"
+          >
+            <Edit2 className="h-4 w-4" /> Edit Task
+          </DropdownMenuItem>
         )}
         <DropdownMenuItem
           className="text-destructive gap-2"

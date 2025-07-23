@@ -12,6 +12,7 @@ import { ExtendedTask, TaskStatus } from "@/lib/types";
 import { TaskStatusBadge } from "./task/task-status-badge";
 import { WorkflowStageBadge } from "./task/workflow-stage-badge";
 import { TaskActions } from "./task/task-actions";
+import EditTaskDialog from "./edit-task-dialog";
 import { ErrorBoundary } from "./error-boundary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,6 +75,7 @@ function TaskCardSkeleton() {
 // Main card content with error-handled data fetching, wrapped in memo for performance
 const TaskCardContent = memo(function TaskCardContent({ task }: { task: ExtendedTask }) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { user } = useAuth();
 
@@ -167,6 +169,7 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
             taskId={task.id} 
             currentStatus={task.status as TaskStatus}
             onOpenTaskDetail={() => setDetailOpen(true)}
+            onOpenTaskEdit={() => setEditOpen(true)}
             task={task}
           />
         </CardHeader>
@@ -268,6 +271,18 @@ const TaskCardContent = memo(function TaskCardContent({ task }: { task: Extended
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+      
+      {editOpen && (
+        <EditTaskDialog 
+          task={{
+            ...task,
+            workflow: displayWorkflow,
+            stage: displayStage,
+          }}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
     </>
   );
 }, (prevProps, nextProps) => {

@@ -177,7 +177,15 @@ export function useTasks(options?: { workflowId?: number; stageId?: number }) {
   // Update task mutation
   const updateTask = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: number; updates: Partial<InsertTask> & { participantIds?: number[] } }) => {
+      console.log("Updating task:", taskId, updates);
       const res = await apiRequest("PUT", `/api/tasks/${taskId}`, updates);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Task update failed:", res.status, errorText);
+        throw new Error(`Failed to update task: ${res.status} ${res.statusText}`);
+      }
+      
       const resClone = res.clone();
       
       try {

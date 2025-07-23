@@ -48,12 +48,14 @@ import { format } from "date-fns";
 interface EditTaskDialogProps {
   task: ExtendedTask;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function EditTaskDialog({ task, trigger }: EditTaskDialogProps) {
+export default function EditTaskDialog({ task, trigger, open, onOpenChange }: EditTaskDialogProps) {
   return (
     <ErrorBoundary fallback={<EditTaskErrorState />}>
-      <EditTaskDialogContent task={task} trigger={trigger} />
+      <EditTaskDialogContent task={task} trigger={trigger} open={open} onOpenChange={onOpenChange} />
     </ErrorBoundary>
   );
 }
@@ -69,11 +71,15 @@ function EditTaskErrorState() {
   );
 }
 
-function EditTaskDialogContent({ task, trigger }: EditTaskDialogProps) {
-  const [open, setOpen] = useState(false);
+function EditTaskDialogContent({ task, trigger, open: externalOpen, onOpenChange }: EditTaskDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const { updateTask } = useTasks();
   const { toast } = useToast();
   // const { t } = useI18n(); // Simplified for now
+
+  // Use external open state if provided, otherwise use internal
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   // Fetch users for participant selection
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
@@ -184,13 +190,6 @@ function EditTaskDialogContent({ task, trigger }: EditTaskDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="ghost" size="sm" aria-label="Edit task">
-            <Edit2 className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
       <DialogContent 
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         aria-describedby="edit-task-dialog-description"
