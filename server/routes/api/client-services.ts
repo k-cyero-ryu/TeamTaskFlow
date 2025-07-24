@@ -5,11 +5,12 @@ import { clientServices, insertClientServiceSchema, services, clients } from '@s
 import { validateRequest } from '../../middleware/validate-request';
 import { isAuthenticated } from '../../middleware/auth';
 import { eq } from 'drizzle-orm';
+import { checkClientPermissions } from '../../middleware/client-permissions';
 
 const router = Router();
 
 // Get all client services with related client and service data
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', checkClientPermissions('view'), async (req, res) => {
   try {
     const allClientServices = await db
       .select()
@@ -25,7 +26,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 // Get client services by client ID
-router.get('/client/:clientId', isAuthenticated, async (req, res) => {
+router.get('/client/:clientId', checkClientPermissions('view'), async (req, res) => {
   try {
     const clientId = parseInt(req.params.clientId);
     const clientServicesData = await db

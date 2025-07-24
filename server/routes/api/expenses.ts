@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import expensePermissionsRouter from "./expenses/permissions";
+import { checkExpensePermissions } from "../../middleware/expense-permissions";
 
 const router = Router();
 
@@ -35,12 +36,8 @@ if (!fs.existsSync(uploadDir)) {
 router.use('/permissions', expensePermissionsRouter);
 
 // Get all expenses
-router.get("/", async (req, res) => {
+router.get("/", checkExpensePermissions('view'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const expenses = await storage.getExpenses();
     res.json(expenses);
   } catch (error) {
@@ -50,12 +47,8 @@ router.get("/", async (req, res) => {
 });
 
 // Get a specific expense
-router.get("/:id", async (req, res) => {
+router.get("/:id", checkExpensePermissions('view'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const id = parseInt(req.params.id);
     const expense = await storage.getExpense(id);
     
@@ -71,14 +64,10 @@ router.get("/:id", async (req, res) => {
 });
 
 // Create a new expense
-router.post("/", async (req, res) => {
+router.post("/", checkExpensePermissions('manage'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const validatedData = insertExpenseSchema.parse(req.body);
-    const expense = await storage.createExpense(validatedData, req.user.id);
+    const expense = await storage.createExpense(validatedData, req.user!.id);
     res.status(201).json(expense);
   } catch (error) {
     console.error("Error creating expense:", error);
@@ -90,12 +79,8 @@ router.post("/", async (req, res) => {
 });
 
 // Update an expense
-router.put("/:id", async (req, res) => {
+router.put("/:id", checkExpensePermissions('manage'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const id = parseInt(req.params.id);
     const validatedData = insertExpenseSchema.partial().parse(req.body);
     const expense = await storage.updateExpense(id, validatedData);
@@ -110,12 +95,8 @@ router.put("/:id", async (req, res) => {
 });
 
 // Mark an expense as paid
-router.post("/:id/mark-paid", async (req, res) => {
+router.post("/:id/mark-paid", checkExpensePermissions('manage'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const id = parseInt(req.params.id);
     const expense = await storage.markExpenseAsPaid(id);
     res.json(expense);
@@ -126,12 +107,8 @@ router.post("/:id/mark-paid", async (req, res) => {
 });
 
 // Delete an expense
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", checkExpensePermissions('delete'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const id = parseInt(req.params.id);
     await storage.deleteExpense(id);
     res.sendStatus(204);
@@ -142,12 +119,8 @@ router.delete("/:id", async (req, res) => {
 });
 
 // Get receipts for an expense
-router.get("/:id/receipts", async (req, res) => {
+router.get("/:id/receipts", checkExpensePermissions('view'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const expenseId = parseInt(req.params.id);
     const receipts = await storage.getExpenseReceipts(expenseId);
     res.json(receipts);
@@ -158,11 +131,8 @@ router.get("/:id/receipts", async (req, res) => {
 });
 
 // Upload a receipt for an expense
-router.post("/:id/receipts", upload.single('receipt'), async (req, res) => {
+router.post("/:id/receipts", checkExpensePermissions('manage'), upload.single('receipt'), async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
 
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
