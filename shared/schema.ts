@@ -615,14 +615,32 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
   taskId: true,
 }).extend({
-  attachments: z.array(z.instanceof(File)).optional(),
+  	attachments: z
+		.array(
+			z.object({
+				name: z.string(),
+				type: z.string(),
+				size: z.number(),
+			})
+		)
+		.optional(),
+
 });
 
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
   content: true,
 }).extend({
   recipientId: z.number(),
-  attachments: z.array(z.instanceof(File)).optional(),
+  	attachments: z
+		.array(
+			z.object({
+				name: z.string(),
+				type: z.string(),
+				size: z.number(),
+			})
+		)
+		.optional(),
+
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
@@ -661,7 +679,16 @@ export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
   content: true,
 }).extend({
-  attachments: z.array(z.instanceof(File)).optional(),
+  	attachments: z
+		.array(
+			z.object({
+				name: z.string(),
+				type: z.string(),
+				size: z.number(),
+			})
+		)
+		.optional(),
+
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({

@@ -1,11 +1,11 @@
-import { Pool, neonConfig, PoolClient } from '@neondatabase/serverless';
-import ws from "ws";
+import 'dotenv/config';
+import { Pool } from 'pg';
 import * as schema from "@shared/schema";
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { Logger } from '../utils/logger';
 
+
 // Configure WebSocket for Neon
-neonConfig.webSocketConstructor = ws;
 
 // Validate database URL
 if (!process.env.DATABASE_URL) {
