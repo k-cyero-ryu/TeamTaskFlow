@@ -46,6 +46,9 @@ export function ClientAccessDialog() {
     mutationFn: async ({ userId, permissions }: { userId: number; permissions: PermissionUpdate }) => {
       await apiRequest(`/api/clients/permissions/${userId}`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(permissions),
       });
     },

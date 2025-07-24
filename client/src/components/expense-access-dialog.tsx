@@ -46,6 +46,9 @@ export function ExpenseAccessDialog() {
     mutationFn: async ({ userId, permissions }: { userId: number; permissions: PermissionUpdate }) => {
       await apiRequest(`/api/expenses/permissions/${userId}`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(permissions),
       });
     },
