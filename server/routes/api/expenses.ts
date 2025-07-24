@@ -4,6 +4,7 @@ import { storage } from "../../storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import expensePermissionsRouter from "./expenses/permissions";
 
 const router = Router();
 
@@ -29,6 +30,9 @@ const uploadDir = 'uploads/expense-receipts';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// Register permission routes BEFORE parameterized routes
+router.use('/permissions', expensePermissionsRouter);
 
 // Get all expenses
 router.get("/", async (req, res) => {
@@ -229,5 +233,7 @@ router.get("/receipts/:receiptId/download", async (req, res) => {
     res.status(500).json({ message: "Failed to download receipt" });
   }
 });
+
+// Permission routes already registered above
 
 export default router;
