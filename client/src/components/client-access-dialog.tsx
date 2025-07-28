@@ -44,10 +44,11 @@ export function ClientAccessDialog() {
 
   const updatePermissionsMutation = useMutation({
     mutationFn: async ({ userId, permissions }: { userId: number; permissions: PermissionUpdate }) => {
-      await apiRequest(`/api/clients/permissions/${userId}`, {
-        method: "POST",
-        body: JSON.stringify(permissions),
-      });
+      await apiRequest(
+        "POST",
+        `/api/clients/permissions/${userId}`,
+        permissions
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients/permissions"] });

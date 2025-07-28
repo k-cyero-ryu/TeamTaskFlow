@@ -6,6 +6,7 @@ import { validateRequest } from '../../middleware/validate-request';
 import { isAuthenticated } from '../../middleware/auth';
 import { eq } from 'drizzle-orm';
 import clientPermissionsRouter from './clients/permissions';
+import { checkClientPermissions } from '../../middleware/client-permissions';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const router = Router();
 router.use('/permissions', clientPermissionsRouter);
 
 // Get all clients
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', checkClientPermissions('view'), async (req, res) => {
   try {
     const allClients = await db.select().from(clients);
     res.json(allClients);
@@ -24,7 +25,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 // Get single client by ID
-router.get('/:id', isAuthenticated, async (req, res) => {
+router.get('/:id', checkClientPermissions('view'), async (req, res) => {
   try {
     const clientId = parseInt(req.params.id);
     const [client] = await db.select().from(clients).where(eq(clients.id, clientId));
@@ -42,7 +43,7 @@ router.get('/:id', isAuthenticated, async (req, res) => {
 
 // Create a new client
 router.post('/', 
-  isAuthenticated, 
+  checkClientPermissions('manage'), 
   validateRequest(insertClientSchema), 
   async (req, res) => {
     try {
@@ -60,7 +61,7 @@ router.post('/',
 
 // Update a client
 router.put('/:id', 
-  isAuthenticated, 
+  checkClientPermissions('manage'), 
   validateRequest(insertClientSchema), 
   async (req, res) => {
     try {
@@ -84,7 +85,7 @@ router.put('/:id',
 );
 
 // Delete a client
-router.delete('/:id', isAuthenticated, async (req, res) => {
+router.delete('/:id', checkClientPermissions('delete'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [client] = await db

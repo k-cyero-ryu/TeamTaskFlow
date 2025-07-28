@@ -44,10 +44,11 @@ export function ExpenseAccessDialog() {
 
   const updatePermissionsMutation = useMutation({
     mutationFn: async ({ userId, permissions }: { userId: number; permissions: PermissionUpdate }) => {
-      await apiRequest(`/api/expenses/permissions/${userId}`, {
-        method: "POST",
-        body: JSON.stringify(permissions),
-      });
+      await apiRequest(
+        "POST",
+        `/api/expenses/permissions/${userId}`,
+        permissions
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses/permissions"] });
