@@ -3,16 +3,54 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, startOfWeek, startOfMonth, isWithinInterval, parseISO } from "date-fns";
-import { Calendar, Plus, Edit, Trash2, MapPin, User, Package, Minus, Filter, X } from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  startOfMonth,
+  isWithinInterval,
+  parseISO,
+} from "date-fns";
+import {
+  Calendar,
+  Plus,
+  Edit,
+  Trash2,
+  MapPin,
+  User,
+  Package,
+  Minus,
+  Filter,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/i18n";
@@ -78,10 +116,11 @@ export default function EstimationsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
-  const [selectedEstimation, setSelectedEstimation] = useState<Estimation | null>(null);
+  const [selectedEstimation, setSelectedEstimation] =
+    useState<Estimation | null>(null);
   const [selectedStockItem, setSelectedStockItem] = useState<string>("");
   const [itemQuantity, setItemQuantity] = useState(1);
-  
+
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [nameFilter, setNameFilter] = useState("");
@@ -90,7 +129,11 @@ export default function EstimationsPage() {
   const [customEndDate, setCustomEndDate] = useState("");
 
   // Data fetching
-  const { data: estimations = [], isLoading, refetch } = useQuery<Estimation[]>({
+  const {
+    data: estimations = [],
+    isLoading,
+    refetch,
+  } = useQuery<Estimation[]>({
     queryKey: ["/api/estimations"],
   });
 
@@ -100,8 +143,8 @@ export default function EstimationsPage() {
 
     // Filter by name
     if (nameFilter) {
-      filtered = filtered.filter(estimation => 
-        estimation.name.toLowerCase().includes(nameFilter.toLowerCase())
+      filtered = filtered.filter((estimation) =>
+        estimation.name.toLowerCase().includes(nameFilter.toLowerCase()),
       );
     }
 
@@ -130,9 +173,12 @@ export default function EstimationsPage() {
           return filtered;
       }
 
-      filtered = filtered.filter(estimation => {
+      filtered = filtered.filter((estimation) => {
         const estimationDate = parseISO(estimation.date);
-        return isWithinInterval(estimationDate, { start: startDate, end: endDate });
+        return isWithinInterval(estimationDate, {
+          start: startDate,
+          end: endDate,
+        });
       });
     }
 
@@ -200,7 +246,11 @@ export default function EstimationsPage() {
   const updateMutation = useMutation({
     mutationFn: async (data: EstimationFormData & { id: number }) => {
       const { id, ...updateData } = data;
-      const response = await apiRequest("PUT", `/api/estimations/${id}`, updateData);
+      const response = await apiRequest(
+        "PUT",
+        `/api/estimations/${id}`,
+        updateData,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -243,11 +293,19 @@ export default function EstimationsPage() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: async (data: { estimationId: number; stockItemId: number; quantity: number }) => {
-      const response = await apiRequest("POST", `/api/estimations/${data.estimationId}/items`, {
-        stockItemId: data.stockItemId,
-        quantity: data.quantity,
-      });
+    mutationFn: async (data: {
+      estimationId: number;
+      stockItemId: number;
+      quantity: number;
+    }) => {
+      const response = await apiRequest(
+        "POST",
+        `/api/estimations/${data.estimationId}/items`,
+        {
+          stockItemId: data.stockItemId,
+          quantity: data.quantity,
+        },
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -271,7 +329,10 @@ export default function EstimationsPage() {
 
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      const response = await apiRequest("DELETE", `/api/estimations/items/${itemId}`);
+      const response = await apiRequest(
+        "DELETE",
+        `/api/estimations/items/${itemId}`,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -293,9 +354,13 @@ export default function EstimationsPage() {
   const updateItemMutation = useMutation({
     mutationFn: async (data: { itemId: number; quantity: number }) => {
       if (!selectedEstimation) throw new Error("No estimation selected");
-      const response = await apiRequest("PUT", `/api/estimations/${selectedEstimation.id}/items/${data.itemId}`, {
-        quantity: data.quantity,
-      });
+      const response = await apiRequest(
+        "PUT",
+        `/api/estimations/${selectedEstimation.id}/items/${data.itemId}`,
+        {
+          quantity: data.quantity,
+        },
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -317,7 +382,7 @@ export default function EstimationsPage() {
   // Handler functions
   const handleAddItem = () => {
     if (!selectedEstimation || !selectedStockItem || itemQuantity <= 0) return;
-    
+
     addItemMutation.mutate({
       estimationId: selectedEstimation.id,
       stockItemId: parseInt(selectedStockItem),
@@ -391,7 +456,10 @@ export default function EstimationsPage() {
               <DialogTitle>{t("createNewEstimation")}</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
+              <form
+                onSubmit={createForm.handleSubmit(handleCreate)}
+                className="space-y-4"
+              >
                 <FormField
                   control={createForm.control}
                   name="name"
@@ -399,7 +467,10 @@ export default function EstimationsPage() {
                     <FormItem>
                       <FormLabel>{t("estimationName")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t("enterEstimationName")} />
+                        <Input
+                          {...field}
+                          placeholder={t("enterEstimationName")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -415,8 +486,12 @@ export default function EstimationsPage() {
                         <Input
                           type="date"
                           {...field}
-                          value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
-                          onChange={(e) => field.onChange(new Date(e.target.value))}
+                          value={
+                            field.value ? format(field.value, "yyyy-MM-dd") : ""
+                          }
+                          onChange={(e) =>
+                            field.onChange(new Date(e.target.value))
+                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -430,7 +505,10 @@ export default function EstimationsPage() {
                     <FormItem>
                       <FormLabel>{t("address")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t("enterProjectAddress")} />
+                        <Input
+                          {...field}
+                          placeholder={t("enterProjectAddress")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -456,14 +534,26 @@ export default function EstimationsPage() {
                     <FormItem>
                       <FormLabel>{t("techniqueOptional")}</FormLabel>
                       <FormControl>
-                        <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
+                        <Select
+                          onValueChange={(value) =>
+                            field.onChange(
+                              value === "none" ? undefined : parseInt(value),
+                            )
+                          }
+                          value={field.value?.toString() || "none"}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder={t("selectTechnique")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">{t("noTechniqueSelected")}</SelectItem>
+                            <SelectItem value="none">
+                              {t("noTechniqueSelected")}
+                            </SelectItem>
                             {users.map((user) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
+                              <SelectItem
+                                key={user.id}
+                                value={user.id.toString()}
+                              >
                                 {user.username}
                               </SelectItem>
                             ))}
@@ -481,18 +571,29 @@ export default function EstimationsPage() {
                     <FormItem>
                       <FormLabel>{t("clientInformationOptional")}</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value || ""} placeholder={t("additionalClientInfo")} rows={3} />
+                        <Textarea
+                          {...field}
+                          value={field.value || ""}
+                          placeholder={t("additionalClientInfo")}
+                          rows={3}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateDialog(false)}
+                  >
                     {t("cancel")}
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? t("creating") : t("createNewEstimation")}
+                    {createMutation.isPending
+                      ? t("creating")
+                      : t("createNewEstimation")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -584,12 +685,17 @@ export default function EstimationsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredEstimations.map((estimation) => (
-          <Card key={estimation.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card
+            key={estimation.id}
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">{estimation.name}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
-                <span>{estimation.technique?.username || 'No technique assigned'}</span>
+                <span>
+                  {estimation.technique?.username || "No technique assigned"}
+                </span>
               </div>
             </CardHeader>
             <CardContent>
@@ -604,10 +710,13 @@ export default function EstimationsPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4" />
-                  <span>{format(new Date(estimation.date), "MMM d, yyyy")}</span>
+                  <span>
+                    {format(new Date(estimation.date), "MMM d, yyyy")}
+                  </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Created {format(new Date(estimation.createdAt), "MMM d 'at' h:mm a")}
+                  Created{" "}
+                  {format(new Date(estimation.createdAt), "MMM d 'at' h:mm a")}
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -649,7 +758,10 @@ export default function EstimationsPage() {
             <DialogTitle>Edit Estimation</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleUpdate)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
@@ -673,8 +785,12 @@ export default function EstimationsPage() {
                       <Input
                         type="date"
                         {...field}
-                        value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
+                        value={
+                          field.value ? format(field.value, "yyyy-MM-dd") : ""
+                        }
+                        onChange={(e) =>
+                          field.onChange(new Date(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -714,14 +830,26 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Technique (Optional)</FormLabel>
                     <FormControl>
-                      <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value?.toString() || "none"}>
+                      <Select
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === "none" ? undefined : parseInt(value),
+                          )
+                        }
+                        value={field.value?.toString() || "none"}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a technique" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No technique selected</SelectItem>
+                          <SelectItem value="none">
+                            No technique selected
+                          </SelectItem>
                           {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
+                            <SelectItem
+                              key={user.id}
+                              value={user.id.toString()}
+                            >
                               {user.username}
                             </SelectItem>
                           ))}
@@ -739,18 +867,29 @@ export default function EstimationsPage() {
                   <FormItem>
                     <FormLabel>Client Information (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value || ""} placeholder="Additional client information" rows={3} />
+                      <Textarea
+                        {...field}
+                        value={field.value || ""}
+                        placeholder="Additional client information"
+                        rows={3}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEditDialog(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Updating..." : "Update Estimation"}
+                  {updateMutation.isPending
+                    ? "Updating..."
+                    : "Update Estimation"}
                 </Button>
               </DialogFooter>
             </form>
@@ -763,14 +902,19 @@ export default function EstimationsPage() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {selectedEstimation ? `Manage Items - ${selectedEstimation.name}` : "Manage Items"}
+              {selectedEstimation
+                ? `Manage Items - ${selectedEstimation.name}`
+                : "Manage Items"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-4">
               <div className="flex-1">
                 <Label htmlFor="stock-item">Stock Item</Label>
-                <Select value={selectedStockItem} onValueChange={setSelectedStockItem}>
+                <Select
+                  value={selectedStockItem}
+                  onValueChange={setSelectedStockItem}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a stock item" />
                   </SelectTrigger>
@@ -790,11 +934,16 @@ export default function EstimationsPage() {
                   type="number"
                   min="1"
                   value={itemQuantity}
-                  onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+                  onChange={(e) =>
+                    setItemQuantity(parseInt(e.target.value) || 1)
+                  }
                 />
               </div>
               <div className="flex items-end">
-                <Button onClick={handleAddItem} disabled={!selectedStockItem || addItemMutation.isPending}>
+                <Button
+                  onClick={handleAddItem}
+                  disabled={!selectedStockItem || addItemMutation.isPending}
+                >
                   {addItemMutation.isPending ? "Adding..." : "Add"}
                 </Button>
               </div>
@@ -803,42 +952,63 @@ export default function EstimationsPage() {
             {selectedEstimation && selectedEstimation.items.length > 0 && (
               <div className="mt-6">
                 <Label>Current Items</Label>
-                <div className="mt-2 space-y-2">
-                  {selectedEstimation.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium">{item.stockItem.name}</div>
+                <ScrollArea className="h-80">
+                  <div className="mt-2 space-y-2">
+                    {selectedEstimation.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">
+                            {item.stockItem.name}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleUpdateItemQuantity(
+                                item.id,
+                                item.quantity - 1,
+                              )
+                            }
+                            disabled={
+                              item.quantity <= 1 || updateItemMutation.isPending
+                            }
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleUpdateItemQuantity(
+                                item.id,
+                                item.quantity + 1,
+                              )
+                            }
+                            disabled={updateItemMutation.isPending}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveItem(item.id)}
+                            disabled={removeItemMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1 || updateItemMutation.isPending}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="w-8 text-center">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
-                          disabled={updateItemMutation.isPending}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveItem(item.id)}
-                          disabled={removeItemMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             )}
           </div>
