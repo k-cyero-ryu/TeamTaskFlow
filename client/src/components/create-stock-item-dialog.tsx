@@ -89,7 +89,7 @@ export default function CreateStockItemDialog({ onClose }: CreateStockItemDialog
 
   const handleCostChange = (value: string) => {
     setCostDisplay(value);
-    
+
     // Convert display value to cents
     const numericValue = parseFloat(value.replace(/[^0-9.]/g, ''));
     if (!isNaN(numericValue)) {
@@ -136,7 +136,7 @@ export default function CreateStockItemDialog({ onClose }: CreateStockItemDialog
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Enter item description (optional)"
                     rows={3}
                     {...field}
@@ -203,7 +203,7 @@ export default function CreateStockItemDialog({ onClose }: CreateStockItemDialog
                 <FormControl>
                   <Select
                     value={field.value?.toString() || "none"}
-                    onValueChange={(value) => 
+                    onValueChange={(value) =>
                       field.onChange(value === "none" ? null : parseInt(value))
                     }
                   >
@@ -229,8 +229,8 @@ export default function CreateStockItemDialog({ onClose }: CreateStockItemDialog
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? (

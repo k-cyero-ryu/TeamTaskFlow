@@ -2,620 +2,648 @@ import { pgTable, text, serial, timestamp, integer, boolean, json, unique, varch
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { int } from "drizzle-orm/mysql-core";
 
 // Existing tables remain unchanged
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").unique(),
-  notificationPreferences: jsonb("notification_preferences").default({
-    taskAssigned: true,
-    taskUpdated: true,
-    taskCommented: true,
-    mentionedInComment: true,
-    privateMessage: true,
-    groupMessage: false,
-    taskDueReminder: true
-  }),
+	id: serial("id").primaryKey(),
+	username: text("username").notNull().unique(),
+	password: text("password").notNull(),
+	email: text("email").unique(),
+	notificationPreferences: jsonb("notification_preferences").default({
+		taskAssigned: true,
+		taskUpdated: true,
+		taskCommented: true,
+		mentionedInComment: true,
+		privateMessage: true,
+		groupMessage: false,
+		taskDueReminder: true
+	}),
 });
 
 // Create group channels table
 export const groupChannels = pgTable("group_channels", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  creatorId: integer("creator_id").references(() => users.id).notNull(),
-  isPrivate: boolean("is_private").default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	description: text("description"),
+	creatorId: integer("creator_id").references(() => users.id).notNull(),
+	isPrivate: boolean("is_private").default(false),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Create channel members table
 export const channelMembers = pgTable("channel_members", {
-  id: serial("id").primaryKey(),
-  channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  isAdmin: boolean("is_admin").default(false),
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	isAdmin: boolean("is_admin").default(false),
+	joinedAt: timestamp("joined_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    userChannelUnique: unique().on(table.channelId, table.userId)
-  };
+	return {
+		userChannelUnique: unique().on(table.channelId, table.userId)
+	};
 });
 
 // Create group messages table
 export const groupMessages = pgTable("group_messages", {
-  id: serial("id").primaryKey(),
-  content: text("content").notNull(),
-  channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
-  senderId: integer("sender_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	content: text("content").notNull(),
+	channelId: integer("channel_id").references(() => groupChannels.id).notNull(),
+	senderId: integer("sender_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Add workflows table
 export const workflows = pgTable("workflows", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  creatorId: integer("creator_id").references(() => users.id).notNull(),
-  isDefault: boolean("is_default").default(false),
-  metadata: json("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	description: text("description"),
+	creatorId: integer("creator_id").references(() => users.id).notNull(),
+	isDefault: boolean("is_default").default(false),
+	metadata: json("metadata"),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Add workflow stages table
 export const workflowStages = pgTable("workflow_stages", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  workflowId: integer("workflow_id").references(() => workflows.id).notNull(),
-  order: integer("order").notNull(),
-  color: text("color"),
-  metadata: json("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	description: text("description"),
+	workflowId: integer("workflow_id").references(() => workflows.id).notNull(),
+	order: integer("order").notNull(),
+	color: text("color"),
+	metadata: json("metadata"),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Add workflow transitions table
 export const workflowTransitions = pgTable("workflow_transitions", {
-  id: serial("id").primaryKey(),
-  fromStageId: integer("from_stage_id").references(() => workflowStages.id).notNull(),
-  toStageId: integer("to_stage_id").references(() => workflowStages.id).notNull(),
-  conditions: json("conditions"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	fromStageId: integer("from_stage_id").references(() => workflowStages.id).notNull(),
+	toStageId: integer("to_stage_id").references(() => workflowStages.id).notNull(),
+	conditions: json("conditions"),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Modify tasks table to include workflowId and stageId
 export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("todo"),
-  priority: text("priority").notNull().default("medium"),
-  dueDate: timestamp("due_date"),
-  creatorId: integer("creator_id").references(() => users.id).notNull(),
-  responsibleId: integer("responsible_id").references(() => users.id),
-  workflowId: integer("workflow_id").references(() => workflows.id),
-  stageId: integer("stage_id").references(() => workflowStages.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	title: text("title").notNull(),
+	description: text("description"),
+	status: text("status").notNull().default("todo"),
+	priority: text("priority").notNull().default("medium"),
+	dueDate: timestamp("due_date"),
+	creatorId: integer("creator_id").references(() => users.id).notNull(),
+	responsibleId: integer("responsible_id").references(() => users.id),
+	workflowId: integer("workflow_id").references(() => workflows.id),
+	stageId: integer("stage_id").references(() => workflowStages.id),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Receipt table
+export const receipt = pgTable("receipt", {
+	id: serial("id").primaryKey(),
+	user_id: integer('user_id').notNull().references(() => users.id).notNull(),
+	receipt_code: text('receipt_code').notNull(),
+	responsible_name: text('responsible_name').notNull(),
+	for_name: text('for_name').notNull(),
+	created_at: timestamp('created_at').notNull().defaultNow()
+});
+
+// receipt item table
+export const receipt_items = pgTable("receipt_items", {
+	id: serial('id').primaryKey(),
+	receipt_id: integer('receipt_id').notNull().references(() => receipt.id).notNull(),
+	item_id: integer('item_id').notNull().references(() => stockItems.id).notNull(),
+	quantity: integer('quantity').notNull()
 });
 
 
 
 export const subtasks = pgTable("subtasks", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  completed: boolean("completed").notNull().default(false),
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	title: text("title").notNull(),
+	completed: boolean("completed").notNull().default(false),
+	taskId: integer("task_id").references(() => tasks.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const taskSteps = pgTable("task_steps", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  order: integer("order").notNull(),
-  completed: boolean("completed").notNull().default(false),
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	title: text("title").notNull(),
+	description: text("description"),
+	order: integer("order").notNull(),
+	completed: boolean("completed").notNull().default(false),
+	taskId: integer("task_id").references(() => tasks.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const taskParticipants = pgTable("task_participants", {
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+	taskId: integer("task_id").references(() => tasks.id).notNull(),
+	userId: integer("user_id").references(() => users.id).notNull(),
 });
 
 export const comments = pgTable("comments", {
-  id: serial("id").primaryKey(),
-  content: text("content").notNull(),
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	content: text("content").notNull(),
+	taskId: integer("task_id").references(() => tasks.id).notNull(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 export const taskHistory = pgTable("task_history", {
-  id: serial("id").primaryKey(),
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  action: text("action").notNull(), // created, status_changed, due_date_changed, assigned, unassigned, etc.
-  oldValue: text("old_value"), // previous value (for changes)
-  newValue: text("new_value"), // new value (for changes)
-  details: text("details"), // additional details like subtask name, step title, etc.
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	taskId: integer("task_id").references(() => tasks.id).notNull(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	action: text("action").notNull(), // created, status_changed, due_date_changed, assigned, unassigned, etc.
+	oldValue: text("old_value"), // previous value (for changes)
+	newValue: text("new_value"), // new value (for changes)
+	details: text("details"), // additional details like subtask name, step title, etc.
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const privateMessages = pgTable("private_messages", {
-  id: serial("id").primaryKey(),
-  content: text("content").notNull(),
-  senderId: integer("sender_id").references(() => users.id).notNull(),
-  recipientId: integer("recipient_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  readAt: timestamp("read_at"),
+	id: serial("id").primaryKey(),
+	content: text("content").notNull(),
+	senderId: integer("sender_id").references(() => users.id).notNull(),
+	recipientId: integer("recipient_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	readAt: timestamp("read_at"),
 });
 
 // File attachment table
 export const fileAttachments = pgTable("file_attachments", {
-  id: serial("id").primaryKey(),
-  filename: text("filename").notNull(),
-  originalFilename: text("original_filename").notNull(),
-  mimeType: varchar("mime_type", { length: 255 }).notNull(),
-  size: integer("size").notNull(), // size in bytes
-  path: text("path").notNull(),
-  uploaderId: integer("uploader_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	filename: text("filename").notNull(),
+	originalFilename: text("original_filename").notNull(),
+	mimeType: varchar("mime_type", { length: 255 }).notNull(),
+	size: integer("size").notNull(), // size in bytes
+	path: text("path").notNull(),
+	uploaderId: integer("uploader_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Attachment associations for private messages
 export const privateMessageAttachments = pgTable("private_message_attachments", {
-  id: serial("id").primaryKey(),
-  messageId: integer("message_id").references(() => privateMessages.id).notNull(),
-  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+	id: serial("id").primaryKey(),
+	messageId: integer("message_id").references(() => privateMessages.id).notNull(),
+	fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
 });
 
 // Attachment associations for group messages
 export const groupMessageAttachments = pgTable("group_message_attachments", {
-  id: serial("id").primaryKey(),
-  messageId: integer("message_id").references(() => groupMessages.id).notNull(),
-  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+	id: serial("id").primaryKey(),
+	messageId: integer("message_id").references(() => groupMessages.id).notNull(),
+	fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
 });
 
 // Attachment associations for comments
 export const commentAttachments = pgTable("comment_attachments", {
-  id: serial("id").primaryKey(),
-  commentId: integer("comment_id").references(() => comments.id).notNull(),
-  fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
+	id: serial("id").primaryKey(),
+	commentId: integer("comment_id").references(() => comments.id).notNull(),
+	fileId: integer("file_id").references(() => fileAttachments.id).notNull(),
 });
 
 // Email notifications table
 export const emailNotifications = pgTable("email_notifications", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  subject: text("subject").notNull(),
-  content: text("content").notNull(),
-  type: text("type").notNull(), // task_assigned, task_updated, task_commented, mentioned, etc.
-  status: text("status").notNull().default("pending"), // pending, sent, failed
-  isRead: boolean("is_read").default(false),
-  readAt: timestamp("read_at"),
-  sentAt: timestamp("sent_at"),
-  error: text("error_message"),
-  relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.
-  relatedEntityType: text("related_entity_type"), // task, comment, etc.
-  recipientEmail: text("recipient_email"), // The email address to send the notification to
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	subject: text("subject").notNull(),
+	content: text("content").notNull(),
+	type: text("type").notNull(), // task_assigned, task_updated, task_commented, mentioned, etc.
+	status: text("status").notNull().default("pending"), // pending, sent, failed
+	isRead: boolean("is_read").default(false),
+	readAt: timestamp("read_at"),
+	sentAt: timestamp("sent_at"),
+	error: text("error_message"),
+	relatedEntityId: integer("related_entity_id"), // ID of the related task, comment, etc.
+	relatedEntityType: text("related_entity_type"), // task, comment, etc.
+	recipientEmail: text("recipient_email"), // The email address to send the notification to
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Calendar events table
 export const calendarEvents = pgTable("calendar_events", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  startTime: timestamp("start_time").notNull(),
-  endTime: timestamp("end_time"),
-  allDay: boolean("all_day").default(false),
-  type: text("type").notNull(), // task_due, meeting, etc.
-  relatedEntityId: integer("related_entity_id"), // ID of the related task
-  relatedEntityType: text("related_entity_type"), // task, etc.
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	title: text("title").notNull(),
+	description: text("description"),
+	startTime: timestamp("start_time").notNull(),
+	endTime: timestamp("end_time"),
+	allDay: boolean("all_day").default(false),
+	type: text("type").notNull(), // task_due, meeting, etc.
+	relatedEntityId: integer("related_entity_id"), // ID of the related task
+	relatedEntityType: text("related_entity_type"), // task, etc.
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
+export const receiptRelations = relations(receipt, ({ many }) => ({
+	items: many(receipt_items)
+}));
+
+export const receiptItemsRelations = relations(receipt_items, ({ one }) => ({
+	receipt: one(receipt),
+	item: one(stockItems),
+}));
+
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [tasks.creatorId],
-    references: [users.id],
-  }),
-  responsible: one(users, {
-    fields: [tasks.responsibleId],
-    references: [users.id],
-  }),
-  workflow: one(workflows, {
-    fields: [tasks.workflowId],
-    references: [workflows.id],
-  }),
-  stage: one(workflowStages, {
-    fields: [tasks.stageId],
-    references: [workflowStages.id],
-  }),
-  participants: many(taskParticipants),
-  subtasks: many(subtasks),
-  steps: many(taskSteps),
-  comments: many(comments),
-  history: many(taskHistory),
+	creator: one(users, {
+		fields: [tasks.creatorId],
+		references: [users.id],
+	}),
+	responsible: one(users, {
+		fields: [tasks.responsibleId],
+		references: [users.id],
+	}),
+	workflow: one(workflows, {
+		fields: [tasks.workflowId],
+		references: [workflows.id],
+	}),
+	stage: one(workflowStages, {
+		fields: [tasks.stageId],
+		references: [workflowStages.id],
+	}),
+	participants: many(taskParticipants),
+	subtasks: many(subtasks),
+	steps: many(taskSteps),
+	comments: many(comments),
+	history: many(taskHistory),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
-  task: one(tasks, {
-    fields: [subtasks.taskId],
-    references: [tasks.id],
-  }),
+	task: one(tasks, {
+		fields: [subtasks.taskId],
+		references: [tasks.id],
+	}),
 }));
 
 export const taskStepsRelations = relations(taskSteps, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskSteps.taskId],
-    references: [tasks.id],
-  }),
+	task: one(tasks, {
+		fields: [taskSteps.taskId],
+		references: [tasks.id],
+	}),
 }));
 
 export const taskParticipantsRelations = relations(taskParticipants, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskParticipants.taskId],
-    references: [tasks.id],
-  }),
-  user: one(users, {
-    fields: [taskParticipants.userId],
-    references: [users.id],
-  }),
+	task: one(tasks, {
+		fields: [taskParticipants.taskId],
+		references: [tasks.id],
+	}),
+	user: one(users, {
+		fields: [taskParticipants.userId],
+		references: [users.id],
+	}),
 }));
 
 export const commentsRelations = relations(comments, ({ one, many }) => ({
-  task: one(tasks, {
-    fields: [comments.taskId],
-    references: [tasks.id],
-  }),
-  user: one(users, {
-    fields: [comments.userId],
-    references: [users.id],
-  }),
-  attachments: many(commentAttachments),
+	task: one(tasks, {
+		fields: [comments.taskId],
+		references: [tasks.id],
+	}),
+	user: one(users, {
+		fields: [comments.userId],
+		references: [users.id],
+	}),
+	attachments: many(commentAttachments),
 }));
 
 export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskHistory.taskId],
-    references: [tasks.id],
-  }),
-  user: one(users, {
-    fields: [taskHistory.userId],
-    references: [users.id],
-  }),
+	task: one(tasks, {
+		fields: [taskHistory.taskId],
+		references: [tasks.id],
+	}),
+	user: one(users, {
+		fields: [taskHistory.userId],
+		references: [users.id],
+	}),
 }));
 
 export const privateMessagesRelations = relations(privateMessages, ({ one, many }) => ({
-  sender: one(users, {
-    fields: [privateMessages.senderId],
-    references: [users.id],
-  }),
-  recipient: one(users, {
-    fields: [privateMessages.recipientId],
-    references: [users.id],
-  }),
-  attachments: many(privateMessageAttachments),
+	sender: one(users, {
+		fields: [privateMessages.senderId],
+		references: [users.id],
+	}),
+	recipient: one(users, {
+		fields: [privateMessages.recipientId],
+		references: [users.id],
+	}),
+	attachments: many(privateMessageAttachments),
 }));
 
 export const groupChannelsRelations = relations(groupChannels, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [groupChannels.creatorId],
-    references: [users.id],
-  }),
-  members: many(channelMembers),
-  messages: many(groupMessages),
+	creator: one(users, {
+		fields: [groupChannels.creatorId],
+		references: [users.id],
+	}),
+	members: many(channelMembers),
+	messages: many(groupMessages),
 }));
 
 export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
-  channel: one(groupChannels, {
-    fields: [channelMembers.channelId],
-    references: [groupChannels.id],
-  }),
-  user: one(users, {
-    fields: [channelMembers.userId],
-    references: [users.id],
-  }),
+	channel: one(groupChannels, {
+		fields: [channelMembers.channelId],
+		references: [groupChannels.id],
+	}),
+	user: one(users, {
+		fields: [channelMembers.userId],
+		references: [users.id],
+	}),
 }));
 
 export const groupMessagesRelations = relations(groupMessages, ({ one, many }) => ({
-  channel: one(groupChannels, {
-    fields: [groupMessages.channelId],
-    references: [groupChannels.id],
-  }),
-  sender: one(users, {
-    fields: [groupMessages.senderId],
-    references: [users.id],
-  }),
-  attachments: many(groupMessageAttachments),
+	channel: one(groupChannels, {
+		fields: [groupMessages.channelId],
+		references: [groupChannels.id],
+	}),
+	sender: one(users, {
+		fields: [groupMessages.senderId],
+		references: [users.id],
+	}),
+	attachments: many(groupMessageAttachments),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
-  createdTasks: many(tasks, { relationName: "creator" }),
-  responsibleTasks: many(tasks, { relationName: "responsible" }),
-  participatingTasks: many(taskParticipants),
-  comments: many(comments),
-  taskHistory: many(taskHistory),
-  sentMessages: many(privateMessages, { relationName: "sender" }),
-  receivedMessages: many(privateMessages, { relationName: "recipient" }),
-  createdChannels: many(groupChannels, { relationName: "creator" }),
-  channelMemberships: many(channelMembers),
-  groupMessages: many(groupMessages, { relationName: "sender" }),
-  uploadedFiles: many(fileAttachments, { relationName: "uploader" }),
-  emailNotifications: many(emailNotifications),
-  calendarEvents: many(calendarEvents),
+	createdTasks: many(tasks, { relationName: "creator" }),
+	responsibleTasks: many(tasks, { relationName: "responsible" }),
+	participatingTasks: many(taskParticipants),
+	comments: many(comments),
+	taskHistory: many(taskHistory),
+	sentMessages: many(privateMessages, { relationName: "sender" }),
+	receivedMessages: many(privateMessages, { relationName: "recipient" }),
+	createdChannels: many(groupChannels, { relationName: "creator" }),
+	channelMemberships: many(channelMembers),
+	groupMessages: many(groupMessages, { relationName: "sender" }),
+	uploadedFiles: many(fileAttachments, { relationName: "uploader" }),
+	emailNotifications: many(emailNotifications),
+	calendarEvents: many(calendarEvents),
 }));
 
 export const workflowsRelations = relations(workflows, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [workflows.creatorId],
-    references: [users.id],
-  }),
-  stages: many(workflowStages),
-  tasks: many(tasks),
+	creator: one(users, {
+		fields: [workflows.creatorId],
+		references: [users.id],
+	}),
+	stages: many(workflowStages),
+	tasks: many(tasks),
 }));
 
 export const workflowStagesRelations = relations(workflowStages, ({ one, many }) => ({
-  workflow: one(workflows, {
-    fields: [workflowStages.workflowId],
-    references: [workflows.id],
-  }),
-  incomingTransitions: many(workflowTransitions, { relationName: "toStage" }),
-  outgoingTransitions: many(workflowTransitions, { relationName: "fromStage" }),
-  tasks: many(tasks),
+	workflow: one(workflows, {
+		fields: [workflowStages.workflowId],
+		references: [workflows.id],
+	}),
+	incomingTransitions: many(workflowTransitions, { relationName: "toStage" }),
+	outgoingTransitions: many(workflowTransitions, { relationName: "fromStage" }),
+	tasks: many(tasks),
 }));
 
 export const workflowTransitionsRelations = relations(workflowTransitions, ({ one }) => ({
-  fromStage: one(workflowStages, {
-    fields: [workflowTransitions.fromStageId],
-    references: [workflowStages.id],
-  }),
-  toStage: one(workflowStages, {
-    fields: [workflowTransitions.toStageId],
-    references: [workflowStages.id],
-  }),
+	fromStage: one(workflowStages, {
+		fields: [workflowTransitions.fromStageId],
+		references: [workflowStages.id],
+	}),
+	toStage: one(workflowStages, {
+		fields: [workflowTransitions.toStageId],
+		references: [workflowStages.id],
+	}),
 }));
 
 // File attachment relations
 export const fileAttachmentsRelations = relations(fileAttachments, ({ one, many }) => ({
-  uploader: one(users, {
-    fields: [fileAttachments.uploaderId],
-    references: [users.id],
-  }),
-  privateMessages: many(privateMessageAttachments),
-  groupMessages: many(groupMessageAttachments),
-  comments: many(commentAttachments),
+	uploader: one(users, {
+		fields: [fileAttachments.uploaderId],
+		references: [users.id],
+	}),
+	privateMessages: many(privateMessageAttachments),
+	groupMessages: many(groupMessageAttachments),
+	comments: many(commentAttachments),
 }));
 
 // PrivateMessageAttachments relations
 export const privateMessageAttachmentsRelations = relations(privateMessageAttachments, ({ one }) => ({
-  message: one(privateMessages, {
-    fields: [privateMessageAttachments.messageId],
-    references: [privateMessages.id],
-  }),
-  file: one(fileAttachments, {
-    fields: [privateMessageAttachments.fileId],
-    references: [fileAttachments.id],
-  }),
+	message: one(privateMessages, {
+		fields: [privateMessageAttachments.messageId],
+		references: [privateMessages.id],
+	}),
+	file: one(fileAttachments, {
+		fields: [privateMessageAttachments.fileId],
+		references: [fileAttachments.id],
+	}),
 }));
 
 // GroupMessageAttachments relations
 export const groupMessageAttachmentsRelations = relations(groupMessageAttachments, ({ one }) => ({
-  message: one(groupMessages, {
-    fields: [groupMessageAttachments.messageId],
-    references: [groupMessages.id],
-  }),
-  file: one(fileAttachments, {
-    fields: [groupMessageAttachments.fileId],
-    references: [fileAttachments.id],
-  }),
+	message: one(groupMessages, {
+		fields: [groupMessageAttachments.messageId],
+		references: [groupMessages.id],
+	}),
+	file: one(fileAttachments, {
+		fields: [groupMessageAttachments.fileId],
+		references: [fileAttachments.id],
+	}),
 }));
 
 // Comment attachments relations
 export const commentAttachmentsRelations = relations(commentAttachments, ({ one }) => ({
-  comment: one(comments, {
-    fields: [commentAttachments.commentId],
-    references: [comments.id],
-  }),
-  file: one(fileAttachments, {
-    fields: [commentAttachments.fileId],
-    references: [fileAttachments.id],
-  }),
+	comment: one(comments, {
+		fields: [commentAttachments.commentId],
+		references: [comments.id],
+	}),
+	file: one(fileAttachments, {
+		fields: [commentAttachments.fileId],
+		references: [fileAttachments.id],
+	}),
 }));
 
 // Email notifications relations
 export const emailNotificationsRelations = relations(emailNotifications, ({ one }) => ({
-  user: one(users, {
-    fields: [emailNotifications.userId],
-    references: [users.id],
-  }),
+	user: one(users, {
+		fields: [emailNotifications.userId],
+		references: [users.id],
+	}),
 }));
 
 // Calendar events relations
 export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
-  user: one(users, {
-    fields: [calendarEvents.userId],
-    references: [users.id],
-  }),
+	user: one(users, {
+		fields: [calendarEvents.userId],
+		references: [users.id],
+	}),
 }));
 
 // Stock management tables
 export const stockItems = pgTable("stock_items", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  cost: integer("cost").notNull(), // cost in cents to avoid floating point issues
-  quantity: integer("quantity").notNull().default(0),
-  assignedUserId: integer("assigned_user_id").references(() => users.id), // user assigned to manage this item
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	description: text("description"),
+	cost: integer("cost").notNull(), // cost in cents to avoid floating point issues
+	quantity: integer("quantity").notNull().default(0),
+	assignedUserId: integer("assigned_user_id").references(() => users.id), // user assigned to manage this item
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Stock movements/transactions for tracking quantity changes
 export const stockMovements = pgTable("stock_movements", {
-  id: serial("id").primaryKey(),
-  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(), // who made the change
-  type: text("type").notNull(), // 'add', 'remove', 'adjust'
-  quantity: integer("quantity").notNull(), // positive or negative amount
-  previousQuantity: integer("previous_quantity").notNull(),
-  newQuantity: integer("new_quantity").notNull(),
-  reason: text("reason"), // optional reason for the change
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+	userId: integer("user_id").references(() => users.id).notNull(), // who made the change
+	type: text("type").notNull(), // 'add', 'remove', 'adjust'
+	quantity: integer("quantity").notNull(), // positive or negative amount
+	previousQuantity: integer("previous_quantity").notNull(),
+	newQuantity: integer("new_quantity").notNull(),
+	reason: text("reason"), // optional reason for the change
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // User permissions for stock management
 export const userStockPermissions = pgTable("user_stock_permissions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  canViewStock: boolean("can_view_stock").default(false),
-  canManageStock: boolean("can_manage_stock").default(false), // can add/edit items
-  canAdjustQuantities: boolean("can_adjust_quantities").default(false), // can modify quantities
-  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	canViewStock: boolean("can_view_stock").default(false),
+	canManageStock: boolean("can_manage_stock").default(false), // can add/edit items
+	canAdjustQuantities: boolean("can_adjust_quantities").default(false), // can modify quantities
+	grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    userUnique: unique().on(table.userId)
-  };
+	return {
+		userUnique: unique().on(table.userId)
+	};
 });
 
 // Stock relations
 export const stockItemsRelations = relations(stockItems, ({ one, many }) => ({
-  assignedUser: one(users, {
-    fields: [stockItems.assignedUserId],
-    references: [users.id],
-  }),
-  movements: many(stockMovements),
+	assignedUser: one(users, {
+		fields: [stockItems.assignedUserId],
+		references: [users.id],
+	}),
+	movements: many(stockMovements),
 }));
 
 export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
-  stockItem: one(stockItems, {
-    fields: [stockMovements.stockItemId],
-    references: [stockItems.id],
-  }),
-  user: one(users, {
-    fields: [stockMovements.userId],
-    references: [users.id],
-  }),
+	stockItem: one(stockItems, {
+		fields: [stockMovements.stockItemId],
+		references: [stockItems.id],
+	}),
+	user: one(users, {
+		fields: [stockMovements.userId],
+		references: [users.id],
+	}),
 }));
 
 export const userStockPermissionsRelations = relations(userStockPermissions, ({ one }) => ({
-  user: one(users, {
-    fields: [userStockPermissions.userId],
-    references: [users.id],
-  }),
-  grantedBy: one(users, {
-    fields: [userStockPermissions.grantedById],
-    references: [users.id],
-  }),
+	user: one(users, {
+		fields: [userStockPermissions.userId],
+		references: [users.id],
+	}),
+	grantedBy: one(users, {
+		fields: [userStockPermissions.grantedById],
+		references: [users.id],
+	}),
 }));
 
 // Services table
 export const services = pgTable("services", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  type: text("type").notNull(), // 'service', 'software', 'seller/provider', 'installation', 'configuration'
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	description: text("description"),
+	type: text("type").notNull(), // 'service', 'software', 'seller/provider', 'installation', 'configuration'
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Clients table
 export const clients = pgTable("clients", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  address: text("address"),
-  type: text("type").notNull(), // 'individual', 'company'
-  startDate: timestamp("start_date").notNull().defaultNow(), // when they started with our company
-  contactInfo: jsonb("contact_info").default({
-    phone: null,
-    whatsapp: null,
-    email: null
-  }),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	address: text("address"),
+	type: text("type").notNull(), // 'individual', 'company'
+	startDate: timestamp("start_date").notNull().defaultNow(), // when they started with our company
+	contactInfo: jsonb("contact_info").default({
+		phone: null,
+		whatsapp: null,
+		email: null
+	}),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Client services assignment table
 export const clientServices = pgTable("client_services", {
-  id: serial("id").primaryKey(),
-  clientId: integer("client_id").references(() => clients.id).notNull(),
-  serviceId: integer("service_id").references(() => services.id).notNull(),
-  characteristics: jsonb("characteristics").default([]).notNull(), // Array of: 'remote', 'in_presence', 'one_time', 'short_term', 'long_term'
-  price: integer("price").notNull(), // price in cents
-  frequency: text("frequency"), // 'monthly', 'yearly', 'weekly', 'one_time', etc.
-  contractFile: text("contract_file"), // path to uploaded contract file
-  contractFileUploadDate: timestamp("contract_file_upload_date"), // when the contract file was uploaded
-  isActive: boolean("is_active").default(true),
-  startDate: timestamp("start_date").notNull().defaultNow(),
-  endDate: timestamp("end_date"), // null for ongoing services
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	clientId: integer("client_id").references(() => clients.id).notNull(),
+	serviceId: integer("service_id").references(() => services.id).notNull(),
+	characteristics: jsonb("characteristics").default([]).notNull(), // Array of: 'remote', 'in_presence', 'one_time', 'short_term', 'long_term'
+	price: integer("price").notNull(), // price in cents
+	frequency: text("frequency"), // 'monthly', 'yearly', 'weekly', 'one_time', etc.
+	contractFile: text("contract_file"), // path to uploaded contract file
+	contractFileUploadDate: timestamp("contract_file_upload_date"), // when the contract file was uploaded
+	isActive: boolean("is_active").default(true),
+	startDate: timestamp("start_date").notNull().defaultNow(),
+	endDate: timestamp("end_date"), // null for ongoing services
+	notes: text("notes"),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 }, (table) => {
-  return {
-    clientServiceUnique: unique().on(table.clientId, table.serviceId)
-  };
+	return {
+		clientServiceUnique: unique().on(table.clientId, table.serviceId)
+	};
 });
 
 // Services relations
 export const servicesRelations = relations(services, ({ many }) => ({
-  clientServices: many(clientServices),
+	clientServices: many(clientServices),
 }));
 
 // Clients relations
 export const clientsRelations = relations(clients, ({ many }) => ({
-  clientServices: many(clientServices),
+	clientServices: many(clientServices),
 }));
 
 // Client services relations
 export const clientServicesRelations = relations(clientServices, ({ one }) => ({
-  client: one(clients, {
-    fields: [clientServices.clientId],
-    references: [clients.id],
-  }),
-  service: one(services, {
-    fields: [clientServices.serviceId],
-    references: [services.id],
-  }),
+	client: one(clients, {
+		fields: [clientServices.clientId],
+		references: [clients.id],
+	}),
+	service: one(services, {
+		fields: [clientServices.serviceId],
+		references: [services.id],
+	}),
 }));
 
 
 
 
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  notificationPreferences: true,
+	username: true,
+	password: true,
+	email: true,
+	notificationPreferences: true,
 });
 
 export const insertSubtaskSchema = createInsertSchema(subtasks).pick({
-  title: true,
+	title: true,
 });
 
 export const insertTaskStepSchema = createInsertSchema(taskSteps).pick({
-  title: true,
-  description: true,
-  order: true,
+	title: true,
+	description: true,
+	order: true,
 });
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
-  content: true,
-  taskId: true,
+	content: true,
+	taskId: true,
 }).extend({
-  	attachments: z
+	attachments: z
 		.array(
 			z.object({
 				name: z.string(),
@@ -628,10 +656,10 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
 });
 
 export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pick({
-  content: true,
+	content: true,
 }).extend({
-  recipientId: z.number(),
-  	attachments: z
+	recipientId: z.number(),
+	attachments: z
 		.array(
 			z.object({
 				name: z.string(),
@@ -644,42 +672,42 @@ export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pi
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
-  name: true,
-  description: true,
-  isDefault: true,
-  metadata: true,
+	name: true,
+	description: true,
+	isDefault: true,
+	metadata: true,
 });
 
 export const insertWorkflowStageSchema = createInsertSchema(workflowStages).pick({
-  name: true,
-  description: true,
-  order: true,
-  color: true,
-  metadata: true,
+	name: true,
+	description: true,
+	order: true,
+	color: true,
+	metadata: true,
 });
 
 export const insertWorkflowTransitionSchema = createInsertSchema(workflowTransitions).pick({
-  fromStageId: true,
-  toStageId: true,
-  conditions: true,
+	fromStageId: true,
+	toStageId: true,
+	conditions: true,
 });
 
 export const insertGroupChannelSchema = createInsertSchema(groupChannels).pick({
-  name: true,
-  description: true,
-  isPrivate: true,
+	name: true,
+	description: true,
+	isPrivate: true,
 });
 
 export const insertChannelMemberSchema = createInsertSchema(channelMembers).pick({
-  channelId: true,
-  userId: true,
-  isAdmin: true,
+	channelId: true,
+	userId: true,
+	isAdmin: true,
 });
 
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
-  content: true,
+	content: true,
 }).extend({
-  	attachments: z
+	attachments: z
 		.array(
 			z.object({
 				name: z.string(),
@@ -692,21 +720,21 @@ export const insertGroupMessageSchema = createInsertSchema(groupMessages).pick({
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({
-  title: true,
-  description: true,
-  responsibleId: true,
-  priority: true,
-  workflowId: true,
-  stageId: true,
+	title: true,
+	description: true,
+	responsibleId: true,
+	priority: true,
+	workflowId: true,
+	stageId: true,
 }).extend({
-  participantIds: z.array(z.number()).optional(),
-  subtasks: z.array(insertSubtaskSchema).optional(),
-  steps: z.array(insertTaskStepSchema).optional(),
-  dueDate: z.preprocess((arg) => {
-    if (arg === null || arg === undefined || arg === '') return null;
-    if (typeof arg === 'string' || arg instanceof Date) return new Date(arg);
-    return null;
-  }, z.date().nullable()),
+	participantIds: z.array(z.number()).optional(),
+	subtasks: z.array(insertSubtaskSchema).optional(),
+	steps: z.array(insertTaskStepSchema).optional(),
+	dueDate: z.preprocess((arg) => {
+		if (arg === null || arg === undefined || arg === '') return null;
+		if (typeof arg === 'string' || arg instanceof Date) return new Date(arg);
+		return null;
+	}, z.date().nullable()),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -736,36 +764,36 @@ export type TaskHistory = typeof taskHistory.$inferSelect;
 
 // Task history schema
 export const insertTaskHistorySchema = createInsertSchema(taskHistory).pick({
-  action: true,
-  oldValue: true,
-  newValue: true,
-  details: true,
+	action: true,
+	oldValue: true,
+	newValue: true,
+	details: true,
 });
 
 export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
 
 // File attachment schemas and types
 export const insertFileAttachmentSchema = createInsertSchema(fileAttachments).pick({
-  filename: true,
-  originalFilename: true,
-  mimeType: true,
-  size: true,
-  path: true,
+	filename: true,
+	originalFilename: true,
+	mimeType: true,
+	size: true,
+	path: true,
 });
 
 export const insertPrivateMessageAttachmentSchema = createInsertSchema(privateMessageAttachments).pick({
-  messageId: true,
-  fileId: true,
+	messageId: true,
+	fileId: true,
 });
 
 export const insertGroupMessageAttachmentSchema = createInsertSchema(groupMessageAttachments).pick({
-  messageId: true,
-  fileId: true,
+	messageId: true,
+	fileId: true,
 });
 
 export const insertCommentAttachmentSchema = createInsertSchema(commentAttachments).pick({
-  commentId: true,
-  fileId: true,
+	commentId: true,
+	fileId: true,
 });
 
 export type FileAttachment = typeof fileAttachments.$inferSelect;
@@ -779,20 +807,20 @@ export type InsertCommentAttachment = z.infer<typeof insertCommentAttachmentSche
 
 // Email notification and calendar event schemas and types
 export const insertEmailNotificationSchema = createInsertSchema(emailNotifications).extend({
-  recipientEmail: z.string().email().optional(),
+	recipientEmail: z.string().email().optional(),
 });
 // Fixed schema that matches the actual database columns
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).pick({
-  userId: true,
-  title: true,
-  description: true,
-  startTime: true,
-  endTime: true,
-  allDay: true,
-  type: true,
-  relatedEntityId: true,
-  relatedEntityType: true,
+	userId: true,
+	title: true,
+	description: true,
+	startTime: true,
+	endTime: true,
+	allDay: true,
+	type: true,
+	relatedEntityId: true,
+	relatedEntityType: true,
 });
 
 export type EmailNotification = typeof emailNotifications.$inferSelect;
@@ -802,25 +830,25 @@ export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 
 // Stock management schemas and types
 export const insertStockItemSchema = createInsertSchema(stockItems).pick({
-  name: true,
-  description: true,
-  cost: true,
-  quantity: true,
-  assignedUserId: true,
+	name: true,
+	description: true,
+	cost: true,
+	quantity: true,
+	assignedUserId: true,
 });
 
 export const insertStockMovementSchema = createInsertSchema(stockMovements).pick({
-  type: true,
-  quantity: true,
-  previousQuantity: true,
-  newQuantity: true,
-  reason: true,
+	type: true,
+	quantity: true,
+	previousQuantity: true,
+	newQuantity: true,
+	reason: true,
 });
 
 export const insertUserStockPermissionSchema = createInsertSchema(userStockPermissions).pick({
-  canViewStock: true,
-  canManageStock: true,
-  canAdjustQuantities: true,
+	canViewStock: true,
+	canManageStock: true,
+	canAdjustQuantities: true,
 });
 
 export type StockItem = typeof stockItems.$inferSelect;
@@ -832,52 +860,52 @@ export type InsertUserStockPermission = z.infer<typeof insertUserStockPermission
 
 // Estimation management tables
 export const estimations = pgTable("estimations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  date: timestamp("date").notNull(),
-  address: text("address").notNull(),
-  clientName: text("client_name").notNull(),
-  clientInformation: text("client_information"),
-  techniqueId: integer("technique_id").references(() => users.id),
-  createdById: integer("created_by_id").references(() => users.id).notNull(),
-  totalCost: integer("total_cost").default(0), // calculated field in cents
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	date: timestamp("date").notNull(),
+	address: text("address").notNull(),
+	clientName: text("client_name").notNull(),
+	clientInformation: text("client_information"),
+	techniqueId: integer("technique_id").references(() => users.id),
+	createdById: integer("created_by_id").references(() => users.id).notNull(),
+	totalCost: integer("total_cost").default(0), // calculated field in cents
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Estimation items - linking estimations to stock items with quantities
 export const estimationItems = pgTable("estimation_items", {
-  id: serial("id").primaryKey(),
-  estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
-  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
-  quantity: integer("quantity").notNull(),
-  unitCost: integer("unit_cost").notNull(), // cost per unit at time of estimation
-  totalCost: integer("total_cost").notNull(), // quantity * unitCost
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
+	stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+	quantity: integer("quantity").notNull(),
+	unitCost: integer("unit_cost").notNull(), // cost per unit at time of estimation
+	totalCost: integer("total_cost").notNull(), // quantity * unitCost
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    estimationItemUnique: unique().on(table.estimationId, table.stockItemId)
-  };
+	return {
+		estimationItemUnique: unique().on(table.estimationId, table.stockItemId)
+	};
 });
 
 // Estimation management schemas and types
 export const insertEstimationSchema = createInsertSchema(estimations).pick({
-  name: true,
-  date: true,
-  address: true,
-  clientName: true,
-  clientInformation: true,
-  techniqueId: true,
+	name: true,
+	date: true,
+	address: true,
+	clientName: true,
+	clientInformation: true,
+	techniqueId: true,
 }).extend({
-  date: z.string().transform((str) => new Date(str)),
+	date: z.string().transform((str) => new Date(str)),
 });
 
 export const insertEstimationItemSchema = createInsertSchema(estimationItems).pick({
-  estimationId: true,
-  stockItemId: true,
-  quantity: true,
-  unitCost: true,
-  totalCost: true,
+	estimationId: true,
+	stockItemId: true,
+	quantity: true,
+	unitCost: true,
+	totalCost: true,
 });
 
 export type Estimation = typeof estimations.$inferSelect;
@@ -885,137 +913,137 @@ export type EstimationItem = typeof estimationItems.$inferSelect;
 
 // Companies table for managing multiple company profiles
 export const companies = pgTable("companies", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  address: text("address").notNull(),
-  phone: text("phone"),
-  email: text("email"),
-  logo: text("logo"), // path to logo file
-  isDefault: boolean("is_default").default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	address: text("address").notNull(),
+	phone: text("phone"),
+	email: text("email"),
+	logo: text("logo"), // path to logo file
+	isDefault: boolean("is_default").default(false),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // User permissions for proforma management
 export const userProformaPermissions = pgTable("user_proforma_permissions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  canViewProformas: boolean("can_view_proformas").default(false),
-  canManageProformas: boolean("can_manage_proformas").default(false), // can create/edit proformas
-  canDeleteProformas: boolean("can_delete_proformas").default(false), // can delete proformas
-  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
-  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	canViewProformas: boolean("can_view_proformas").default(false),
+	canManageProformas: boolean("can_manage_proformas").default(false), // can create/edit proformas
+	canDeleteProformas: boolean("can_delete_proformas").default(false), // can delete proformas
+	canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+	grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    userUnique: unique().on(table.userId)
-  };
+	return {
+		userUnique: unique().on(table.userId)
+	};
 });
 
 // User permissions for expense management
 export const userExpensePermissions = pgTable("user_expense_permissions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  canViewExpenses: boolean("can_view_expenses").default(false),
-  canManageExpenses: boolean("can_manage_expenses").default(false), // can create/edit expenses
-  canDeleteExpenses: boolean("can_delete_expenses").default(false), // can delete expenses
-  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
-  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	canViewExpenses: boolean("can_view_expenses").default(false),
+	canManageExpenses: boolean("can_manage_expenses").default(false), // can create/edit expenses
+	canDeleteExpenses: boolean("can_delete_expenses").default(false), // can delete expenses
+	canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+	grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    userUnique: unique().on(table.userId)
-  };
+	return {
+		userUnique: unique().on(table.userId)
+	};
 });
 
 // User permissions for client management
 export const userClientPermissions = pgTable("user_client_permissions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  canViewClients: boolean("can_view_clients").default(false),
-  canManageClients: boolean("can_manage_clients").default(false), // can create/edit clients
-  canDeleteClients: boolean("can_delete_clients").default(false), // can delete clients
-  canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
-  grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	userId: integer("user_id").references(() => users.id).notNull(),
+	canViewClients: boolean("can_view_clients").default(false),
+	canManageClients: boolean("can_manage_clients").default(false), // can create/edit clients
+	canDeleteClients: boolean("can_delete_clients").default(false), // can delete clients
+	canManageAccess: boolean("can_manage_access").default(false), // can grant/revoke access to others
+	grantedById: integer("granted_by_id").references(() => users.id).notNull(), // admin who granted permission
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    userUnique: unique().on(table.userId)
-  };
+	return {
+		userUnique: unique().on(table.userId)
+	};
 });
 
 // Proforma management tables
 export const proformas = pgTable("proformas", {
-  id: serial("id").primaryKey(),
-  estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
-  companyId: integer("company_id").references(() => companies.id).notNull(),
-  proformaNumber: text("proforma_number").notNull().unique(), // e.g., PRF-2025-001
-  profitPercentage: integer("profit_percentage").notNull(), // profit margin as percentage (e.g., 25 for 25%)
-  totalCost: integer("total_cost").notNull(), // total cost from estimation in cents
-  totalPrice: integer("total_price").notNull(), // total selling price (cost + profit) in cents
-  // Company information (from selected company)
-  companyName: text("company_name").notNull(),
-  companyAddress: text("company_address").notNull(),
-  companyPhone: text("company_phone"),
-  companyEmail: text("company_email"),
-  companyLogo: text("company_logo"), // company logo path
-  // Status and metadata
-  status: text("status").default("draft"), // draft, sent, accepted, rejected
-  notes: text("notes"), // internal notes
-  validUntil: timestamp("valid_until"), // quote expiration date
-  createdById: integer("created_by_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	estimationId: integer("estimation_id").references(() => estimations.id).notNull(),
+	companyId: integer("company_id").references(() => companies.id).notNull(),
+	proformaNumber: text("proforma_number").notNull().unique(), // e.g., PRF-2025-001
+	profitPercentage: integer("profit_percentage").notNull(), // profit margin as percentage (e.g., 25 for 25%)
+	totalCost: integer("total_cost").notNull(), // total cost from estimation in cents
+	totalPrice: integer("total_price").notNull(), // total selling price (cost + profit) in cents
+	// Company information (from selected company)
+	companyName: text("company_name").notNull(),
+	companyAddress: text("company_address").notNull(),
+	companyPhone: text("company_phone"),
+	companyEmail: text("company_email"),
+	companyLogo: text("company_logo"), // company logo path
+	// Status and metadata
+	status: text("status").default("draft"), // draft, sent, accepted, rejected
+	notes: text("notes"), // internal notes
+	validUntil: timestamp("valid_until"), // quote expiration date
+	createdById: integer("created_by_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Proforma items - calculated prices from estimation items + profit
 export const proformaItems = pgTable("proforma_items", {
-  id: serial("id").primaryKey(),
-  proformaId: integer("proforma_id").references(() => proformas.id).notNull(),
-  estimationItemId: integer("estimation_item_id").references(() => estimationItems.id).notNull(),
-  stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
-  stockItemName: text("stock_item_name").notNull(), // cached at time of proforma creation
-  quantity: integer("quantity").notNull(),
-  unitCost: integer("unit_cost").notNull(), // original cost per unit in cents
-  unitPrice: integer("unit_price").notNull(), // selling price per unit (cost + profit) in cents
-  totalPrice: integer("total_price").notNull(), // quantity * unitPrice in cents
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	proformaId: integer("proforma_id").references(() => proformas.id).notNull(),
+	estimationItemId: integer("estimation_item_id").references(() => estimationItems.id).notNull(),
+	stockItemId: integer("stock_item_id").references(() => stockItems.id).notNull(),
+	stockItemName: text("stock_item_name").notNull(), // cached at time of proforma creation
+	quantity: integer("quantity").notNull(),
+	unitCost: integer("unit_cost").notNull(), // original cost per unit in cents
+	unitPrice: integer("unit_price").notNull(), // selling price per unit (cost + profit) in cents
+	totalPrice: integer("total_price").notNull(), // quantity * unitPrice in cents
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
-  return {
-    proformaItemUnique: unique().on(table.proformaId, table.estimationItemId)
-  };
+	return {
+		proformaItemUnique: unique().on(table.proformaId, table.estimationItemId)
+	};
 });
 
 // Proforma management schemas and types
 export const insertProformaSchema = createInsertSchema(proformas).pick({
-  estimationId: true,
-  companyId: true,
-  profitPercentage: true,
-  notes: true,
-  validUntil: true,
+	estimationId: true,
+	companyId: true,
+	profitPercentage: true,
+	notes: true,
+	validUntil: true,
 }).extend({
-  validUntil: z.string().transform((str) => new Date(str)).optional(),
+	validUntil: z.string().transform((str) => new Date(str)).optional(),
 });
 
 export const insertUserProformaPermissionSchema = createInsertSchema(userProformaPermissions).pick({
-  canViewProformas: true,
-  canManageProformas: true,
-  canDeleteProformas: true,
-  canManageAccess: true,
+	canViewProformas: true,
+	canManageProformas: true,
+	canDeleteProformas: true,
+	canManageAccess: true,
 });
 
 export const insertUserExpensePermissionSchema = createInsertSchema(userExpensePermissions).pick({
-  canViewExpenses: true,
-  canManageExpenses: true,
-  canDeleteExpenses: true,
-  canManageAccess: true,
+	canViewExpenses: true,
+	canManageExpenses: true,
+	canDeleteExpenses: true,
+	canManageAccess: true,
 });
 
 export const insertUserClientPermissionSchema = createInsertSchema(userClientPermissions).pick({
-  canViewClients: true,
-  canManageClients: true,
-  canDeleteClients: true,
-  canManageAccess: true,
+	canViewClients: true,
+	canManageClients: true,
+	canDeleteClients: true,
+	canManageAccess: true,
 });
 
 export type UserExpensePermissions = typeof userExpensePermissions.$inferSelect;
@@ -1033,87 +1061,87 @@ export type InsertEstimationItem = z.infer<typeof insertEstimationItemSchema>;
 
 // Estimation relations
 export const estimationsRelations = relations(estimations, ({ one, many }) => ({
-  createdBy: one(users, {
-    fields: [estimations.createdById],
-    references: [users.id],
-  }),
-  technique: one(users, {
-    fields: [estimations.techniqueId],
-    references: [users.id],
-  }),
-  items: many(estimationItems),
+	createdBy: one(users, {
+		fields: [estimations.createdById],
+		references: [users.id],
+	}),
+	technique: one(users, {
+		fields: [estimations.techniqueId],
+		references: [users.id],
+	}),
+	items: many(estimationItems),
 }));
 
 export const estimationItemsRelations = relations(estimationItems, ({ one, many }) => ({
-  estimation: one(estimations, {
-    fields: [estimationItems.estimationId],
-    references: [estimations.id],
-  }),
-  stockItem: one(stockItems, {
-    fields: [estimationItems.stockItemId],
-    references: [stockItems.id],
-  }),
-  proformaItems: many(proformaItems),
+	estimation: one(estimations, {
+		fields: [estimationItems.estimationId],
+		references: [estimations.id],
+	}),
+	stockItem: one(stockItems, {
+		fields: [estimationItems.stockItemId],
+		references: [stockItems.id],
+	}),
+	proformaItems: many(proformaItems),
 }));
 
 // Proforma relations
 export const proformasRelations = relations(proformas, ({ one, many }) => ({
-  estimation: one(estimations, {
-    fields: [proformas.estimationId],
-    references: [estimations.id],
-  }),
-  createdBy: one(users, {
-    fields: [proformas.createdById],
-    references: [users.id],
-  }),
-  items: many(proformaItems),
+	estimation: one(estimations, {
+		fields: [proformas.estimationId],
+		references: [estimations.id],
+	}),
+	createdBy: one(users, {
+		fields: [proformas.createdById],
+		references: [users.id],
+	}),
+	items: many(proformaItems),
 }));
 
 export const proformaItemsRelations = relations(proformaItems, ({ one }) => ({
-  proforma: one(proformas, {
-    fields: [proformaItems.proformaId],
-    references: [proformas.id],
-  }),
-  estimationItem: one(estimationItems, {
-    fields: [proformaItems.estimationItemId],
-    references: [estimationItems.id],
-  }),
-  stockItem: one(stockItems, {
-    fields: [proformaItems.stockItemId],
-    references: [stockItems.id],
-  }),
+	proforma: one(proformas, {
+		fields: [proformaItems.proformaId],
+		references: [proformas.id],
+	}),
+	estimationItem: one(estimationItems, {
+		fields: [proformaItems.estimationItemId],
+		references: [estimationItems.id],
+	}),
+	stockItem: one(stockItems, {
+		fields: [proformaItems.stockItemId],
+		references: [stockItems.id],
+	}),
 }));
 
 // Company relations
 export const companiesRelations = relations(companies, ({ many }) => ({
-  proformas: many(proformas),
+	proformas: many(proformas),
 }));
 
 // Update proforma relations to include company
 export const proformasRelationsWithCompany = relations(proformas, ({ one, many }) => ({
-  estimation: one(estimations, {
-    fields: [proformas.estimationId],
-    references: [estimations.id],
-  }),
-  company: one(companies, {
-    fields: [proformas.companyId],
-    references: [companies.id],
-  }),
-  createdBy: one(users, {
-    fields: [proformas.createdById],
-    references: [users.id],
-  }),
-  items: many(proformaItems),
+	estimation: one(estimations, {
+		fields: [proformas.estimationId],
+		references: [estimations.id],
+	}),
+	company: one(companies, {
+		fields: [proformas.companyId],
+		references: [companies.id],
+	}),
+	createdBy: one(users, {
+		fields: [proformas.createdById],
+		references: [users.id],
+	}),
+	items: many(proformaItems),
 }));
 
 // Company management schemas and types
 export const insertCompanySchema = createInsertSchema(companies).pick({
-  name: true,
-  address: true,
-  phone: true,
-  email: true,
-  logo: true,
-  isDefault: true,
+	name: true,
+	address: true,
+	phone: true,
+	email: true,
+	logo: true,
+	isDefault: true,
 });
 
 export type Company = typeof companies.$inferSelect;
@@ -1121,64 +1149,64 @@ export type InsertCompany = z.infer<typeof insertCompanySchema>;
 
 // Expenses management tables
 export const expenses = pgTable("expenses", {
-  id: serial("id").primaryKey(),
-  serviceName: text("service_name").notNull(), // name of the service (e.g., "Internet", "Rent", "Insurance")
-  beneficiary: text("beneficiary").notNull(), // company or person receiving payment
-  amount: integer("amount").notNull(), // amount to pay in cents
-  frequency: text("frequency").notNull(), // 'monthly', 'quarterly', 'yearly'
-  lastPaidDate: timestamp("last_paid_date"), // when it was last paid
-  nextPaymentDate: timestamp("next_payment_date").notNull(), // when next payment is due
-  status: text("status").default("active"), // active, paused, cancelled
-  description: text("description"), // optional description
-  createdById: integer("created_by_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at"),
+	id: serial("id").primaryKey(),
+	serviceName: text("service_name").notNull(), // name of the service (e.g., "Internet", "Rent", "Insurance")
+	beneficiary: text("beneficiary").notNull(), // company or person receiving payment
+	amount: integer("amount").notNull(), // amount to pay in cents
+	frequency: text("frequency").notNull(), // 'monthly', 'quarterly', 'yearly'
+	lastPaidDate: timestamp("last_paid_date"), // when it was last paid
+	nextPaymentDate: timestamp("next_payment_date").notNull(), // when next payment is due
+	status: text("status").default("active"), // active, paused, cancelled
+	description: text("description"), // optional description
+	createdById: integer("created_by_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at"),
 });
 
 // Expense receipts - file attachments for expenses (like task comments)
 export const expenseReceipts = pgTable("expense_receipts", {
-  id: serial("id").primaryKey(),
-  expenseId: integer("expense_id").references(() => expenses.id).notNull(),
-  fileName: text("file_name").notNull(),
-  filePath: text("file_path").notNull(),
-  fileSize: integer("file_size").notNull(),
-  mimeType: text("mime_type").notNull(),
-  paymentDate: timestamp("payment_date").notNull(), // when this payment was made
-  amount: integer("amount").notNull(), // amount paid in cents (can be different from expense amount)
-  notes: text("notes"), // optional notes about this payment
-  uploadedById: integer("uploaded_by_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+	id: serial("id").primaryKey(),
+	expenseId: integer("expense_id").references(() => expenses.id).notNull(),
+	fileName: text("file_name").notNull(),
+	filePath: text("file_path").notNull(),
+	fileSize: integer("file_size").notNull(),
+	mimeType: text("mime_type").notNull(),
+	paymentDate: timestamp("payment_date").notNull(), // when this payment was made
+	amount: integer("amount").notNull(), // amount paid in cents (can be different from expense amount)
+	notes: text("notes"), // optional notes about this payment
+	uploadedById: integer("uploaded_by_id").references(() => users.id).notNull(),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Expense management schemas and types
 export const insertExpenseSchema = createInsertSchema(expenses).pick({
-  serviceName: true,
-  beneficiary: true,
-  amount: true,
-  frequency: true,
-  lastPaidDate: true,
-  nextPaymentDate: true,
-  status: true,
-  description: true,
+	serviceName: true,
+	beneficiary: true,
+	amount: true,
+	frequency: true,
+	lastPaidDate: true,
+	nextPaymentDate: true,
+	status: true,
+	description: true,
 }).extend({
-  amount: z.number().min(0),
-  frequency: z.enum(["monthly", "quarterly", "yearly"]),
-  lastPaidDate: z.string().transform((str) => new Date(str)).optional(),
-  nextPaymentDate: z.string().transform((str) => new Date(str)),
+	amount: z.number().min(0),
+	frequency: z.enum(["monthly", "quarterly", "yearly"]),
+	lastPaidDate: z.string().transform((str) => new Date(str)).optional(),
+	nextPaymentDate: z.string().transform((str) => new Date(str)),
 });
 
 export const insertExpenseReceiptSchema = createInsertSchema(expenseReceipts).pick({
-  expenseId: true,
-  fileName: true,
-  filePath: true,
-  fileSize: true,
-  mimeType: true,
-  paymentDate: true,
-  amount: true,
-  notes: true,
+	expenseId: true,
+	fileName: true,
+	filePath: true,
+	fileSize: true,
+	mimeType: true,
+	paymentDate: true,
+	amount: true,
+	notes: true,
 }).extend({
-  amount: z.number().min(0),
-  paymentDate: z.string().transform((str) => new Date(str)),
+	amount: z.number().min(0),
+	paymentDate: z.string().transform((str) => new Date(str)),
 });
 
 export type Expense = typeof expenses.$inferSelect;
@@ -1188,81 +1216,81 @@ export type InsertExpenseReceipt = z.infer<typeof insertExpenseReceiptSchema>;
 
 // Expense relations
 export const expensesRelations = relations(expenses, ({ one, many }) => ({
-  createdBy: one(users, {
-    fields: [expenses.createdById],
-    references: [users.id],
-  }),
-  receipts: many(expenseReceipts),
+	createdBy: one(users, {
+		fields: [expenses.createdById],
+		references: [users.id],
+	}),
+	receipts: many(expenseReceipts),
 }));
 
 export const expenseReceiptsRelations = relations(expenseReceipts, ({ one }) => ({
-  expense: one(expenses, {
-    fields: [expenseReceipts.expenseId],
-    references: [expenses.id],
-  }),
-  uploadedBy: one(users, {
-    fields: [expenseReceipts.uploadedById],
-    references: [users.id],
-  }),
+	expense: one(expenses, {
+		fields: [expenseReceipts.expenseId],
+		references: [expenses.id],
+	}),
+	uploadedBy: one(users, {
+		fields: [expenseReceipts.uploadedById],
+		references: [users.id],
+	}),
 }));
 
 // Service and client management schemas and types
 export const insertServiceSchema = createInsertSchema(services).pick({
-  name: true,
-  description: true,
-  type: true,
-  isActive: true,
+	name: true,
+	description: true,
+	type: true,
+	isActive: true,
 });
 
 export const insertClientSchema = createInsertSchema(clients).pick({
-  name: true,
-  address: true,
-  type: true,
-  startDate: true,
-  contactInfo: true,
-  isActive: true,
+	name: true,
+	address: true,
+	type: true,
+	startDate: true,
+	contactInfo: true,
+	isActive: true,
 }).extend({
-  startDate: z.string().transform((str) => new Date(str)),
-  contactInfo: z.object({
-    phone: z.string().optional(),
-    whatsapp: z.string().optional(),
-    email: z.string().email().optional(),
-  }).optional(),
+	startDate: z.string().transform((str) => new Date(str)),
+	contactInfo: z.object({
+		phone: z.string().optional(),
+		whatsapp: z.string().optional(),
+		email: z.string().email().optional(),
+	}).optional(),
 });
 
 export const insertClientServiceSchema = createInsertSchema(clientServices).pick({
-  clientId: true,
-  serviceId: true,
-  characteristics: true,
-  price: true,
-  frequency: true,
-  contractFile: true,
-  contractFileUploadDate: true,
-  isActive: true,
-  startDate: true,
-  endDate: true,
-  notes: true,
+	clientId: true,
+	serviceId: true,
+	characteristics: true,
+	price: true,
+	frequency: true,
+	contractFile: true,
+	contractFileUploadDate: true,
+	isActive: true,
+	startDate: true,
+	endDate: true,
+	notes: true,
 }).extend({
-  price: z.number().min(0),
-  characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
-  contractFile: z.string().optional(),
-  contractFileUploadDate: z.preprocess((arg) => {
-    if (!arg) return null;
-    if (typeof arg === 'string') return new Date(arg);
-    if (arg instanceof Date) return arg;
-    return null;
-  }, z.date().nullable()),
-  startDate: z.preprocess((arg) => {
-    if (typeof arg === 'string') return new Date(arg);
-    if (arg instanceof Date) return arg;
-    return new Date();
-  }, z.date()),
-  endDate: z.preprocess((arg) => {
-    if (!arg) return null;
-    if (typeof arg === 'string') return new Date(arg);
-    if (arg instanceof Date) return arg;
-    return null;
-  }, z.date().nullable()),
+	price: z.number().min(0),
+	characteristics: z.array(z.enum(['remote', 'in_presence', 'one_time', 'short_term', 'long_term'])).min(1, 'Select at least one characteristic'),
+	contractFile: z.string().optional(),
+	contractFileUploadDate: z.preprocess((arg) => {
+		if (!arg) return null;
+		if (typeof arg === 'string') return new Date(arg);
+		if (arg instanceof Date) return arg;
+		return null;
+	}, z.date().nullable()),
+	startDate: z.preprocess((arg) => {
+		if (typeof arg === 'string') return new Date(arg);
+		if (arg instanceof Date) return arg;
+		return new Date();
+	}, z.date()),
+	endDate: z.preprocess((arg) => {
+		if (!arg) return null;
+		if (typeof arg === 'string') return new Date(arg);
+		if (arg instanceof Date) return arg;
+		return null;
+	}, z.date().nullable()),
 });
 
 export type Service = typeof services.$inferSelect;
@@ -1274,23 +1302,23 @@ export type InsertClientService = z.infer<typeof insertClientServiceSchema>;
 
 // Relations for permission tables
 export const userExpensePermissionsRelations = relations(userExpensePermissions, ({ one }) => ({
-  user: one(users, {
-    fields: [userExpensePermissions.userId],
-    references: [users.id],
-  }),
-  grantedBy: one(users, {
-    fields: [userExpensePermissions.grantedById],
-    references: [users.id],
-  }),
+	user: one(users, {
+		fields: [userExpensePermissions.userId],
+		references: [users.id],
+	}),
+	grantedBy: one(users, {
+		fields: [userExpensePermissions.grantedById],
+		references: [users.id],
+	}),
 }));
 
 export const userClientPermissionsRelations = relations(userClientPermissions, ({ one }) => ({
-  user: one(users, {
-    fields: [userClientPermissions.userId],
-    references: [users.id],
-  }),
-  grantedBy: one(users, {
-    fields: [userClientPermissions.grantedById],
-    references: [users.id],
-  }),
+	user: one(users, {
+		fields: [userClientPermissions.userId],
+		references: [users.id],
+	}),
+	grantedBy: one(users, {
+		fields: [userClientPermissions.grantedById],
+		references: [users.id],
+	}),
 }));
