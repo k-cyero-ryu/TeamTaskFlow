@@ -36,7 +36,6 @@ import AdjustQuantityDialog from "@/components/adjust-quantity-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/i18n";
-import { ReceiptForm } from "@/components/create-receipt";
 
 interface StockItem {
 	id: number;

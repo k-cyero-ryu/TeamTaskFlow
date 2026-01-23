@@ -45,7 +45,7 @@ interface IStorage {
   getUnreadMessageCount(userId: number): Promise<number>;
   getUserConversations(userId: number): Promise<{ user: Pick<User, 'id' | 'username'>; lastMessage: PrivateMessage & { sender: Pick<User, 'id' | 'username'> } }[]>;
   createPrivateMessage(message: InsertPrivateMessage & { senderId: number }): Promise<PrivateMessage>;
-  markMessagesAsRead(userId: number, otherUserId: number): Promise<void>;  
+  markMessagesAsRead(userId: number, otherUserId: number): Promise<void>;
   getWorkflows(): Promise<Workflow[]>;
   getWorkflow(id: number): Promise<Workflow | undefined>;
   createWorkflow(workflow: InsertWorkflow & { creatorId: number }): Promise<Workflow>;
@@ -57,7 +57,7 @@ interface IStorage {
   createWorkflowTransition(transition: InsertWorkflowTransition): Promise<WorkflowTransition>;
   getTasksByWorkflowStage(workflowId: number, stageId: number): Promise<Task[]>;
   updateTaskStage(taskId: number, stageId: number): Promise<Task>;
-  
+
   // Group chat methods
   getGroupChannels(userId: number): Promise<GroupChannel[]>;
   getGroupChannel(id: number): Promise<GroupChannel | undefined>;
@@ -68,7 +68,7 @@ interface IStorage {
   removeChannelMember(channelId: number, userId: number): Promise<void>;
   getGroupMessages(channelId: number): Promise<(GroupMessage & { sender: Pick<User, 'id' | 'username'> })[]>;
   createGroupMessage(message: InsertGroupMessage & { senderId: number; channelId: number }): Promise<GroupMessage>;
-  
+
   // File attachment methods
   createFileAttachment(file: InsertFileAttachment & { uploaderId: number }): Promise<FileAttachment>;
   getFileAttachment(id: number): Promise<FileAttachment | undefined>;
@@ -83,7 +83,7 @@ interface IStorage {
   ): Promise<GroupMessage>;
   getPrivateMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
   getGroupMessageAttachments(messageId: number): Promise<(FileAttachment & { id: number })[]>;
-  
+
   // Comment with attachments methods
   createCommentWithAttachments(
     comment: InsertComment & { userId: number },
@@ -100,7 +100,7 @@ interface IStorage {
   markNotificationAsRead(id: number): Promise<EmailNotification>;
   markNotificationAsUnread(id: number): Promise<EmailNotification>;
   markAllNotificationsAsRead(userId: number): Promise<{ updatedCount: number }>;
-  
+
   // Calendar event methods
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
   getCalendarEvent(id: number): Promise<CalendarEvent | undefined>;
@@ -108,17 +108,17 @@ interface IStorage {
   getCalendarEventByRelatedEntity(entityType: string, entityId: number): Promise<CalendarEvent | undefined>;
   updateCalendarEvent(id: number, data: Partial<CalendarEvent>): Promise<CalendarEvent>;
   deleteCalendarEvent(id: number): Promise<void>;
-  
+
   // User methods with email and notification preferences
   updateUserEmail(userId: number, email: string | undefined): Promise<User>;
   updateUserUsername(userId: number, username: string): Promise<User>;
   updateUserPassword(userId: number, newPassword: string): Promise<User>;
   updateUserNotificationPreferences(userId: number, preferences: Record<string, boolean>): Promise<User>;
-  
+
   // Task history methods
   getTaskHistory(taskId: number): Promise<(TaskHistory & { user: Pick<User, 'id' | 'username'> })[]>;
   createTaskHistoryEntry(entry: InsertTaskHistory & { taskId: number; userId: number }): Promise<TaskHistory>;
-  
+
   // Stock management methods
   getStockItems(): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> })[]>;
   getStockItem(id: number): Promise<(StockItem & { assignedUser?: Pick<User, 'id' | 'username'> }) | undefined>;
@@ -128,12 +128,12 @@ interface IStorage {
   adjustStockQuantity(itemId: number, userId: number, newQuantity: number, reason?: string): Promise<StockItem>;
   getStockMovements(itemId: number): Promise<(StockMovement & { user: Pick<User, 'id' | 'username'> })[]>;
   assignAllStockItems(userId: number | null): Promise<void>;
-  
+
   // Stock permissions methods
   getUserStockPermissions(userId: number): Promise<UserStockPermission | undefined>;
   setUserStockPermissions(userId: number, permissions: InsertUserStockPermission, grantedById: number): Promise<UserStockPermission>;
   getUsersWithStockAccess(): Promise<(User & { stockPermissions?: UserStockPermission })[]>;
-  
+
   // Estimation methods
   getEstimations(): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] })[]>;
   getEstimation(id: number): Promise<(Estimation & { createdBy: Pick<User, 'id' | 'username'>; items: (EstimationItem & { stockItem: Pick<StockItem, 'id' | 'name' | 'cost'> })[] }) | undefined>;
@@ -165,7 +165,7 @@ interface IStorage {
   getUserProformaPermissions(userId: number): Promise<UserProformaPermission | undefined>;
   getUsersWithProformaAccess(): Promise<Array<{ id: number; username: string; proformaPermissions?: UserProformaPermission; }>>;
   setUserProformaPermissions(userId: number, permissions: InsertUserProformaPermission, grantedById: number): Promise<UserProformaPermission>;
-  
+
   // Expense methods
   getExpenses(): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] })[]>;
   getExpense(id: number): Promise<(Expense & { createdBy: Pick<User, 'id' | 'username'>; receipts: (ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[] }) | undefined>;
@@ -173,17 +173,17 @@ interface IStorage {
   updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense>;
   deleteExpense(id: number): Promise<void>;
   markExpenseAsPaid(id: number): Promise<Expense>;
-  
+
   // Expense receipt methods
   getExpenseReceipts(expenseId: number): Promise<(ExpenseReceipt & { uploadedBy: Pick<User, 'id' | 'username'> })[]>;
   uploadExpenseReceipt(receipt: InsertExpenseReceipt, userId: number): Promise<ExpenseReceipt>;
   deleteExpenseReceipt(id: number): Promise<void>;
-  
+
   // Expense permissions methods
   getUserExpensePermissions(userId: number): Promise<UserExpensePermissions | undefined>;
   getUsersWithExpenseAccess(): Promise<Array<{ id: number; username: string; expensePermissions?: UserExpensePermissions; }>>;
   setUserExpensePermissions(userId: number, permissions: InsertUserExpensePermissions, grantedById: number): Promise<UserExpensePermissions>;
-  
+
   // Client permissions methods
   getUserClientPermissions(userId: number): Promise<UserClientPermissions | undefined>;
   getUsersWithClientAccess(): Promise<Array<{ id: number; username: string; clientPermissions?: UserClientPermissions; }>>;
@@ -273,7 +273,7 @@ export class DatabaseStorage implements IStorage {
         if (userId === 1) {
           return await db.select().from(tasks);
         }
-        
+
         // Get tasks where the user is:
         // 1. Creator
         // 2. Responsible person
@@ -302,7 +302,7 @@ export class DatabaseStorage implements IStorage {
             )
           )
           .groupBy(tasks.id); // Group by task ID to avoid duplicates
-        
+
         return userTasks;
       }, 'Get tasks for user');
     } catch (error) {
@@ -339,32 +339,32 @@ export class DatabaseStorage implements IStorage {
         // Add participants if any
         if (participantIds?.length) {
           try {
-            logger.info('Adding participants to task', { 
-              taskId: newTask.id, 
-              participantIds 
+            logger.info('Adding participants to task', {
+              taskId: newTask.id,
+              participantIds
             });
-            
+
             // Make sure all participantIds are valid numbers
             const validParticipantIds = participantIds
               .filter(id => typeof id === 'number' && !isNaN(id) && id > 0)
               .map(id => parseInt(String(id), 10)); // Ensure they're all integers
-              
+
             await db.insert(taskParticipants).values(
               validParticipantIds.map(userId => ({
                 taskId: newTask.id,
                 userId,
               }))
             );
-            
-            logger.info('Successfully added participants to task', { 
-              taskId: newTask.id, 
-              count: validParticipantIds.length 
+
+            logger.info('Successfully added participants to task', {
+              taskId: newTask.id,
+              count: validParticipantIds.length
             });
           } catch (participantError) {
             // Log but don't fail the whole task creation
-            logger.error('Failed to add participants to task', { 
-              taskId: newTask.id, 
-              error: participantError 
+            logger.error('Failed to add participants to task', {
+              taskId: newTask.id,
+              error: participantError
             });
           }
         }
@@ -413,17 +413,17 @@ export class DatabaseStorage implements IStorage {
         if (!currentTask) {
           throw new Error("Task not found");
         }
-        
+
         const [updatedTask] = await db
           .update(tasks)
           .set({ status })
           .where(eq(tasks.id, id))
           .returning();
-    
+
         if (!updatedTask) {
           throw new Error("Task not found");
         }
-    
+
         // Create history entry for status change
         if (currentTask.status !== status) {
           await this.createTaskHistoryEntry({
@@ -434,7 +434,7 @@ export class DatabaseStorage implements IStorage {
             newValue: status,
           });
         }
-    
+
         return updatedTask;
       }, 'Update task status');
     } catch (error) {
@@ -451,21 +451,21 @@ export class DatabaseStorage implements IStorage {
         if (!currentTask) {
           throw new Error("Task not found");
         }
-        
+
         const [updatedTask] = await db
           .update(tasks)
           .set({ dueDate })
           .where(eq(tasks.id, id))
           .returning();
-    
+
         if (!updatedTask) {
           throw new Error("Task not found");
         }
-    
+
         // Create history entry for due date change
         const oldDate = currentTask.dueDate?.toISOString() || null;
         const newDate = dueDate?.toISOString() || null;
-        
+
         if (oldDate !== newDate) {
           await this.createTaskHistoryEntry({
             taskId: id,
@@ -475,7 +475,7 @@ export class DatabaseStorage implements IStorage {
             newValue: newDate,
           });
         }
-    
+
         return updatedTask;
       }, 'Update task due date');
     } catch (error) {
@@ -510,13 +510,13 @@ export class DatabaseStorage implements IStorage {
         if (participantIds !== undefined) {
           // Remove existing participants
           await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
-          
+
           // Add new participants
           if (participantIds.length > 0) {
             const validParticipantIds = participantIds
               .filter(userId => typeof userId === 'number' && !isNaN(userId) && userId > 0)
               .map(userId => parseInt(String(userId), 10));
-              
+
             if (validParticipantIds.length > 0) {
               await db.insert(taskParticipants).values(
                 validParticipantIds.map(userId => ({
@@ -532,7 +532,7 @@ export class DatabaseStorage implements IStorage {
         if (subtaskList !== undefined) {
           // Remove existing subtasks
           await db.delete(subtasks).where(eq(subtasks.taskId, id));
-          
+
           // Add new subtasks
           if (subtaskList.length > 0) {
             await db.insert(subtasks).values(
@@ -548,7 +548,7 @@ export class DatabaseStorage implements IStorage {
         if (steps !== undefined) {
           // Remove existing steps
           await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
-          
+
           // Add new steps
           if (steps.length > 0) {
             await db.insert(taskSteps).values(
@@ -604,17 +604,17 @@ export class DatabaseStorage implements IStorage {
         await db.delete(taskParticipants).where(eq(taskParticipants.taskId, id));
         await db.delete(subtasks).where(eq(subtasks.taskId, id));
         await db.delete(taskSteps).where(eq(taskSteps.taskId, id));
-        
+
         // Delete comment attachments first, then comments
         const taskComments = await db.select({ id: comments.id }).from(comments).where(eq(comments.taskId, id));
         for (const comment of taskComments) {
           await db.delete(commentAttachments).where(eq(commentAttachments.commentId, comment.id));
         }
         await db.delete(comments).where(eq(comments.taskId, id));
-        
+
         // Delete task history records
         await db.delete(taskHistory).where(eq(taskHistory.taskId, id));
-        
+
         // Delete any calendar events related to this task
         await db.delete(calendarEvents).where(
           and(
@@ -622,7 +622,7 @@ export class DatabaseStorage implements IStorage {
             eq(calendarEvents.relatedEntityId, id)
           )
         );
-        
+
         // Delete any email notifications related to this task
         await db.delete(emailNotifications).where(
           and(
@@ -630,7 +630,7 @@ export class DatabaseStorage implements IStorage {
             eq(emailNotifications.relatedEntityId, id)
           )
         );
-        
+
         // Finally delete the task itself
         await db.delete(tasks).where(eq(tasks.id, id));
       }, 'Delete task with all related entities');
@@ -673,7 +673,7 @@ export class DatabaseStorage implements IStorage {
           .from(taskParticipants)
           .innerJoin(users, eq(taskParticipants.userId, users.id))
           .where(eq(taskParticipants.taskId, taskId));
-    
+
         return participants;
       }, 'Get participants for task');
     } catch (error) {
@@ -784,11 +784,11 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(comments.id, id))
           .returning();
-        
+
         if (!updatedComment) {
           throw new Error("Comment not found");
         }
-        
+
         return updatedComment;
       }, 'Update comment');
     } catch (error) {
@@ -841,7 +841,7 @@ export class DatabaseStorage implements IStorage {
             )
           )
           .orderBy(privateMessages.createdAt);
-          
+
         // For each message, fetch its attachments
         const messagesWithAttachments = await Promise.all(
           messages.map(async (message) => {
@@ -857,7 +857,7 @@ export class DatabaseStorage implements IStorage {
             }
           })
         );
-        
+
         return messagesWithAttachments;
       }, 'Get private messages between users');
     } catch (error) {
@@ -975,10 +975,10 @@ export class DatabaseStorage implements IStorage {
         return newMessage;
       }, 'Create private message');
     } catch (error) {
-      logger.error('Failed to create private message', { 
-        error, 
-        senderId: message.senderId, 
-        recipientId: message.recipientId 
+      logger.error('Failed to create private message', {
+        error,
+        senderId: message.senderId,
+        recipientId: message.recipientId
       });
       throw new DatabaseError(`Failed to create private message: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1138,8 +1138,8 @@ export class DatabaseStorage implements IStorage {
         return newTransition;
       }, 'Create workflow transition');
     } catch (error) {
-      logger.error('Failed to create workflow transition', { 
-        error, 
+      logger.error('Failed to create workflow transition', {
+        error,
         fromStageId: transition.fromStageId,
         toStageId: transition.toStageId
       });
@@ -1186,7 +1186,7 @@ export class DatabaseStorage implements IStorage {
       throw new DatabaseError(`Failed to update task stage: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  
+
   // Group chat methods
   async getGroupChannels(userId: number): Promise<GroupChannel[]> {
     try {
@@ -1200,17 +1200,17 @@ export class DatabaseStorage implements IStorage {
           .where(eq(channelMembers.userId, userId));
 
         const userChannelIds = userChannels.map(channel => channel.channelId);
-        
+
         // Get all public channels
         const allChannels = await db
           .select()
           .from(groupChannels)
           .orderBy(groupChannels.createdAt);
-        
+
         // Filter to get:
         // 1. All public channels
         // 2. Private channels where the user is a member
-        return allChannels.filter(channel => 
+        return allChannels.filter(channel =>
           !channel.isPrivate || // Public channels
           userChannelIds.includes(channel.id) // Private channels where user is a member
         );
@@ -1387,7 +1387,7 @@ export class DatabaseStorage implements IStorage {
           .innerJoin(users, eq(groupMessages.senderId, users.id))
           .where(eq(groupMessages.channelId, channelId))
           .orderBy(groupMessages.createdAt);
-        
+
         // For each message, fetch its attachments
         const messagesWithAttachments = await Promise.all(
           messages.map(async (message) => {
@@ -1403,7 +1403,7 @@ export class DatabaseStorage implements IStorage {
             }
           })
         );
-        
+
         return messagesWithAttachments;
       }, 'Get group messages for channel');
     } catch (error) {
@@ -1603,7 +1603,7 @@ export class DatabaseStorage implements IStorage {
             eq(privateMessageAttachments.fileId, fileAttachments.id)
           )
           .where(eq(privateMessageAttachments.messageId, messageId));
-        
+
         return attachments;
       }, 'Get attachments for private message');
     } catch (error) {
@@ -1632,7 +1632,7 @@ export class DatabaseStorage implements IStorage {
             eq(groupMessageAttachments.fileId, fileAttachments.id)
           )
           .where(eq(groupMessageAttachments.messageId, messageId));
-        
+
         return attachments;
       }, 'Get attachments for group message');
     } catch (error) {
@@ -1668,18 +1668,18 @@ export class DatabaseStorage implements IStorage {
             path: file.path,
             uploaderId: comment.userId,
           }));
-          
+
           const createdFiles = await db
             .insert(fileAttachments)
             .values(fileInserts)
             .returning();
-          
+
           // Create comment-attachment associations
           const attachmentInserts = createdFiles.map(file => ({
             commentId: newComment.id,
             fileId: file.id,
           }));
-          
+
           await db.insert(commentAttachments).values(attachmentInserts);
         }
 
@@ -1711,7 +1711,7 @@ export class DatabaseStorage implements IStorage {
             eq(commentAttachments.fileId, fileAttachments.id)
           )
           .where(eq(commentAttachments.commentId, commentId));
-        
+
         return attachments;
       }, 'Get attachments for comment');
     } catch (error) {
@@ -1778,11 +1778,11 @@ export class DatabaseStorage implements IStorage {
           .set(data)
           .where(eq(emailNotifications.id, id))
           .returning();
-        
+
         if (!updatedNotification) {
           throw new Error('Email notification not found');
         }
-        
+
         return updatedNotification;
       }, 'Update email notification');
     } catch (error) {
@@ -1809,17 +1809,17 @@ export class DatabaseStorage implements IStorage {
       return await executeWithRetry(async () => {
         const [updatedNotification] = await db
           .update(emailNotifications)
-          .set({ 
+          .set({
             isRead: true,
             readAt: new Date()
           })
           .where(eq(emailNotifications.id, id))
           .returning();
-        
+
         if (!updatedNotification) {
           throw new Error(`Email notification with ID ${id} not found`);
         }
-        
+
         return updatedNotification;
       }, 'Mark notification as read');
     } catch (error) {
@@ -1833,17 +1833,17 @@ export class DatabaseStorage implements IStorage {
       return await executeWithRetry(async () => {
         const [updatedNotification] = await db
           .update(emailNotifications)
-          .set({ 
+          .set({
             isRead: false,
             readAt: null
           })
           .where(eq(emailNotifications.id, id))
           .returning();
-        
+
         if (!updatedNotification) {
           throw new Error(`Email notification with ID ${id} not found`);
         }
-        
+
         return updatedNotification;
       }, 'Mark notification as unread');
     } catch (error) {
@@ -1857,7 +1857,7 @@ export class DatabaseStorage implements IStorage {
       return await executeWithRetry(async () => {
         const result = await db
           .update(emailNotifications)
-          .set({ 
+          .set({
             isRead: true,
             readAt: new Date()
           })
@@ -1866,7 +1866,7 @@ export class DatabaseStorage implements IStorage {
             eq(emailNotifications.isRead, false)
           ))
           .returning({ id: emailNotifications.id });
-        
+
         return { updatedCount: result.length };
       }, 'Mark all notifications as read');
     } catch (error) {
@@ -1949,11 +1949,11 @@ export class DatabaseStorage implements IStorage {
           .set(data)
           .where(eq(calendarEvents.id, id))
           .returning();
-        
+
         if (!updatedEvent) {
           throw new Error('Calendar event not found');
         }
-        
+
         return updatedEvent;
       }, 'Update calendar event');
     } catch (error) {
@@ -1984,11 +1984,11 @@ export class DatabaseStorage implements IStorage {
           .set({ email })
           .where(eq(users.id, userId))
           .returning();
-        
+
         if (!updatedUser) {
           throw new Error('User not found');
         }
-        
+
         return updatedUser;
       }, 'Update user email');
     } catch (error) {
@@ -2005,11 +2005,11 @@ export class DatabaseStorage implements IStorage {
           .set({ notificationPreferences: preferences })
           .where(eq(users.id, userId))
           .returning();
-        
+
         if (!updatedUser) {
           throw new Error('User not found');
         }
-        
+
         return updatedUser;
       }, 'Update user notification preferences');
     } catch (error) {
@@ -2026,11 +2026,11 @@ export class DatabaseStorage implements IStorage {
           .set({ username })
           .where(eq(users.id, userId))
           .returning();
-        
+
         if (!updatedUser) {
           throw new Error('User not found');
         }
-        
+
         return updatedUser;
       }, 'Update user username');
     } catch (error) {
@@ -2057,11 +2057,11 @@ export class DatabaseStorage implements IStorage {
           .set({ password: hashedPassword })
           .where(eq(users.id, userId))
           .returning();
-        
+
         if (!updatedUser) {
           throw new Error('User not found');
         }
-        
+
         return updatedUser;
       }, 'Update user password');
     } catch (error) {
@@ -2481,7 +2481,7 @@ export class DatabaseStorage implements IStorage {
                 .from(users)
                 .where(eq(users.id, estimation.techniqueId))
                 .limit(1);
-              
+
               if (techniqueUser.length > 0) {
                 technique = techniqueUser[0];
               }
@@ -3001,7 +3001,7 @@ export class DatabaseStorage implements IStorage {
       await executeWithRetry(async () => {
         // Delete proforma items first
         await db.delete(proformaItems).where(eq(proformaItems.proformaId, id));
-        
+
         // Delete the proforma
         await db.delete(proformas).where(eq(proformas.id, id));
       }, 'Delete proforma');
@@ -3015,7 +3015,7 @@ export class DatabaseStorage implements IStorage {
     try {
       return await executeWithRetry(async () => {
         const year = new Date().getFullYear();
-        
+
         // Get the highest number for this year
         const result = await db
           .select({

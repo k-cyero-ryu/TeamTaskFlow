@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
 import {
 	Select,
 	SelectContent,
@@ -25,11 +29,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+
 
 const createReceiptSchema = z.object({
 	receipt_code: z.string().min(1, "Receipt Code is required"),
 	responsible_name: z.string().min(1, "Responsible name is required"),
 	for_name: z.string().min(1, "Receiver name is required"),
+	description: z.string().optional(),
 	items: z
 		.array(
 			z.object({
@@ -42,34 +49,70 @@ const createReceiptSchema = z.object({
 
 type CreateReceiptForm = z.infer<typeof createReceiptSchema>;
 
-interface Props {
+interface ReceiptFormProps {
 	stockItems: { id: number; name: string }[];
 	onClose: () => void;
-	onSubmit: (data: CreateReceiptForm) => void;
 }
 
 //Receipt Code generator
-	const date = 	new Date();
+const date = new Date();
 
-	const receiptCode = `STCK_${String(date.getDate()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}${String(date.getMilliseconds()).padStart(6, "0")}`;
+const receiptCode = `STCK_${String(date.getDate()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}${String(date.getMilliseconds()).padStart(6, "0")}`;
 
 
-export function ReceiptForm({ stockItems, onClose, onSubmit }: Props) {
+
+export default function ReceiptForm({ onClose, stockItems }: ReceiptFormProps) {
+	const { toast } = useToast();
+	const [costDisplay, setCostDisplay] = useState("");
+
+
+
+
 	const form = useForm<CreateReceiptForm>({
 		resolver: zodResolver(createReceiptSchema),
 		defaultValues: {
 			receipt_code: receiptCode,
 			responsible_name: "",
 			for_name: "",
+			description: "",
 			items: [{ item_id: stockItems[0]?.id || 0, quantity: 1 }],
 		},
 	});
+
+	const createMutation = useMutation({
+		mutationFn: async (data: CreateReceiptForm) => {
+			const res = await apiRequest("POST", "/api/stock/items", data);
+			return res.json();
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["/api/stock/items"] });
+			toast({
+				title: "Success",
+				description: "Receipt created successfully",
+			});
+			onClose();
+		},
+		onError: (error: Error) => {
+			toast({
+				title: "Error",
+				description: error.message || "Failed to create receipt",
+				variant: "destructive",
+			});
+		},
+	});
+
+
+	const onSubmit = (data: CreateReceiptForm) => {
+		createMutation.mutate({
+			...data,
+			description: data.description || undefined,
+		});
+	};
 
 	const { fields, append, remove } = useFieldArray({
 		control: form.control,
 		name: "items",
 	});
-
 
 
 
@@ -83,10 +126,8 @@ export function ReceiptForm({ stockItems, onClose, onSubmit }: Props) {
 			</DialogHeader>
 
 			<Form {...form}>
-				<form
-					onSubmit={form.handleSubmit(onSubmit)}
-					className="space-y-4"
-				>
+				<form onSubmit={form.handleSubmit(onSubmit)}>
+
 					{/* Receipt Info */}
 					<FormField
 						control={form.control}
@@ -129,6 +170,7 @@ export function ReceiptForm({ stockItems, onClose, onSubmit }: Props) {
 							</FormItem>
 						)}
 					/>
+
 
 					{/* Dynamic Items */}
 					<div className="space-y-2">
@@ -207,6 +249,20 @@ export function ReceiptForm({ stockItems, onClose, onSubmit }: Props) {
 					>
 						Add Item
 					</Button>
+
+					<FormField
+						control={form.control}
+						name="description"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Description</FormLabel>
+								<FormControl>
+									<Textarea placeholder="Extra information" {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
 
 					{/* Submit */}
 					<div className="flex justify-end gap-2 mt-4">

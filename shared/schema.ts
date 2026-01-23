@@ -110,6 +110,7 @@ export const receipt = pgTable("receipt", {
 	receipt_code: text('receipt_code').notNull(),
 	responsible_name: text('responsible_name').notNull(),
 	for_name: text('for_name').notNull(),
+	description: text('description'),
 	created_at: timestamp('created_at').notNull().defaultNow()
 });
 
@@ -671,6 +672,22 @@ export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pi
 
 });
 
+
+export const insertReceiptSchema = z.object({
+	receipt_code: z.string().min(1),
+	responsible_name: z.string().min(1),
+	for_name: z.string().min(1),
+	description: z.string().min(1),
+	items: z.array(
+		z.object({
+			item_id: z.number().int().positive(),
+			quantity: z.number().int().positive(),
+		})
+	).min(1),
+});
+
+
+
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
 	name: true,
 	description: true,
@@ -761,6 +778,8 @@ export type InsertGroupChannel = z.infer<typeof insertGroupChannelSchema>;
 export type InsertChannelMember = z.infer<typeof insertChannelMemberSchema>;
 export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
 export type TaskHistory = typeof taskHistory.$inferSelect;
+export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
+
 
 // Task history schema
 export const insertTaskHistorySchema = createInsertSchema(taskHistory).pick({
