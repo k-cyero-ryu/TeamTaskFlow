@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/use-auth";
 import CreateStockItemDialog from "@/components/create-stock-item-dialog";
+import ReceiptForm from "@/components/create-receipt";
 import AdjustQuantityDialog from "@/components/adjust-quantity-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";

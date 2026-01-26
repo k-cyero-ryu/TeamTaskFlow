@@ -17,6 +17,7 @@ import expensesRouter from './expenses';
 import servicesRouter from './services';
 import clientsRouter from './clients';
 import clientServicesRouter from './client-services';
+import receiptRouter from './receipt';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use('/email', emailRouter);
 router.use('/calendar', calendarRouter);
 router.use('/stages', stagesRouter);
 router.use('/stock', stockRouter);
+router.use('/receipt', receiptRouter);
 router.use('/estimations', estimationsRouter);
 router.use('/companies', companiesRouter);
 router.use('/proformas', proformasRouter);

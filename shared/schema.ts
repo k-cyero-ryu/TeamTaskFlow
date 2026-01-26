@@ -108,6 +108,7 @@ export const receipt = pgTable("receipt", {
 	id: serial("id").primaryKey(),
 	user_id: integer('user_id').notNull().references(() => users.id).notNull(),
 	receipt_code: text('receipt_code').notNull(),
+	name: text('name').notNull(),
 	responsible_name: text('responsible_name').notNull(),
 	for_name: text('for_name').notNull(),
 	description: text('description'),
@@ -122,7 +123,8 @@ export const receipt_items = pgTable("receipt_items", {
 	quantity: integer('quantity').notNull()
 });
 
-
+export type Receipts = typeof receipt.$inferSelect;
+export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
 
 export const subtasks = pgTable("subtasks", {
 	id: serial("id").primaryKey(),
@@ -675,6 +677,7 @@ export const insertPrivateMessageSchema = createInsertSchema(privateMessages).pi
 
 export const insertReceiptSchema = z.object({
 	receipt_code: z.string().min(1),
+	name: z.string().min(1),
 	responsible_name: z.string().min(1),
 	for_name: z.string().min(1),
 	description: z.string().min(1),
@@ -778,7 +781,6 @@ export type InsertGroupChannel = z.infer<typeof insertGroupChannelSchema>;
 export type InsertChannelMember = z.infer<typeof insertChannelMemberSchema>;
 export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
 export type TaskHistory = typeof taskHistory.$inferSelect;
-export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
 
 
 // Task history schema
@@ -876,6 +878,8 @@ export type UserStockPermission = typeof userStockPermissions.$inferSelect;
 export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type InsertUserStockPermission = z.infer<typeof insertUserStockPermissionSchema>;
+
+
 
 // Estimation management tables
 export const estimations = pgTable("estimations", {

@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const createReceiptSchema = z.object({
 	receipt_code: z.string().min(1, "Receipt Code is required"),
+	name: z.string().min(1, "Receipt Name is required"),
 	responsible_name: z.string().min(1, "Responsible name is required"),
 	for_name: z.string().min(1, "Receiver name is required"),
 	description: z.string().optional(),
@@ -72,6 +73,7 @@ export default function ReceiptForm({ onClose, stockItems }: ReceiptFormProps) {
 		resolver: zodResolver(createReceiptSchema),
 		defaultValues: {
 			receipt_code: receiptCode,
+			name: "",
 			responsible_name: "",
 			for_name: "",
 			description: "",
@@ -81,11 +83,18 @@ export default function ReceiptForm({ onClose, stockItems }: ReceiptFormProps) {
 
 	const createMutation = useMutation({
 		mutationFn: async (data: CreateReceiptForm) => {
-			const res = await apiRequest("POST", "/api/stock/items", data);
-			return res.json();
+			console.log("Submitting receipt data:", data);
+
+			const res = await apiRequest("POST", "/api/receipt/InsertItems", data);
+
+			const json = await res.json();
+			console.log("Response JSON:", json);
+
+			return json;
+
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["/api/stock/items"] });
+			queryClient.invalidateQueries({ queryKey: ["/api/receipt/InsertItems"] });
 			toast({
 				title: "Success",
 				description: "Receipt created successfully",
@@ -137,6 +146,20 @@ export default function ReceiptForm({ onClose, stockItems }: ReceiptFormProps) {
 								<FormLabel>Receipt Code *</FormLabel>
 								<FormControl>
 									<Input readOnly placeholder="Enter receipt code" {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="name"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Receipt Name *</FormLabel>
+								<FormControl>
+									<Input placeholder="The name of the receipt?" {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
